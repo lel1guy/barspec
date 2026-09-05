@@ -1,4 +1,4 @@
-"""BarSpec — cocktail spec manager with scaling + cost/ABV.
+"""BarSpec — cocktail spec manager with scaling + cost/ABV + menu pricing.
 
 Single-user local web app. SQLite via stdlib (no ORM — you can read every query).
 Run:  uvicorn main:app --reload   then open http://127.0.0.1:8000
@@ -6,7 +6,7 @@ Run:  uvicorn main:app --reload   then open http://127.0.0.1:8000
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import db
 
@@ -21,15 +21,29 @@ db.init_db()
 class SpecIn(BaseModel):
     name: str
     glass: str = ""
-    method: str = ""          # "stirred", "shaken", "built"...
+    method: str = ""
     garnish: str = ""
+    price_eur: float | None = None       # accepted sell price (menu)
+    target_gp: float = 70                # target gross-profit % for pricing
 
-class IngredientIn(BaseModel):
+
+class LineIn(BaseModel):
     name: str
-    amount_ml: float
-    abv: float = 0.0          # 0-100. 0 = mixer (lime, syrup, soda)
+    amount_ml: float = Field(gt=0)
+    abv: float = 0.0                     # used only when creating a NEW stock item
     bottle_price_eur: float = 0.0
-    bottle_volume_ml: float = 700.0  # default: 70cl bottle
+    bottle_volume_ml: float = 700.0
+
+
+class LineUpdate(BaseModel):
+    amount_ml: float = Field(gt=0)
+
+
+class StockIn(BaseModel):
+    name: str
+    abv: float = 0.0
+    bottle_price_eur: float = 0.0
+    bottle_volume_ml: float = 700.0
 
 
 # ---------- Pages ----------
@@ -45,9 +59,11 @@ def index():
 def list_specs():
     return db.get_specs()
 
+
 @app.post("/api/specs")
 def create_spec(spec: SpecIn):
     return db.create_spec(spec.model_dump())
+
 
 @app.get("/api/specs/{spec_id}")
 def get_spec(spec_id: int):
@@ -56,12 +72,13 @@ def get_spec(spec_id: int):
         raise HTTPException(404, "Spec not found")
     return s
 
+
 @app.put("/api/specs/{spec_id}")
 def update_spec(spec_id: int, spec: SpecIn):
-    ok = db.update_spec(spec_id, spec.model_dump())
-    if not ok:
+    if not db.update_spec(spec_id, spec.model_dump()):
         raise HTTPException(404, "Spec not found")
     return {"ok": True}
+
 
 @app.delete("/api/specs/{spec_id}")
 def delete_spec(spec_id: int):
@@ -69,20 +86,75 @@ def delete_spec(spec_id: int):
     return {"ok": True}
 
 
-# ---------- Ingredients ----------
+@app.post("/api/specs/{spec_id}/duplicate")
+def duplicate_spec(spec_id: int):
+    s = db.duplicate_spec(spec_id)
+    if not s:
+        raise HTTPException(404, "Spec not found")
+    return s
 
-@app.post("/api/specs/{spec_id}/ingredients")
-def add_ingredient(spec_id: int, ing: IngredientIn):
-    return db.add_ingredient(spec_id, ing.model_dump())
 
-@app.put("/api/ingredients/{ing_id}")
-def update_ingredient(ing_id: int, ing: IngredientIn):
-    ok = db.update_ingredient(ing_id, ing.model_dump())
-    if not ok:
-        raise HTTPException(404, "Ingredient not found")
+# ---------- Spec lines ----------
+
+@app.post("/api/specs/{spec_id}/lines")
+def add_line(spec_id: int, line: LineIn):
+    """Add an ingredient to a spec. Name resolves against stock; unknown names
+    create the stock item (bottle) automatically."""
+    s = db.add_line(spec_id, line.model_dump())
+    if not s:
+        raise HTTPException(404, "Spec not found")
+    return s
+
+
+@app.put("/api/lines/{line_id}")
+def update_line(line_id: int, upd: LineUpdate):
+    if not db.update_line(line_id, upd.amount_ml):
+        raise HTTPException(404, "Line not found")
     return {"ok": True}
 
-@app.delete("/api/ingredients/{ing_id}")
-def delete_ingredient(ing_id: int):
-    db.delete_ingredient(ing_id)
+
+@app.delete("/api/lines/{line_id}")
+def delete_line(line_id: int):
+    if not db.delete_line(line_id):
+        raise HTTPException(404, "Line not found")
     return {"ok": True}
+
+
+# ---------- Stock (the shared bottle list) ----------
+
+@app.get("/api/stock")
+def list_stock():
+    return db.get_stock_items()
+
+
+@app.post("/api/stock")
+def create_stock(item: StockIn):
+    try:
+        return db.create_stock_item(item.model_dump())
+    except ValueError:
+        raise HTTPException(409, "Stock item already exists")
+
+
+@app.put("/api/stock/{stock_id}")
+def update_stock(stock_id: int, item: StockIn):
+    """Bottle price edited once. If the price moved, the response carries the
+    ripple: every spec whose drink cost changed, old -> new."""
+    result = db.update_stock_item(stock_id, item.model_dump())
+    if result is None:
+        raise HTTPException(404, "Stock item not found")
+    return {"ok": True, "impact": result["impact"]}
+
+
+@app.delete("/api/stock/{stock_id}")
+def delete_stock(stock_id: int):
+    state = db.delete_stock_item(stock_id)
+    if state == "in-use":
+        raise HTTPException(409, "Bottle is used by specs — remove it from them first")
+    return {"ok": True}
+
+
+# ---------- Menu (printable pricing view) ----------
+
+@app.get("/api/menu")
+def menu():
+    return db.get_menu()
