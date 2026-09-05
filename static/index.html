@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BarSpec</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --panel: #1d1a17;
+    --ink: #f5efe6;
+    --muted: #b8ab99;
+    --accent: #e8a13c;
+    --line: #3a342c;
+    --good: #7fbf6f;
+    --danger: #d96c5f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 18px; line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 26px; color: var(--accent); }
+  header .tag { color: var(--muted); font-size: 15px; }
+  main { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 20px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 850px) { main { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  button {
+    background: var(--accent); color: #1a1208; border: 0; border-radius: 6px;
+    font-size: 16px; font-weight: 600; padding: 8px 14px; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button.small { font-size: 14px; padding: 4px 10px; }
+  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:hover { filter: brightness(1.1); }
+  input, select {
+    background: #241f1a; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; font-size: 17px; padding: 6px 8px; width: 100%;
+  }
+  input[type=number] { width: 100%; }
+  label { display: block; color: var(--muted); font-size: 14px; margin: 8px 0 3px; }
+  .row { display: flex; gap: 8px; align-items: end; }
+  .row .grow { flex: 1; }
+
+  #specList .spec-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; border-radius: 6px; cursor: pointer;
+  }
+  #specList .spec-item:hover { background: #262019; }
+  #specList .spec-item.active { background: #2e2619; border: 1px solid var(--accent); }
+  .spec-name { font-weight: 600; }
+  .spec-meta { color: var(--muted); font-size: 14px; }
+
+  .spec-header { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .spec-header h2 { margin: 0 0 4px; font-size: 28px; }
+  .spec-facts { color: var(--muted); font-size: 15px; }
+  .stat-strip { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
+  .stat {
+    background: #241f1a; border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 16px; min-width: 120px;
+  }
+  .stat .num { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat .cap { font-size: 13px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { text-align: left; color: var(--muted); font-size: 14px; font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px; border-bottom: 1px solid #2a251f; font-size: 17px; vertical-align: middle; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ing-name { font-weight: 600; }
+  .edit-note { color: var(--muted); font-size: 14px; font-style: italic; }
+  .hidden { display: none; }
+  #empty { color: var(--muted); text-align: center; padding: 40px 0; }
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: #2e2619; color: var(--ink); border: 1px solid var(--accent);
+    padding: 10px 18px; border-radius: 8px; font-size: 15px;
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BarSpec</h1>
+  <span class="tag">specs · scale · cost · ABV</span>
+</header>
+
+<main>
+  <!-- LEFT: spec list -->
+  <div class="panel">
+    <button id="newSpecBtn" style="width:100%; margin-bottom: 12px;">+ New spec</button>
+    <div id="specList"></div>
+  </div>
+
+  <!-- RIGHT: detail -->
+  <div class="panel" id="detailPanel">
+    <div id="empty">Pick a spec on the left, or create one.</div>
+    <div id="detail" class="hidden"></div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let currentSpec = null;   // id of open spec
+let servings = 1;
+
+// ---------- tiny fetch helpers ----------
+async function api(url, method = "GET", body = null) {
+  const opts = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  if (!r.ok) { const t = await r.text(); throw new Error(t || r.status); }
+  return r.status === 204 ? null : r.json();
+}
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+const eur = (v) => "€" + (Math.round(v * 100) / 100).toFixed(2);
+
+// ---------- render helpers ----------
+async function loadSpecs(keepOpen) {
+  const specs = await api("/api/specs");
+  const box = $("#specList");
+  box.innerHTML = "";
+  if (!specs.length) { box.innerHTML = '<div class="edit-note">No specs yet.</div>'; return; }
+  for (const s of specs) {
+    const el = document.createElement("div");
+    el.className = "spec-item" + (s.id === currentSpec ? " active" : "");
+    el.innerHTML = `<div>
+        <div class="spec-name">${esc(s.name)}</div>
+        <div class="spec-meta">${esc(s.method || "—")}</div>
+      </div>
+      <button class="ghost small" data-del="${s.id}">✕</button>`;
+    el.addEventListener("click", () => openSpec(s.id));
+    el.querySelector("[data-del]").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("Delete " + s.name + "?")) return;
+      await api("/api/specs/" + s.id, "DELETE");
+      if (currentSpec === s.id) { currentSpec = null; }
+      loadSpecs(); renderEmpty();
+    });
+    box.appendChild(el);
+  }
+  if (keepOpen && currentSpec) openSpec(currentSpec);
+}
+function esc(x) {
+  return String(x).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ---------- cost/ABV math (mirrors db.py) ----------
+function summarize(ings) {
+  let totalMl = 0, cost = 0, abvVol = 0;
+  for (const i of ings) {
+    totalMl += i.amount_ml;
+    if (i.bottle_volume_ml > 0) cost += i.amount_ml * (i.bottle_price_eur / i.bottle_volume_ml);
+    abvVol += i.amount_ml * (i.abv / 100);
+  }
+  return { ml: totalMl, cost: cost, abv: totalMl ? (abvVol / totalMl * 100) : 0 };
+}
+
+// ---------- detail view ----------
+async function openSpec(id) {
+  currentSpec = id;
+  const s = await api("/api/specs/" + id);
+  const d = $("#detail");
+  d.classList.remove("hidden");
+  $("#empty").classList.add("hidden");
+  d.innerHTML = `
+    <div class="spec-header">
+      <div>
+        <h2>${esc(s.name)}</h2>
+        <div class="spec-facts">${esc(s.glass || "")}${s.garnish ? " · " + esc(s.garnish) : ""}</div>
+      </div>
+      <div class="row">
+        <button class="ghost" id="editBtn">Edit</button>
+        <button class="ghost" id="ingBtn">Ingredients</button>
+        <button class="ghost" id="dupeBtn">Duplicate</button>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><div class="num" id="statServe">—</div><div class="cap">per serve</div></div>
+      <div class="stat"><div class="num" id="statBatch">—</div><div class="cap">batch cost</div></div>
+      <div class="stat"><div class="num" id="statAbv">—</div><div class="cap">ABV</div></div>
+      <div class="stat"><div class="num" id="statVol">—</div><div class="cap">volume</div></div>
+    </div>
+
+    <div class="row" style="margin: 10px 0 4px;">
+      <div class="grow">
+        <label for="servings">Servings</label>
+        <input type="number" id="servings" min="1" max="999" value="1">
+      </div>
+      <div class="grow">
+        <label for="cupSize">Cup size (ml) — optional</label>
+        <input type="number" id="cupSize" min="0" placeholder="empty">
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Ingredient</th><th>ml (×1)</th><th>ml (×${esc(String(servings))})</th><th>ABV</th><th>Unit €</th><th>Cost</th></tr></thead>
+      <tbody id="ingBody"></tbody>
+    </table>
+    <div class="edit-note">Dilution from ice not included. Enter a bottle price to unlock cost math.</div>
+  `;
+
+  $("#servings").addEventListener("input", (e) => {
+    servings = Math.max(1, parseInt(e.target.value) || 1);
+    renderDetail(s);
+  });
+
+  $("#editBtn").addEventListener("click", () => editSpecForm(s));
+  $("#ingBtn").addEventListener("click", () => editIngredientsForm(s));
+  $("#dupeBtn").addEventListener("click", async () => {
+    const copy = { name: s.name + " (copy)", glass: s.glass, method: s.method, garnish: s.garnish };
+    const created = await api("/api/specs", "POST", copy);
+    for (const ing of s.ingredients) {
+      await api(`/api/specs/${created.id}/ingredients`, "POST", {
+        name: ing.name, amount_ml: ing.amount_ml, abv: ing.abv,
+        bottle_price_eur: ing.bottle_price_eur, bottle_volume_ml: ing.bottle_volume_ml,
+      });
+    }
+    toast("Duplicated");
+    loadSpecs(true);
+  });
+
+  renderDetail(s);
+  loadSpecs(false);   // refresh highlight
+}
+
+function renderDetail(s) {
+  const body = $("#ingBody");
+  const sum = summarize(s.ingredients);
+  $("#statServe").textContent = eur(sum.cost);
+  $("#statBatch").textContent = eur(sum.cost * servings);
+  $("#statAbv").textContent = sum.abv.toFixed(1) + "%";
+  $("#statVol").textContent = Math.round(sum.ml) + " ml";
+
+  body.innerHTML = "";
+  for (const i of s.ingredients) {
+    const unit = sum.ml > 0 ? (i.bottle_price_eur / i.bottle_volume_ml * 1000) : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="ing-name">${esc(i.name)}</span></td>
+      <td class="num">${i.amount_ml}</td>
+      <td class="num">${Math.round(i.amount_ml * servings * 10) / 10}</td>
+      <td class="num">${i.abv ? i.abv + "%" : "—"}</td>
+      <td class="num">${i.bottle_price_eur ? eur(unit) + "/L" : "—"}</td>
+      <td class="num">${i.bottle_price_eur ? eur(i.amount_ml * i.bottle_price_eur / i.bottle_volume_ml) : "—"}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+// ---------- forms ----------
+function renderEmpty() {
+  if (!currentSpec) { $("#detail").classList.add("hidden"); $("#empty").classList.remove("hidden"); }
+}
+
+function editSpecForm(s) {
+  const d = $("#detail");
+  d.innerHTML = `
+    <h2 style="margin-top:0">${s ? "Edit" : "New"} spec</h2>
+    <label>Name</label><input id="fName" value="${esc(s ? s.name : "")}" placeholder="Negroni">
+    <label>Glass</label><input id="fGlass" value="${esc(s ? s.glass : "")}" placeholder="Rocks glass, big ice cube">
+    <label>Method</label><input id="fMethod" value="${esc(s ? s.method : "")}" placeholder="Stirred">
+    <label>Garnish</label><input id="fGarnish" value="${esc(s ? s.garnish : "")}" placeholder="Orange peel">
+    <div class="row" style="margin-top:16px;">
+      <button id="saveSpec">Save</button>
+      ${s ? `<button class="ghost" id="cancelEdit">Cancel</button>` : `<button class="ghost" id="cancelNew" onclick="location.reload()">Cancel</button>`}
+    </div>`;
+  $("#saveSpec").addEventListener("click", async () => {
+    const data = {
+      name: $("#fName").value.trim(),
+      glass: $("#fGlass").value.trim(),
+      method: $("#fMethod").value.trim(),
+      garnish: $("#fGarnish").value.trim(),
+    };
+    if (!data.name) { toast("Name needed"); return; }
+    if (s) { await api("/api/specs/" + s.id, "PUT", data); openSpec(s.id); }
+    else {
+      const created = await api("/api/specs", "POST", data);
+      currentSpec = created.id;
+      editIngredientsForm(created); // straight to ingredient entry, no race
+    }
+    loadSpecs(false);
+    toast("Saved");
+  });
+  if (s) $("#cancelEdit").addEventListener("click", () => openSpec(s.id));
+}
+
+function editIngredientsForm(s) {
+  const d = $("#detail");
+  d.innerHTML = `
+    <h2 style="margin-top:0">Ingredients — ${esc(s.name)}</h2>
+    <div class="edit-note">amount in ml · ABV as % (0 for mixers) · bottle price in € · bottle size in ml (700 default)</div>
+    <table>
+      <thead><tr><th>Ingredient</th><th>ml</th><th>ABV%</th><th>Bottle €</th><th>Size ml</th><th></th></tr></thead>
+      <tbody id="editBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:14px;">
+      <button id="addIng">+ Add ingredient</button>
+      <button id="saveIngs">Save ingredients</button>
+      <button class="ghost" id="doneIng">Done</button>
+    </div>`;
+  $("#doneIng").addEventListener("click", async () => {
+    await saveIngredients(s);   // never lose rows on exit
+    openSpec(s.id);
+  });
+  $("#addIng").addEventListener("click", () => {
+    s.ingredients.push({ id: null, name: "", amount_ml: 30, abv: 40, bottle_price_eur: 0, bottle_volume_ml: 700 });
+    renderIngRows(s);
+  });
+  $("#saveIngs").addEventListener("click", async () => {
+    await saveIngredients(s);
+  });
+  renderIngRows(s);
+}
+
+// Push local ingredient rows to the server.
+// Rows with id → PUT (update). Rows without id → POST (create), then
+// remember the new id so repeated saves never duplicate.
+async function saveIngredients(s) {
+  const btn = $("#saveIngs");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    for (const ing of s.ingredients) {
+      if (!ing.name) continue; // skip empty rows
+      if (ing.id) await api("/api/ingredients/" + ing.id, "PUT", ing);
+      else {
+        const created = await api(`/api/specs/${s.id}/ingredients`, "POST", ing);
+        ing.id = created.id;
+      }
+    }
+    toast("Ingredients saved");
+  } catch (err) {
+    toast("Save failed: " + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Save ingredients";
+  }
+}
+
+function renderIngRows(s) {
+  const body = $("#editBody");
+  body.innerHTML = "";
+  s.ingredients.forEach((ing, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input data-k="name" value="${esc(ing.name)}" placeholder="Vodka"></td>
+      <td><input type="number" data-k="amount_ml" value="${ing.amount_ml}" min="0" step="0.5"></td>
+      <td><input type="number" data-k="abv" value="${ing.abv}" min="0" max="100" step="0.5"></td>
+      <td><input type="number" data-k="bottle_price_eur" value="${ing.bottle_price_eur}" min="0" step="0.1"></td>
+      <td><input type="number" data-k="bottle_volume_ml" value="${ing.bottle_volume_ml}" min="0" step="50"></td>
+      <td><button class="danger small" data-rm="${idx}">✕</button></td>`;
+    // live-update the local object on any change
+    tr.querySelectorAll("input").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        const k = inp.dataset.k;
+        const val = inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value.trim();
+        ing[k] = val;
+      });
+    });
+    tr.querySelector("[data-rm]").addEventListener("click", async () => {
+      s.ingredients.splice(idx, 1);
+      if (ing.id) await api("/api/ingredients/" + ing.id, "DELETE");
+      renderIngRows(s);
+    });
+    body.appendChild(tr);
+  });
+}
+
+// buttons at top level
+$("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
+
+window.addEventListener("load", () => { loadSpecs(false); });
+</script>
+</body>
+</html>
