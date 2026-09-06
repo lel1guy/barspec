@@ -255,3 +255,16 @@ class TestCafeProof:
         r3 = client.put(f"/api/lines/{line_id}",
                         json={"amount_ml": 1, "unit": "piece"})
         assert r3.status_code == 400
+
+    def test_invalid_dimension_is_422_not_409(self):
+        """QA found (2026-09-06): a bad dimension sailed past pydantic and the
+        create route reported it as 409 'already exists' — a lie. Literal
+        validation now 422s before the db layer; the 409 path is reserved for
+        real duplicate names."""
+        r = client.post("/api/stock", json={"name": "Nonsense unit",
+                                            "dimension": "gallon"})
+        assert r.status_code == 422
+        # a real duplicate still 409s
+        r2 = client.post("/api/stock", json={"name": "Vodka", "dimension": "volume"})
+        assert r2.status_code == 409
+        assert "already exists" in r2.json()["detail"]

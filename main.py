@@ -4,6 +4,7 @@ Single-user local web app. SQLite via stdlib (no ORM — you can read every quer
 Run:  uvicorn main:app --reload   then open http://127.0.0.1:8000
 """
 from pathlib import Path
+from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -50,7 +51,7 @@ class StockIn(BaseModel):
     abv: float = 0.0
     bottle_price_eur: float = 0.0
     bottle_volume_ml: float = 700.0
-    dimension: str = "volume"            # volume (ml) | weight (g) | count (piece)
+    dimension: Literal["volume", "weight", "count"] = "volume"
 
 
 class ParIn(BaseModel):
@@ -161,8 +162,10 @@ def list_stock():
 def create_stock(item: StockIn):
     try:
         return db.create_stock_item(item.model_dump())
-    except ValueError:
-        raise HTTPException(409, "Stock item already exists")
+    except ValueError as e:
+        msg = str(e)
+        # duplicate name vs validation error are different failures
+        raise HTTPException(409 if msg == "Stock item already exists" else 400, msg)
 
 
 @app.put("/api/stock/{stock_id}")
