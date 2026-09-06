@@ -43,12 +43,12 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # pricing math, migration replay, API smoke
+pytest            # 65 tests: pricing math, migration replay, API smoke, stock-take
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
 every future venue file upgrades safely. Money tests cover cent-rounding,
-unpriced bottles, price-update propagation.
+unpriced bottles, price-update propagation, FBE/par order math.
 
 ## Schema / migrations
 
@@ -58,6 +58,9 @@ A fresh install runs the same path as an upgrade — self-checking.
 
 - `001_normalize_stock.sql` — `ingredients` (per-spec duplicated prices) →
   `stock_items` + `spec_lines`. Idempotent, data-preserving.
+- `002_stock_take.sql` — `par_level` on stock_items (NULL = not counted) +
+  `stock_takes`/`stock_take_lines` dated snapshots (full bottles + open
+  fraction 0/¼/½/¾/1). Count history, not throwaway UI state.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
@@ -78,6 +81,11 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 | POST | `/api/stock` | add bottle (409 if duplicate name) |
 | PUT | `/api/stock/{id}` | edit bottle — **price ripple in response** |
 | DELETE | `/api/stock/{id}` | delete (409 if any spec uses it) |
+| PATCH | `/api/stock/{id}/par` | set/clear par level (bottles to keep on hand) |
+| GET | `/api/stock-takes/sheet` | count list: par'd bottles prefilled from last snapshot |
+| POST | `/api/stock-takes` | save a count snapshot → returns the order-list review |
+| GET | `/api/stock-takes/last` | latest snapshot's order review (to-order + cash asleep) |
+| GET | `/api/stock-takes/trends` | movement between last two counts + dead-stock list |
 | GET | `/api/menu` | priced menu view |
 
 ## Roadmap (not started)
@@ -85,6 +93,6 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 - oz / cl unit toggle
 - dilution % per spec (shaken vs stirred)
 - categories + search (60+ specs breaks the flat list)
-- stock-take sheet export (count what's open → variance vs par)
+- syrups / infusions as batches (migration 003 — see vault dev plan)
 - Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)
