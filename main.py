@@ -6,6 +6,7 @@ Run:  uvicorn main:app --reload   then open http://127.0.0.1:8000
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import db
@@ -14,6 +15,9 @@ app = FastAPI(title="BarSpec")
 
 BASE_DIR = Path(__file__).resolve().parent
 db.init_db()
+
+# Static assets (style.css, app.js) — was missing: assets 404'd, app served unstyled.
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 # ---------- Pydantic models (validates what the browser sends) ----------

@@ -36,12 +36,29 @@ const jsBand = (margin, gpPct) => margin <= 0 ? "unpriced"
   : margin >= gpPct ? "good" : margin >= gpPct - 10 ? "ok" : "low";
 
 // ---------- views ----------
+function applySearch() {
+  const q = ($("#specSearch").value || "").trim().toLowerCase();
+  document.querySelectorAll("#specList .spec-item").forEach((el) => {
+    const name = (el.querySelector(".spec-name")?.textContent || "").toLowerCase();
+    el.style.display = (!q || name.includes(q)) ? "" : "none";
+  });
+}
+const VIEWS = {
+  specs: { title: "Specs", crumb: "SPECS", header: true },
+  stock: { title: "Stock", crumb: "STOCK", header: false },
+  menu:  { title: "Menu",  crumb: "MENU",  header: false },
+};
 function showView(v) {
   currentView = v;
   ["specs", "stock", "menu"].forEach((x) => {
     $("#view-" + x).classList.toggle("active", x === v);
     $("#nav" + x[0].toUpperCase() + x.slice(1)).classList.toggle("active", x === v);
   });
+  const meta = VIEWS[v];
+  $("#viewTitle").textContent = meta.title;
+  $("#crumbLabel").textContent = "BARSPEC / " + meta.crumb;
+  $("#newSpecBtn").classList.toggle("hidden", !meta.header);
+  $("#searchBox").classList.toggle("hidden", !meta.header);
   if (v === "stock") renderStock();
   if (v === "menu") renderMenu();
 }
@@ -49,6 +66,7 @@ function showView(v) {
 // ---------- spec list ----------
 async function loadSpecs(keepOpen) {
   const specs = await api("/api/specs");
+  $("#countSpecs").textContent = specs.length;
   const box = $("#specList");
   box.innerHTML = "";
   if (!specs.length) { box.innerHTML = '<div class="edit-note">No specs yet.</div>'; return; }
@@ -72,6 +90,7 @@ async function loadSpecs(keepOpen) {
     box.appendChild(el);
   }
   if (keepOpen && currentSpec) openSpec(currentSpec);
+  applySearch();
 }
 function renderEmpty() {
   if (!currentSpec) { $("#detail").classList.add("hidden"); $("#empty").classList.remove("hidden"); }
@@ -382,7 +401,10 @@ function editIngredientsForm(s) {
 async function refreshStockMap() {
   const items = await api("/api/stock");
   stockMap = {};
-  items.forEach((i) => { stockMap[i.name.toLowerCase()] = i; });
+  items.forEach((i) => {
+    stockMap[i.name.toLowerCase()] = i;
+  });
+  $("#countStock").textContent = items.length;
   const dl = $("#stockNames");
   dl.innerHTML = "";
   items.forEach((i) => {
@@ -523,8 +545,13 @@ $("#navStock").addEventListener("click", () => showView("stock"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
 $("#printMenuBtn").addEventListener("click", () => window.print());
 $("#pricedOnly").addEventListener("change", renderMenu);
+$("#specSearch").addEventListener("input", applySearch);
 
 window.addEventListener("load", async () => {
   await refreshStockMap();
   loadSpecs(false);
+  try {
+    const m = await api("/api/menu");
+    $("#countMenu").textContent = m.length;
+  } catch (_) {}
 });
