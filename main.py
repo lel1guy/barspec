@@ -50,6 +50,21 @@ class StockIn(BaseModel):
     bottle_volume_ml: float = 700.0
 
 
+class ParIn(BaseModel):
+    """Par level for one bottle. None (or absent) clears it -> not counted."""
+    par_level: float | None = None
+
+
+class TakeLineIn(BaseModel):
+    stock_item_id: int
+    full_bottles: int = Field(0, ge=0)
+    open_fraction: float = Field(0, ge=0, le=1)
+
+
+class StockTakeIn(BaseModel):
+    lines: list[TakeLineIn]
+
+
 # ---------- Pages ----------
 
 @app.get("/")
@@ -162,3 +177,43 @@ def delete_stock(stock_id: int):
 @app.get("/api/menu")
 def menu():
     return db.get_menu()
+
+
+# ---------- Stock-take (par levels + snapshots) ----------
+
+@app.patch("/api/stock/{stock_id}/par")
+def set_par(stock_id: int, par: ParIn):
+    """Set (or clear) a bottle's par level. Par <= 0 or null = not counted."""
+    if not db.set_stock_par(stock_id, par.par_level):
+        raise HTTPException(404, "Stock item not found")
+    return {"ok": True}
+
+
+@app.get("/api/stock-takes/sheet")
+def take_sheet():
+    """The count list: bottles with a par, prefilled from the last snapshot."""
+    return db.get_take_sheet()
+
+
+@app.post("/api/stock-takes")
+def save_take(take: StockTakeIn):
+    """Persist one snapshot. Returns the order-list review for the UI."""
+    try:
+        return db.save_stock_take([ln.model_dump() for ln in take.lines])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/stock-takes/last")
+def last_take():
+    """The most recent snapshot's order-list review (Order tab after reload)."""
+    payload = db.get_last_stock_take()
+    if payload is None:
+        raise HTTPException(404, "No stock-take saved yet")
+    return payload
+
+
+@app.get("/api/stock-takes/trends")
+def stock_trends():
+    """Movement between the last two snapshots + dead-stock list."""
+    return db.get_stock_trends()

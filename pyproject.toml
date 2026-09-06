@@ -1,0 +1,6 @@
+# Minimal project metadata. No build backend — the app runs from source with
+# a plain venv (requirements.txt). The pytest section exists so tooling and
+# the canonical `python -m pytest tests/ -q` command are discoverable.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
