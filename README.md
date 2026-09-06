@@ -7,6 +7,14 @@ Built for Vitor, by lel1guy. Python + FastAPI + SQLite + vanilla JS.
 No build step, no ORM — every query is visible in `db.py`, every € is computed
 in `pricing.py` (pure functions, unit-tested).
 
+## Docs
+
+- **[User Guide](docs/USER_GUIDE.md)** — what the app does, how to use each
+  screen, what the numbers mean. For bar staff and owners.
+- **[Developer Guide](docs/DEV_GUIDE.md)** — architecture, design decisions
+  and the *why* behind them; a teaching walkthrough for developers and
+  learners.
+
 ## What it does
 
 - **Specs**: name, glass, method, garnish. Add / edit / duplicate / delete.
@@ -43,7 +51,7 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # 81 tests: pricing math, migration replay, API smoke, stock-take, units engine
+pytest            # 98 tests: pricing math, migration replay, API smoke, stock-take, units engine, batches
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
@@ -65,6 +73,12 @@ A fresh install runs the same path as an upgrade — self-checking.
   `unit` on spec_lines (default ml, legacy byte-identical). Canonical units:
   volume→ml, weight→g, count→piece. dash = 1 ml, barspoon = 5 ml. Allowed
   units + conversion factors live in `pricing.py` (single source of truth).
+- `004_batches.sql` — house-made batches: `batches` (name, method,
+  batch_size_ml, made_date, shelf_life_days) + `batch_lines` (stock-linked
+  rows derive through the engine, free-text rows carry a typed € cost);
+  `spec_lines` gains nullable `batch_id` + a CHECK enforcing exactly one of
+  bottle/batch per line. Spec pour = amount × (batch total ÷ size); two-level
+  price ripple walks bottle → batches → specs.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
@@ -94,10 +108,7 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
 ## Roadmap (not started)
 
-- units engine entry UI (S3): dimension picker on stock, unit picker on lines
-  — engine + API land it already, S1 cl/oz/ml display toggle is live
 - dilution % per spec (shaken vs stirred)
 - categories + search (60+ specs breaks the flat list)
-- syrups / infusions as batches (migration 004 — see vault dev plan)
 - Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)

@@ -9,6 +9,7 @@ database — every new venue file self-checks its own upgrade.
 """
 import os
 import sqlite3
+from datetime import date, timedelta
 from pathlib import Path
 
 import pricing
@@ -289,24 +290,19 @@ def update_stock_item(stock_id: int, data: dict):
             "changing its dimension")
 
     # Ripple impact (only meaningful when the price actually moves).
-    # Only lines using THIS stock item change; other lines keep their bottles.
+    # Two levels: specs using the bottle directly AND specs using batches
+    # that contain the bottle — one report, no stale costs through a layer.
     impact = []
     if abs(new_price - old_price) > 1e-9:
         for spec in _specs_using_stock(conn, stock_id):
-            lines = _spec_lines_joined(conn, spec["id"])
-
-            def cost_with(price):
-                return pricing.drink_cost([
-                    dict(l, bottle_price_eur=price)
-                    if l["stock_item_id"] == stock_id else l
-                    for l in lines
-                ])
-
+            cost_old = pricing.drink_cost(_spec_lines_all(conn, spec["id"]))
+            cost_new = pricing.drink_cost(
+                _spec_lines_all(conn, spec["id"], override=(stock_id, new_price)))
             impact.append({
                 "spec_id": spec["id"],
                 "name": spec["name"],
-                "cost_old": round(cost_with(old_price), 3),
-                "cost_new": round(cost_with(new_price), 3),
+                "cost_old": round(cost_old, 3),
+                "cost_new": round(cost_new, 3),
             })
 
     conn.execute(
@@ -322,11 +318,15 @@ def update_stock_item(stock_id: int, data: dict):
 
 
 def delete_stock_item(stock_id: int):
-    """Returns 'ok' | 'in-use' (blocked by spec lines)."""
+    """Returns 'ok' | 'in-use' (blocked by spec lines or batch lines)."""
     conn = _conn()
     used = conn.execute(
         "SELECT COUNT(*) FROM spec_lines WHERE stock_item_id=?", (stock_id,)
     ).fetchone()[0]
+    if not used:
+        used = conn.execute(
+            "SELECT COUNT(*) FROM batch_lines WHERE stock_item_id=?", (stock_id,)
+        ).fetchone()[0]
     if used:
         conn.close()
         return "in-use"
@@ -345,36 +345,145 @@ def _spec_rows(conn, where="", params=()):
     return [dict(r) for r in rows]
 
 
-def _spec_lines_joined(conn, spec_id, price_override=None):
-    """All lines of a spec joined to stock, as pricing-ready dicts.
-
-    price_override lets the ripple calculation replay a spec with an old/new
-    bottle price without mutating anything.
-    """
+def _batch_lines_joined(conn, batch_id, override=None):
+    """batch_lines joined to stock (LEFT: free-text rows have no stock).
+    override = (stock_id, price) replays a stock price change."""
     rows = conn.execute(
-        """SELECT sl.id, sl.spec_id, sl.stock_item_id, sl.amount_ml, sl.unit,
-                  si.name, si.abv, si.bottle_price_eur, si.bottle_volume_ml,
-                  si.dimension
-           FROM spec_lines sl
-           JOIN stock_items si ON si.id = sl.stock_item_id
-           WHERE sl.spec_id = ? ORDER BY sl.id""",
-        (spec_id,),
+        """SELECT bl.id, bl.batch_id, bl.stock_item_id, bl.name, bl.amount_ml,
+                  bl.unit, bl.abv, bl.cost_eur,
+                  si.bottle_price_eur, si.bottle_volume_ml, si.dimension
+           FROM batch_lines bl
+           LEFT JOIN stock_items si ON si.id = bl.stock_item_id
+           WHERE bl.batch_id = ? ORDER BY bl.sort, bl.id""",
+        (batch_id,),
     ).fetchall()
     out = []
     for r in rows:
         d = dict(r)
-        if price_override is not None:
-            d["bottle_price_eur"] = price_override
+        if (d["stock_item_id"] is not None and override is not None
+                and d["stock_item_id"] == override[0]):
+            d["bottle_price_eur"] = override[1]
         out.append(d)
     return out
 
 
+def _days_left(made_date, shelf_life_days):
+    """None = no expiry (keeps forever). Otherwise days until expiry, negative
+    once past — the red-past-expiry signal."""
+    if not shelf_life_days:
+        return None
+    try:
+        expiry = date.fromisoformat(made_date) + timedelta(days=int(shelf_life_days))
+        return (expiry - date.today()).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _batch_payload(conn, batch_id, override=None, cache=None):
+    """Full derived picture of one batch: meta + lines + cost/abv/expiry."""
+    key = (batch_id, override)
+    if cache is not None and key in cache:
+        return cache[key]
+    row = conn.execute("SELECT * FROM batches WHERE id=?", (batch_id,)).fetchone()
+    if not row:
+        return None
+    lines = _batch_lines_joined(conn, batch_id, override)
+    total = pricing.batch_cost(lines)
+    size = row["batch_size_ml"]
+    per_ml = pricing.batch_cost_per_ml(total, size)
+    # Batch ABV: alcohol from volume stock lines ÷ total batch volume —
+    # computed like a drink, so a spec using 25 ml of an infused batch gets
+    # its true alcohol share. Sugar/water lines carry none.
+    alc = vol = 0.0
+    for l in lines:
+        if l["dimension"] != "volume":
+            continue
+        ml = float(l["amount_ml"] or 0) * pricing.UNIT_CANONICAL.get(l["unit"], 1.0)
+        vol += ml
+        alc += ml * (l.get("abv") or 0) / 100.0
+    payload = {
+        "id": row["id"], "name": row["name"], "method": row["method"],
+        "batch_size_ml": size, "made_date": row["made_date"],
+        "shelf_life_days": row["shelf_life_days"],
+        "days_left": _days_left(row["made_date"], row["shelf_life_days"]),
+        "cost_eur": round(total, 3),
+        "cost_per_ml": round(per_ml, 6),
+        "batch_abv": round(alc / vol * 100.0, 1) if vol > 0 else 0.0,
+        "line_count": len(lines),
+        "lines": lines,
+    }
+    if cache is not None:
+        cache[key] = payload
+    return payload
+
+
+def _spec_lines_all(conn, spec_id, override=None):
+    """All lines of a spec as pricing-ready dicts — bottle OR batch.
+
+    Bottle lines carry the stock fields and ride the units engine exactly as
+    before. Batch lines carry the batch's derived cost/abv/expiry so pricing
+    resolves one level (spec → batch → stock) without nesting. `override`
+    replays a stock price change for the ripple report."""
+    rows = conn.execute(
+        """SELECT sl.id, sl.spec_id, sl.stock_item_id, sl.batch_id,
+                  sl.amount_ml, sl.unit,
+                  si.name AS stock_name, si.abv AS stock_abv,
+                  si.bottle_price_eur, si.bottle_volume_ml, si.dimension,
+                  b.name AS batch_name
+           FROM spec_lines sl
+           LEFT JOIN stock_items si ON si.id = sl.stock_item_id
+           LEFT JOIN batches b ON b.id = sl.batch_id
+           WHERE sl.spec_id = ? ORDER BY sl.id""",
+        (spec_id,),
+    ).fetchall()
+    cache = {}
+    out = []
+    for r in rows:
+        if r["stock_item_id"] is not None:
+            price = r["bottle_price_eur"]
+            if override is not None and r["stock_item_id"] == override[0]:
+                price = override[1]
+            out.append({
+                "id": r["id"], "spec_id": r["spec_id"], "kind": "bottle",
+                "stock_item_id": r["stock_item_id"], "batch_id": None,
+                "name": r["stock_name"], "amount_ml": r["amount_ml"],
+                "abv": r["stock_abv"], "bottle_price_eur": price,
+                "bottle_volume_ml": r["bottle_volume_ml"],
+                "unit": r["unit"], "dimension": r["dimension"],
+            })
+        else:
+            b = _batch_payload(conn, r["batch_id"], override, cache)
+            out.append({
+                "id": r["id"], "spec_id": r["spec_id"], "kind": "batch",
+                "stock_item_id": None, "batch_id": r["batch_id"],
+                "serve_batch": True,
+                "name": b["name"], "amount_ml": r["amount_ml"],
+                "abv": b["batch_abv"], "unit": r["unit"],
+                "dimension": "volume",
+                "bottle_price_eur": None, "bottle_volume_ml": None,
+                "batch_size_ml": b["batch_size_ml"],
+                "batch_cost_total": b["cost_eur"],
+                "batch_cost_per_ml": b["cost_per_ml"],
+                "days_left": b["days_left"],
+            })
+    return out
+
+
 def _specs_using_stock(conn, stock_id):
+    """Specs touched by a stock item: directly via bottle lines OR through
+    batches that use it in their lines (two-level ripple)."""
     return conn.execute(
         """SELECT DISTINCT s.id, s.name FROM spec_lines sl
            JOIN specs s ON s.id = sl.spec_id
-           WHERE sl.stock_item_id = ? ORDER BY s.name""",
-        (stock_id,),
+           WHERE sl.stock_item_id = ?
+           UNION
+           SELECT DISTINCT s.id, s.name FROM spec_lines sl
+           JOIN specs s ON s.id = sl.spec_id
+           JOIN batches b ON b.id = sl.batch_id
+           JOIN batch_lines bl ON bl.batch_id = b.id
+           WHERE bl.stock_item_id = ?
+           ORDER BY name""",
+        (stock_id, stock_id),
     ).fetchall()
 
 
@@ -382,7 +491,7 @@ def get_specs():
     conn = _conn()
     specs = _spec_rows(conn)
     for s in specs:
-        lines = _spec_lines_joined(conn, s["id"])
+        lines = _spec_lines_all(conn, s["id"])
         s["cost_eur"] = round(pricing.drink_cost(lines), 3)
         s["margin"] = round(pricing.margin_pct(s.get("price_eur") or 0, s["cost_eur"]), 1)
     conn.close()
@@ -396,19 +505,35 @@ def get_spec(spec_id: int):
         conn.close()
         return None
     spec = dict(row)
-    lines = _spec_lines_joined(conn, spec_id)
+    lines = _spec_lines_all(conn, spec_id)
     pcts = pricing.row_pcts(lines)
     spec["lines"] = []
     for i, l in enumerate(lines):
-        spec["lines"].append({
-            "id": l["id"], "stock_item_id": l["stock_item_id"],
-            "name": l["name"], "amount_ml": l["amount_ml"], "abv": l["abv"],
-            "bottle_price_eur": l["bottle_price_eur"],
-            "bottle_volume_ml": l["bottle_volume_ml"],
-            "unit": l["unit"], "dimension": l["dimension"],
-            "row_cost_eur": round(pricing.line_cost(l), 3),
-            "row_cost_pct": round(pcts[i], 1),
-        })
+        if l["kind"] == "bottle":
+            spec["lines"].append({
+                "id": l["id"], "kind": "bottle",
+                "stock_item_id": l["stock_item_id"], "batch_id": None,
+                "name": l["name"], "amount_ml": l["amount_ml"], "abv": l["abv"],
+                "bottle_price_eur": l["bottle_price_eur"],
+                "bottle_volume_ml": l["bottle_volume_ml"],
+                "unit": l["unit"], "dimension": l["dimension"],
+                "row_cost_eur": round(pricing.line_cost(l), 3),
+                "row_cost_pct": round(pcts[i], 1),
+            })
+        else:
+            spec["lines"].append({
+                "id": l["id"], "kind": "batch",
+                "stock_item_id": None, "batch_id": l["batch_id"],
+                "name": l["name"], "amount_ml": l["amount_ml"],
+                "abv": l["abv"], "unit": l["unit"], "dimension": "volume",
+                "bottle_price_eur": None, "bottle_volume_ml": None,
+                "batch_size_ml": l["batch_size_ml"],
+                "batch_cost_total": l["batch_cost_total"],
+                "batch_cost_per_ml": l["batch_cost_per_ml"],
+                "days_left": l["days_left"],
+                "row_cost_eur": round(pricing.line_cost(l), 3),
+                "row_cost_pct": round(pcts[i], 1),
+            })
     cost = pricing.drink_cost(lines)
     gp = spec.get("target_gp") or 70
     spec["summary"] = {
@@ -485,16 +610,37 @@ def duplicate_spec(spec_id: int):
 # ---------- spec lines ----------
 
 def add_line(spec_id: int, data: dict):
-    """Add an ingredient line to a spec. Resolves the name against stock:
-    existing bottle -> reuse it; new name -> create the stock item first.
-    The line unit (default 'ml') must match the stock item's dimension —
-    pouring 9 g of a volume bottle, or 30 ml of a weight bag, is nonsense."""
+    """Add an ingredient line to a spec: a stock bottle OR a house batch
+    (batch_id set). Resolves the name against stock for bottle lines: existing
+    item -> reuse; new name -> create the stock item first. The line unit must
+    match the reference's dimension (batches are poured in volume units)."""
     conn = _conn()
     spec = conn.execute("SELECT id FROM specs WHERE id=?", (spec_id,)).fetchone()
     if not spec:
         conn.close()
         return None
-    stock = _resolve_stock(conn, data["name"], data.get("abv", 0),
+    batch_id = data.get("batch_id")
+    if batch_id is not None:
+        unit = str(data.get("unit") or "ml")
+        if not pricing.valid_unit(unit) or pricing.UNIT_DIMENSION[unit] != "volume":
+            conn.close()
+            raise ValueError("Batch pours use volume units (ml/cl/oz)")
+        b = conn.execute("SELECT id FROM batches WHERE id=?", (batch_id,)).fetchone()
+        if not b:
+            conn.close()
+            raise ValueError("Batch not found")
+        conn.execute(
+            "INSERT INTO spec_lines (spec_id, batch_id, amount_ml, unit) VALUES (?,?,?,?)",
+            (spec_id, batch_id, data["amount_ml"], unit),
+        )
+        conn.commit()
+        conn.close()
+        return get_spec(spec_id)
+    name = str(data.get("name") or "").strip()
+    if not name:
+        conn.close()
+        raise ValueError("Line needs a stock name or a batch")
+    stock = _resolve_stock(conn, name, data.get("abv", 0),
                            data.get("bottle_price_eur", 0),
                            data.get("bottle_volume_ml", 700))
     unit = str(data.get("unit") or "ml")
@@ -522,19 +668,21 @@ def update_line(line_id: int, amount_ml: float, unit: str | None = None) -> bool
             conn.close()
             raise ValueError(f"Unknown unit '{unit}'")
         row = conn.execute(
-            """SELECT sl.id, si.dimension FROM spec_lines sl
-               JOIN stock_items si ON si.id = sl.stock_item_id
+            """SELECT sl.id, si.dimension, sl.stock_item_id, sl.batch_id
+               FROM spec_lines sl
+               LEFT JOIN stock_items si ON si.id = sl.stock_item_id
                WHERE sl.id=?""",
             (line_id,),
         ).fetchone()
         if not row:
             conn.close()
             return False
-        if pricing.UNIT_DIMENSION[unit] != row["dimension"]:
+        # batch lines carry no stock row — they are volume pours by nature
+        dim = row["dimension"] if row["stock_item_id"] is not None else "volume"
+        if pricing.UNIT_DIMENSION[unit] != dim:
             conn.close()
             raise ValueError(
-                f"Unit '{unit}' doesn't match this ingredient's dimension "
-                f"({row['dimension']})")
+                f"Unit '{unit}' doesn't match this line's dimension ({dim})")
         cur = conn.execute(
             "UPDATE spec_lines SET amount_ml=?, unit=? WHERE id=?",
             (amount_ml, unit, line_id),
@@ -566,7 +714,7 @@ def get_menu():
     specs = _spec_rows(conn)
     menu = []
     for s in specs:
-        lines = _spec_lines_joined(conn, s["id"])
+        lines = _spec_lines_all(conn, s["id"])
         cost = pricing.drink_cost(lines)
         price = s.get("price_eur")
         menu.append({
@@ -580,6 +728,154 @@ def get_menu():
         })
     conn.close()
     return menu
+
+
+# ---------- batches (004) ----------
+
+def create_batch(data: dict):
+    conn = _conn()
+    dup = conn.execute(
+        "SELECT id FROM batches WHERE lower(name)=lower(?)", (data["name"],)
+    ).fetchone()
+    if dup:
+        conn.close()
+        raise ValueError("Batch name already exists")
+    size = float(data.get("batch_size_ml") or 0)
+    if size <= 0:
+        conn.close()
+        raise ValueError("Batch size must be > 0")
+    cur = conn.execute(
+        """INSERT INTO batches (name, method, batch_size_ml, made_date, shelf_life_days)
+           VALUES (?,?,?,?,?)""",
+        (data["name"].strip(), data.get("method", ""), size,
+         data.get("made_date") or date.today().isoformat(),
+         data.get("shelf_life_days")),
+    )
+    conn.commit()
+    new_id = _lastid(cur)
+    conn.close()
+    return get_batch(new_id)
+
+
+def get_batches():
+    conn = _conn()
+    ids = [r[0] for r in conn.execute(
+        "SELECT id FROM batches ORDER BY lower(name)")]
+    out = [_batch_payload(conn, i) for i in ids]
+    conn.close()
+    return [b for b in out if b]
+
+
+def get_batch(batch_id: int):
+    conn = _conn()
+    b = _batch_payload(conn, batch_id)
+    conn.close()
+    return b
+
+
+def update_batch(batch_id: int, data: dict):
+    conn = _conn()
+    row = conn.execute("SELECT * FROM batches WHERE id=?", (batch_id,)).fetchone()
+    if not row:
+        conn.close()
+        return None
+    name = str(data.get("name", row["name"])).strip()
+    dup = conn.execute(
+        "SELECT id FROM batches WHERE lower(name)=lower(?) AND id != ?",
+        (name, batch_id)).fetchone()
+    if dup:
+        conn.close()
+        raise ValueError("Batch name already exists")
+    size = float(data.get("batch_size_ml", row["batch_size_ml"]) or 0)
+    if size <= 0:
+        conn.close()
+        raise ValueError("Batch size must be > 0")
+    shelf = data.get("shelf_life_days", row["shelf_life_days"])
+    conn.execute(
+        """UPDATE batches SET name=?, method=?, batch_size_ml=?, made_date=?,
+           shelf_life_days=?, updated_at=datetime('now') WHERE id=?""",
+        (name, data.get("method", row["method"]), size,
+         data.get("made_date", row["made_date"]), shelf, batch_id),
+    )
+    conn.commit()
+    conn.close()
+    return get_batch(batch_id)
+
+
+def delete_batch(batch_id: int):
+    conn = _conn()
+    used = conn.execute(
+        "SELECT COUNT(*) FROM spec_lines WHERE batch_id=?", (batch_id,)
+    ).fetchone()[0]
+    if used:
+        conn.close()
+        raise ValueError("Batch is used by specs — remove it from them first")
+    conn.execute("DELETE FROM batches WHERE id=?", (batch_id,))  # lines cascade
+    conn.commit()
+    conn.close()
+    return True
+
+
+def add_batch_line(batch_id: int, data: dict):
+    """One ingredient of a batch. Two price sources, exactly one:
+    - name matches existing stock (any dimension)  -> derives live;
+    - otherwise free-text and cost_eur is required (may be €0: water)."""
+    conn = _conn()
+    if not conn.execute("SELECT id FROM batches WHERE id=?", (batch_id,)).fetchone():
+        conn.close()
+        return None
+    name = str(data["name"]).strip()
+    if not name:
+        conn.close()
+        raise ValueError("Ingredient name needed")
+    unit = str(data.get("unit") or "g")
+    if not pricing.valid_unit(unit):
+        conn.close()
+        raise ValueError(f"Unknown unit '{unit}'")
+    amount = float(data.get("amount_ml") or 0)
+    if amount <= 0:
+        conn.close()
+        raise ValueError("Amount must be > 0")
+    stock = conn.execute(
+        "SELECT * FROM stock_items WHERE lower(name)=lower(?) ORDER BY id LIMIT 1",
+        (name,),
+    ).fetchone()
+    if stock:
+        if pricing.UNIT_DIMENSION[unit] != stock["dimension"]:
+            conn.close()
+            raise ValueError(
+                f"Unit '{unit}' doesn't match '{stock['name']}' "
+                f"({stock['dimension']})")
+        cur = conn.execute(
+            """INSERT INTO batch_lines (batch_id, stock_item_id, name, amount_ml,
+               unit, abv, cost_eur) VALUES (?,?,?,?,?,?,NULL)""",
+            (batch_id, stock["id"], stock["name"], amount, unit,
+             stock["abv"] or 0),
+        )
+    else:
+        cost = data.get("cost_eur")
+        if cost is None:
+            conn.close()
+            raise ValueError(
+                f"'{name}' isn't in stock — add a typed € cost for this amount "
+                "(€0 is fine for water)")
+        cur = conn.execute(
+            """INSERT INTO batch_lines (batch_id, stock_item_id, name, amount_ml,
+               unit, abv, cost_eur) VALUES (?,NULL,?,?,?,?,?)""",
+            (batch_id, name, amount, unit, data.get("abv", 0), float(cost)),
+        )
+    conn.commit()
+    conn.close()
+    return get_batch(batch_id)
+
+
+def delete_batch_line(line_id: int) -> bool:
+    conn = _conn()
+    cur = conn.execute("DELETE FROM batch_lines WHERE id=?", (line_id,))
+    conn.commit()
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
 
 
 # ---------- stock-take (par levels + dated snapshots) ----------

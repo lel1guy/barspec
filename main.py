@@ -33,7 +33,8 @@ class SpecIn(BaseModel):
 
 
 class LineIn(BaseModel):
-    name: str
+    name: str | None = None           # stock name; None when batch_id is used
+    batch_id: int | None = None       # house batch reference (bottle OR batch)
     amount_ml: float = Field(gt=0)
     abv: float = 0.0                     # used only when creating a NEW stock item
     bottle_price_eur: float = 0.0
@@ -57,6 +58,22 @@ class StockIn(BaseModel):
 class ParIn(BaseModel):
     """Par level for one bottle. None (or absent) clears it -> not counted."""
     par_level: float | None = None
+
+
+class BatchIn(BaseModel):
+    name: str
+    method: str = ""
+    batch_size_ml: float = 1000.0
+    made_date: str | None = None
+    shelf_life_days: int | None = None
+
+
+class BatchLineIn(BaseModel):
+    name: str
+    amount_ml: float = Field(gt=0)
+    unit: str = "g"
+    abv: float = 0.0
+    cost_eur: float | None = None   # required when the name isn't in stock
 
 
 class TakeLineIn(BaseModel):
@@ -240,3 +257,65 @@ def last_take():
 def stock_trends():
     """Movement between the last two snapshots + dead-stock list."""
     return db.get_stock_trends()
+
+
+# ---------- Batches (004: house-made syrups / infusions) ----------
+
+@app.get("/api/batches")
+def list_batches():
+    """Every batch with its derived cost, per-ml, abv and expiry."""
+    return db.get_batches()
+
+
+@app.post("/api/batches")
+def create_batch(batch: BatchIn):
+    try:
+        return db.create_batch(batch.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/batches/{batch_id}")
+def get_batch(batch_id: int):
+    b = db.get_batch(batch_id)
+    if not b:
+        raise HTTPException(404, "Batch not found")
+    return b
+
+
+@app.put("/api/batches/{batch_id}")
+def update_batch(batch_id: int, batch: BatchIn):
+    try:
+        b = db.update_batch(batch_id, batch.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not b:
+        raise HTTPException(404, "Batch not found")
+    return b
+
+
+@app.delete("/api/batches/{batch_id}")
+def delete_batch(batch_id: int):
+    try:
+        db.delete_batch(batch_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+@app.post("/api/batches/{batch_id}/lines")
+def add_batch_line(batch_id: int, line: BatchLineIn):
+    try:
+        b = db.add_batch_line(batch_id, line.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not b:
+        raise HTTPException(404, "Batch not found")
+    return b
+
+
+@app.delete("/api/batches/lines/{line_id}")
+def delete_batch_line(line_id: int):
+    if not db.delete_batch_line(line_id):
+        raise HTTPException(404, "Batch line not found")
+    return {"ok": True}

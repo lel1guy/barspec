@@ -312,6 +312,26 @@ select.frac-select { width: 96px; min-height: 36px; padding: 4px 8px; font-size:
 tr.trend-gained .num { color: var(--warn); }
 tr.trend-unmoved { opacity: .6; }
 .stat.warn .num { color: var(--warn); }
+/* batch expiry chips */
+.exp-chip {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--line2);
+}
+.exp-chip.ok { color: var(--steel-hi); background: var(--panel2); }
+.exp-chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.exp-chip.bad { color: #ffb4a0; background: color-mix(in srgb, #e5484d 15%, transparent); border-color: #e5484d66; }
+.dim-tag {
+  font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  color: var(--steel-hi); border: 1px solid var(--line2); border-radius: 4px;
+  padding: 1px 5px; margin-left: 6px; text-transform: uppercase; vertical-align: middle;
+}
+.batch-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line2); cursor: pointer;
+}
+.batch-item:hover { background: var(--hover); }
+.batch-item.active { background: var(--panel2); }
 /* units engine controls */
 .amt-cell { display: inline-flex; align-items: center; gap: 4px; }
 select.unitmini {

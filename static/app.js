@@ -111,16 +111,19 @@ function applySearch() {
 }
 const VIEWS = {
   specs: { title: "Specs", crumb: "SPECS", header: true },
+  batches: { title: "Batches", crumb: "BATCHES", header: false },
   stock: { title: "Stock", crumb: "STOCK", header: false },
   stocktake: { title: "Stock-take", crumb: "STOCK-TAKE", header: false },
   menu:  { title: "Menu",  crumb: "MENU",  header: false },
 };
-const NAV_IDS = { specs: "navSpecs", stock: "navStock", stocktake: "navTake", menu: "navMenu" };
+const NAV_IDS = { specs: "navSpecs", batches: "navBatches", stock: "navStock",
+                  stocktake: "navTake", menu: "navMenu" };
 function showView(v) {
   if (v !== currentView && currentView === "stocktake" && takeDirty &&
       !confirm("You have an unsaved count. Leave and lose it?")) return;
   currentView = v;
   Object.keys(VIEWS).forEach((x) => {
+    $("body").dataset.view = v;
     $("#view-" + x).classList.toggle("active", x === v);
     $("#" + NAV_IDS[x]).classList.toggle("active", x === v);
   });
@@ -129,6 +132,7 @@ function showView(v) {
   $("#crumbLabel").textContent = "BARSPEC / " + meta.crumb;
   $("#newSpecBtn").classList.toggle("hidden", !meta.header);
   $("#searchBox").classList.toggle("hidden", !meta.header);
+  if (v === "batches") loadBatches();
   if (v === "stock") renderStock();
   if (v === "stocktake") loadStocktake();
   if (v === "menu") renderMenu();
@@ -247,12 +251,18 @@ function renderDetail(s) {
   }
   for (const l of s.lines) {
     const tr = document.createElement("tr");
+    const sub = l.kind === "batch"
+      ? `house batch · ${eur(l.batch_cost_total || 0)} / ${fmtAmt(l.batch_size_ml)} ml · `
+        + (l.days_left === null ? "keeps"
+           : l.days_left < 0 ? `<b>expired</b>` : `${l.days_left}d left`)
+      : purchaseText(l);
     tr.innerHTML = `
       <td><span class="ing-name">${esc(l.name)}</span>
-          <div class="edit-note">${purchaseText(l)}</div></td>
+          ${l.kind === "batch" ? '<span class="dim-tag">batch</span>' : ""}
+          <div class="edit-note">${sub}</div></td>
       <td class="num">${lineAmtHtml(l)}</td>
       <td class="num">${l.abv ? l.abv + "%" : "—"}</td>
-      <td class="num">${l.bottle_price_eur ? eur(l.row_cost_eur) : "—"}</td>
+      <td class="num">${l.row_cost_eur ? eur(l.row_cost_eur) : "—"}</td>
       <td><div class="costbar-wrap"><div class="costbar"><i style="width:${l.row_cost_pct}%"></i></div></div></td>
       <td class="num" style="font-size:14px;color:var(--muted);">${l.row_cost_pct}%</td>`;
     body.appendChild(tr);
@@ -391,6 +401,15 @@ function editIngredientsForm(s) {
       </div>
       <button id="addLine">+ Add</button>
     </div>
+    <div id="addBatchRow" class="hidden" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line2);">
+      <div style="flex:2; min-width:170px;"><label>House batch</label>
+        <select id="addBatchSel" style="width:100%;"></select></div>
+      <div style="flex:1; min-width:110px;"><label>Amount</label>
+        <div style="display:flex; gap:4px;"><input id="addBAmt" type="number" value="20" min="0" step="0.5" style="flex:1;">
+        <select id="addBUnit" style="width:80px;"><option>ml</option><option>cl</option><option>oz</option></select></div>
+      </div>
+      <button id="addBatchBtn">+ Add syrup</button>
+    </div>
     <div style="display:flex; gap:8px; margin-top:16px;">
       <button id="saveIngs">Save changes</button>
       <button class="ghost" id="doneIng">Done</button>
@@ -403,16 +422,20 @@ function editIngredientsForm(s) {
     rows.forEach((l, i) => {
       const tr = document.createElement("tr");
       const stock = stockMap[(l.name || "").toLowerCase()];
-      const dim = stock ? stock.dimension : "volume";
+      const isBatch = !!l.batch_id;
+      const dim = isBatch ? "volume" : (stock ? stock.dimension : "volume");
       const opts = unitOptions(dim);
       // Stored unit must belong to this stock's dimension; else fall back to
       // the dimension's canonical unit (rename across dimensions = delete+add).
       if (!opts.includes(l.unit)) l.unit = dimCanonical(dim);
-      const bottleTxt = stock && stock.bottle_price_eur
-        ? purchaseText(stock)
+      const bottleTxt = isBatch ? "house batch — pour only"
+        : stock && stock.bottle_price_eur ? purchaseText(stock)
         : (stock ? "no price yet" : "—");
       tr.innerHTML = `
-        <td><input data-i="${i}" data-k="name" value="${esc(l.name)}" list="stockNames" placeholder="Ingredient"></td>
+        <td>${isBatch
+          ? `<span class="ing-name">${esc(l.name)}</span><span class="dim-tag">batch</span><input data-k="name" value="${esc(l.name)}" style="display:none;">`
+          : `<input data-i="${i}" data-k="name" value="${esc(l.name)}" list="stockNames" placeholder="Ingredient">`}
+        </td>
         <td class="num"><span class="amt-cell">
           <input class="num" type="number" data-i="${i}" data-k="amount_ml" value="${fmtAmt(l.amount_ml)}" min="0" step="0.5" style="width:80px; text-align:right;">
           <select data-i="${i}" data-ku="unit" class="unitmini">${opts.map((u) =>
@@ -475,6 +498,30 @@ function editIngredientsForm(s) {
   $("#addName").addEventListener("input", onName);
   onName();
 
+  // House-batch picker: offer batches to pour into this spec (volume pour).
+  api("/api/batches").then((bs) => {
+    const sel = $("#addBatchSel");
+    if (!sel) return;
+    if (!bs.length) return;
+    sel.innerHTML = bs.map((b) =>
+      `<option value="${b.id}">${esc(b.name)} · ${eur(b.cost_eur)}/batch</option>`).join("");
+    $("#addBatchRow").classList.remove("hidden");
+  });
+  $("#addBatchBtn").addEventListener("click", async () => {
+    const sel = $("#addBatchSel");
+    const bid = parseInt(sel.value, 10);
+    if (!bid) return toast("Pick a batch");
+    const amt = parseFloat($("#addBAmt").value) || 0;
+    if (!amt) return toast("Amount needed");
+    const unit = $("#addBUnit").value;
+    const label = sel.options[sel.selectedIndex]?.textContent.split(" · ")[0] || "batch";
+    rows.push({ id: null, kind: "batch", batch_id: bid, name: label,
+                amount_ml: amt, unit, abv: 0, bottle_price_eur: null,
+                bottle_volume_ml: null, bottleTxt: "house batch — pour only" });
+    renderRows();
+    $("#addBAmt").value = 20;
+  });
+
   $("#addLine").addEventListener("click", () => {
     const name = $("#addName").value.trim();
     const amt = parseFloat($("#addMl").value) || 0;
@@ -502,6 +549,8 @@ function editIngredientsForm(s) {
         if (!l.name) continue;
         if (l.id) await api("/api/lines/" + l.id, "PUT",
                             { amount_ml: l.amount_ml, unit: l.unit || "ml" });
+        else if (l.batch_id) await api(`/api/specs/${s.id}/lines`, "POST", {
+          batch_id: l.batch_id, amount_ml: l.amount_ml, unit: l.unit || "ml" });
         else await api(`/api/specs/${s.id}/lines`, "POST", {
           name: l.name, amount_ml: l.amount_ml, unit: l.unit || "ml",
           abv: l.abv,
@@ -698,6 +747,157 @@ $("#saveStock").addEventListener("click", async () => {
     $("#addStockForm").classList.add("hidden");
     renderStock();
   } catch (err) { toast("Failed: " + err.message); }
+});
+
+// ---------- batches (004: house syrups / infusions) ----------
+
+let batches = [];
+let openBatch = null;
+const batchExpiryHtml = (b) => {
+  if (b.days_left === null) return '<span class="exp-chip ok">keeps</span>';
+  if (b.days_left < 0) return `<span class="exp-chip bad">expired ${-b.days_left}d ago</span>`;
+  if (b.days_left <= 3) return `<span class="exp-chip warn">${b.days_left}d left</span>`;
+  return `<span class="exp-chip ok">${b.days_left}d left</span>`;
+};
+const perLitre = (b) => "€" + (b.cost_per_ml * 1000).toFixed(2);
+async function loadBatches() {
+  batches = await api("/api/batches");
+  $("#countBatches").textContent = batches.length;
+  $("#batchEmpty").classList.toggle("hidden", batches.length > 0);
+  const box = $("#batchList");
+  box.innerHTML = "";
+  for (const b of batches) {
+    const el = document.createElement("div");
+    el.className = "batch-item" + (openBatch === b.id ? " active" : "");
+    el.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div class="spec-name">${esc(b.name)} <span class="edit-note">${esc(b.method || "")}</span></div>
+        <div class="spec-meta">${fmtAmt(b.batch_size_ml)} ml batch · ${eur(b.cost_eur)} total · ${eur(b.cost_per_ml * 1000)}/litre · ${b.line_count} ingredients</div>
+      </div>
+      ${batchExpiryHtml(b)}
+      <div style="display:flex; gap:4px; margin-left:10px;">
+        <button class="ghost small" data-edit="${b.id}">✎</button>
+        <button class="danger small" data-del="${b.id}">✕</button>
+      </div>`;
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-del]") || e.target.closest("[data-edit]")) return;
+      openBatch = openBatch === b.id ? null : b.id;
+      loadBatches(); renderBatchDetail();
+    });
+    el.querySelector("[data-edit]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      $("#btName").value = b.name; $("#btSize").value = b.batch_size_ml;
+      $("#btUnit").value = "ml";
+      $("#btShelf").value = b.shelf_life_days ?? "";
+      $("#btMade").value = b.made_date;
+      $("#btMethod").value = b.method || "";
+      $("#saveBatch").dataset.id = b.id;
+      $("#newBatchBtn").textContent = "Cancel";
+      $("#newBatchForm").classList.remove("hidden");
+    });
+    el.querySelector("[data-del]").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete batch "${b.name}"?`)) return;
+      const res = await api("/api/batches/" + b.id, "DELETE");
+      if (res && res.detail) { toast(res.detail); return; }
+      if (openBatch === b.id) { openBatch = null; $("#batchDetail").innerHTML = ""; }
+      loadBatches();
+    });
+    box.appendChild(el);
+  }
+  if (batches.length) refreshStockMap(); // batch editors resolve stock by name
+  renderBatchDetail();
+}
+
+async function renderBatchDetail() {
+  const box = $("#batchDetail");
+  if (!openBatch) { box.innerHTML = ""; return; }
+  const b = await api("/api/batches/" + openBatch);
+  box.innerHTML = `
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0;">
+      <strong style="font-family:var(--serif); font-size:18px;">${esc(b.name)}</strong>
+      ${batchExpiryHtml(b)}
+      <span class="edit-note">${esc(b.method || "")}</span>
+      <div class="spacer"></div>
+      <span class="edit-note">${fmtAmt(b.batch_size_ml)} ml · ${eur(b.cost_eur)} total · ${eur(b.cost_per_ml * 1000)}/litre</span>
+    </div>
+    <table>
+      <thead><tr><th>Ingredient</th><th class="num">Amount</th><th class="num">Cost</th><th></th></tr></thead>
+      <tbody>${b.lines.map((l) => `
+        <tr>
+          <td>${esc(l.name)}</td>
+          <td class="num">${fmtAmt(l.amount_ml)} ${esc(l.unit)}</td>
+          <td class="num">${l.stock_item_id ? eur((l.amount_ml || 0) * (l.bottle_price_eur || 0) / (l.bottle_volume_ml || 1)) : eur(l.cost_eur || 0)}
+            ${l.stock_item_id ? '<span class="edit-note">derived</span>' : ""}</td>
+          <td><button class="danger small" data-bline="${l.id}">✕</button></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="formrow no-print" style="margin-top:10px;">
+      <div style="flex:2; min-width:140px;"><label>Add ingredient</label>
+        <input id="blName" list="stockNames" placeholder="Type a stock name… or free text"></div>
+      <div style="flex:1; min-width:80px;"><label>Amount</label><input id="blAmt" type="number" value="100" min="0" step="0.5"></div>
+      <div style="flex:1; min-width:70px;"><label>Unit</label><select id="blUnit">
+        <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option>
+        <option value="l">l</option><option value="cl">cl</option><option value="piece">piece</option></select></div>
+      <div style="flex:1; min-width:90px;"><label>€ cost if not stock</label><input id="blCost" type="number" step="0.01" placeholder="blank = from stock"></div>
+      <button id="addBatchLine" class="btn">+ Add</button>
+    </div>
+    <div class="edit-note">Names in stock link live (price flows with the bottle); anything else needs its € cost for that amount — €0 is fine for water.</div>`;
+  box.querySelectorAll("[data-bline]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      await api("/api/batches/lines/" + btn.dataset.bline, "DELETE");
+      renderBatchDetail(); loadBatches();
+    }));
+  $("#addBatchLine").addEventListener("click", async () => {
+    const name = $("#blName").value.trim();
+    if (!name) return toast("Ingredient name needed");
+    const payload = { name, amount_ml: parseFloat($("#blAmt").value) || 0,
+                      unit: $("#blUnit").value };
+    const cost = $("#blCost").value.trim();
+    if (cost !== "") payload.cost_eur = parseFloat(cost);
+    const res = await api(`/api/batches/${openBatch}/lines`, "POST", payload);
+    if (res && res.detail) { toast(res.detail); return; }
+    $("#blName").value = ""; $("#blCost").value = "";
+    renderBatchDetail(); loadBatches();
+  });
+}
+
+$("#newBatchBtn").addEventListener("click", () => {
+  const form = $("#newBatchForm");
+  const hiding = !form.classList.contains("hidden");
+  form.classList.toggle("hidden");
+  $("#newBatchBtn").textContent = hiding ? "+ New batch" : "Cancel";
+  if (!hiding) {
+    delete $("#saveBatch").dataset.id;
+    $("#btName").value = ""; $("#btSize").value = 1000; $("#btUnit").value = "ml";
+    $("#btShelf").value = ""; $("#btMade").value = new Date().toISOString().slice(0, 10);
+    $("#btMethod").value = "";
+    $("#btName").focus();
+  }
+});
+$("#cancelBatch").addEventListener("click", () => {
+  $("#newBatchForm").classList.add("hidden");
+  $("#newBatchBtn").textContent = "+ New batch";
+});
+$("#saveBatch").addEventListener("click", async () => {
+  const id = $("#saveBatch").dataset.id;
+  const payload = {
+    name: $("#btName").value.trim(),
+    method: $("#btMethod").value.trim(),
+    batch_size_ml: (parseFloat($("#btSize").value) || 0)
+      * U_FACTOR[$("#btUnit").value],
+    shelf_life_days: $("#btShelf").value === "" ? null : parseInt($("#btShelf").value, 10),
+    made_date: $("#btMade").value || undefined,
+  };
+  if (!payload.name || !payload.batch_size_ml) return toast("Name + size needed");
+  const res = id ? await api("/api/batches/" + id, "PUT", payload)
+                 : await api("/api/batches", "POST", payload);
+  if (res && res.detail) return toast(res.detail);
+  $("#newBatchForm").classList.add("hidden");
+  $("#newBatchBtn").textContent = "+ New batch";
+  openBatch = res.id;
+  loadBatches();
 });
 
 // ---------- stock-take (count grid + order list + trends) ----------
@@ -1038,6 +1238,7 @@ async function renderMenu() {
 // ---------- wiring ----------
 $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
+$("#navBatches").addEventListener("click", () => showView("batches"));
 $("#navStock").addEventListener("click", () => showView("stock"));
 $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));

@@ -52,6 +52,38 @@ def _cost_per_ml(bottle_price_eur: float, bottle_volume_ml: float) -> float:
     return bottle_price_eur / bottle_volume_ml
 
 
+# ---------- batches (004): house-made syrups / infusions ----------
+
+def batch_cost(lines: list[dict]) -> float:
+    """Total ingredient cost of a batch across its lines, EUR (unrounded).
+    Stock-linked lines derive through the units engine (sugar by kg, bitters
+    by ml); free-text lines carry a typed cost_eur for their exact amount.
+    Never typed as a total — the house-syrup cost hole fix."""
+    total = 0.0
+    for bl in lines:
+        if bl.get("stock_item_id") is not None:
+            total += line_cost(bl)
+        else:
+            total += float(bl.get("cost_eur", 0.0) or 0.0)
+    return total
+
+
+def batch_cost_per_ml(cost: float, batch_size_ml: float) -> float:
+    if batch_size_ml <= 0:
+        return 0.0
+    return cost / batch_size_ml
+
+
+def serve_batch_cost(amount: float, unit: str,
+                     batch_cost_total: float, batch_size_ml: float) -> float:
+    """Cost of pouring `amount` (a volume unit) of a finished batch into one
+    serve: amount->canonical ml x (batch total ÷ batch size)."""
+    if batch_size_ml <= 0:
+        return 0.0
+    ml = float(amount or 0.0) * UNIT_CANONICAL.get(unit, 1.0)
+    return ml * batch_cost_total / batch_size_ml
+
+
 def _line_volume_ml(line: dict) -> float:
     """Canonical ml of a volume-dimension line. Legacy rows (no unit key /
     unit 'ml', volume dimension) return the stored amount unchanged, so
@@ -71,8 +103,15 @@ def line_cost(line: dict) -> float:
     volume, g for weight, pieces for count — dimension says which). The line's
     own amount_ml holds amount-in-unit; unit converts to canonical.
 
-    Legacy ml/volume lines take the original formula path untouched.
+    Legacy ml/volume lines take the original formula path untouched. Spec
+    lines that pour a house syrup carry serve_batch and cost amount ×
+    (batch total ÷ size); batch ingredient rows keep their own batch_id
+    (parent) and take the normal engine path.
     """
+    if line.get("serve_batch"):
+        return serve_batch_cost(
+            line.get("amount_ml", 0.0), line.get("unit") or "ml",
+            line.get("batch_cost_total", 0.0), line.get("batch_size_ml", 0.0))
     unit = str(line.get("unit") or "ml")
     dimension = UNIT_DIMENSION.get(unit, "volume")
     amount = float(line.get("amount_ml", 0.0) or 0.0)
