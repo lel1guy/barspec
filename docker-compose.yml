@@ -1,0 +1,29 @@
+# BarSpec — Docker Compose (portable setup).
+#
+#   docker compose up -d --build
+#
+# Data is a plain SQLite file in ./data/barspec.db (bind mount) — back it up
+# by copying that one file (use the sqlite online-backup snapshot pattern,
+# never cp of a live DB).
+#
+# Host port 8780 by default so it won't clash with the KAIDO systemd unit
+# on 8777. On a venue/VPS install, map what you need (e.g. "8000:8000" behind
+# a Caddy reverse proxy).
+services:
+  barspec:
+    build: .
+    container_name: barspec
+    restart: unless-stopped
+    ports:
+      - "8780:8000"
+    volumes:
+      - ./data:/app/data:z
+    environment:
+      - BARSPEC_DB=/app/data/barspec.db
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/specs', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 8s

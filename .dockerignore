@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+tests/
+data/
+*.db
+*.db.bak*
+*.db.pre-migration-*
+README.md
+requirements-dev.txt
+docker-compose.yml
+Dockerfile
