@@ -8,12 +8,11 @@ scratch.
 Companion docs: [User Guide](USER_GUIDE.md) for how to *use* the app,
 `README.md` for run/test/API quick reference.
 
-> **Status note (2026-09-06):** this documents the shipped architecture
-> (migrations 001–002 + S1 display toggle). A units engine (migration 003 —
-> weight/piece dimensions) is mid-flight on branch `feat/units-s2`,
-> **uncommitted**: schema file + pricing tables + tests exist, the live DB is
-> still at version 2, and one café-proof test is red. Sections affected are
-> marked **S2 in progress**.
+> **Status (2026-09-06):** shipped through the S2 units engine — migrations
+> 001–003, S1 display toggle, dimension-aware costing (volume/weight/count),
+> 81 tests green. The live `barspec.db` file applies migration 003 on next app
+> startup (normal migration behavior). Syrups/batches (migration 004) is the
+> next build.
 
 ---
 
@@ -168,14 +167,28 @@ a dated row in history — "what did we have on Monday" — not an overwrite of
 Throwaway UI state could never answer "what moved this week". (The trend
 endpoint says: *insight appears as history accrues.*)
 
-**S2 in progress — migration 003 (units engine).** Adds `dimension`
-(volume|weight|count) to stock_items and `unit` to spec_lines, with
-canonical-conversion tables in `pricing.py` (cl→10 ml, oz→29.5735 ml,
-dash=1 ml fixed, barspoon=5 ml fixed, kg→1000 g, piece=1). Design intent
-(from the dev plan): one cost rule across dimensions — a café espresso is
-9 g beans + 60 ml milk + 1 piece cup. Currently **uncommitted on
-`feat/units-s2`**, DB still at v2, one café-proof test failing on the API
-response shape (line rows not yet exposing `unit`/`dimension`).
+**Migration 003 — units engine (S2, shipped 2026-09-06).** Adds
+`dimension` (volume|weight|count) to stock_items and `unit` to spec_lines,
+with canonical-conversion tables in `pricing.py` (cl→10 ml, oz→29.5735 ml,
+dash=1 ml fixed, barspoon=5 ml fixed, kg→1000 g, piece=1). One cost rule
+across dimensions — a café espresso is 9 g beans + 60 ml milk + 1 piece cup.
+Legacy rows backfill as volume/ml — the migration test proves 0 cents move
+for pre-engine data. The API now accepts `LineIn.unit` and `StockIn.dimension`
+and rejects dimension mismatches (400).
+
+**Migration 004 — house batches (shipped 2026-09-06).** `batches` (name,
+method, batch_size_ml, made_date, shelf_life_days) + `batch_lines`; `spec_lines`
+gains a nullable `batch_id` and a table-level CHECK that **exactly one** of
+stock_item_id/batch_id is set (the rebuild renames + recreates the table,
+copying rows 1:1). A batch line is either **stock-linked** (a stock_item_id →
+cost derives through the engine, so sugar by kg and Campari by ml both just
+work) or **free-text** with a typed `cost_eur` for that exact amount (water is
+€0 — the CHECK enforces one price source: linked XOR costed). Spec pour cost =
+`amount × (batch total ÷ batch_size_ml)`; batches never nest. `shelf_life_days`
++ `made_date` drive `days_left` (negative = past expiry; NULL = keeps).
+Spec-line serving rows carry an explicit `serve_batch` marker because a batch
+ingredient row legitimately shares its parent `batch_id` — pricing must not
+confuse the two (a key-collision bug caught in QA, regression-tested).
 
 ---
 
@@ -220,7 +233,7 @@ the work, exceptions become HTTP statuses. Notable mappings:
 | Spec/bottle/line not found | 404 |
 | Duplicate bottle name | 409 |
 | Delete bottle still used by specs | 409 |
-| Unknown unit / dimension mismatch / par on weight item (**S2**) | 400 |
+| Unknown unit / dimension mismatch / par on weight item | 400 |
 | Bad count (no par, bad fraction, negative full) | 400 |
 
 Error messages are human sentences (FastAPI puts them in `detail`), and the
@@ -228,9 +241,9 @@ frontend surfaces them in a toast — the browser never has to guess.
 
 Routes group by resource and read like the domain:
 `/api/specs`, `/api/specs/{id}/lines`, `/api/stock`, `/api/stock/{id}/par`,
-`/api/stock-takes/{sheet|last|trends}`, `/api/menu`. `GET /api/menu` is the
-**printable** view (names + prices only — costs and chips excluded, currency
-symbols omitted for menu psychology).
+`/api/batches`, `/api/batches/{id}/lines`, `/api/stock-takes/{sheet|last|trends}`,
+`/api/menu`. `GET /api/menu` is the **printable** view (names + prices only —
+costs and chips excluded, currency symbols omitted for menu psychology).
 
 ---
 
@@ -238,13 +251,21 @@ symbols omitted for menu psychology).
 
 `PUT /api/stock/{id}` — "Campari went from €19 to €25":
 
-1. `main.py` validates `StockIn` (Pydantic).
+1. `main.py` validates `StockIn` (Pydantic; `dimension` is a `Literal`, so a
+   nonsense dimension 422s before the db layer — QA found it once reporting
+   a misleading 409).
 2. `db.update_stock_item()` loads the current row, notes `old_price`.
-3. Price moved → for each spec using this bottle, it replays `drink_cost()`
-   with old and new price **in memory** (`price_override`) → `impact[]`.
+3. Price moved → for every spec touched — **directly via a bottle line OR
+   through a batch that lists the bottle** (two levels, one impact report) —
+   it replays `drink_cost()` with old and new price **in memory**
+   (`_spec_lines_all(..., override=(stock_id, price))` → `impact[]`). Batch
+   costs recompute from their stock links, so a spec pouring 30 ml of a
+   Campari-based batch moves too.
 4. UPDATE executes, commit, close. Returns `{"ok": True, "impact": [...]}`.
 5. Frontend sees `impact.length > 0` → `showRipple()` renders "Price change
-   affects N specs: Negroni €1.37 → €1.72 per serve".
+   affects N specs: Negroni €2.20 → €2.45 per serve" (real seed math:
+   gin 30 ml @ €22/700 + Campari 30 ml @ €19/700→€25/700 + vermouth
+   30 ml @ €11/750 = €2.197 → €2.454, rounded to 3 dp by the API).
 
 No stored cost was updated anywhere. That's Rule 1 paying rent.
 
@@ -265,7 +286,7 @@ No stored cost was updated anywhere. That's Rule 1 paying rent.
      runs `init_db()`. This is the money test: if migration replay passes
      here, every future venue file upgrades safely.
 
-Suite map (~66 tests, growing with S2):
+Suite map (98 tests green on HEAD):
 
 | File | Guards |
 |---|---|
@@ -273,7 +294,8 @@ Suite map (~66 tests, growing with S2):
 | `test_migrations.py` | v0→latest replay, dedupe correctness, 1:1 line preservation, idempotence, no-reseed |
 | `test_api.py` | Smoke: seed state, CRUD, resolve-vs-create on lines, ripple impact, cascade rules |
 | `test_stocktake.py` | Par gating, sheet prefill, order-list math, fraction validation, trends/dead-stock |
-| `test_units.py` (**S2 WIP**) | Unit tables, canonical conversion, café proof — 1 red test |
+| `test_units.py` | Unit tables, canonical conversion, dimension mismatch, café proof (9 g + ml + piece), 422-not-409 |
+| `test_batches.py` | Batch cost derivation, stock-linked vs free-text, spec pours, expiry, delete guards, the two-level ripple to the cent |
 
 The three-layer split (pure math / migrations / API) means a failure tells
 you *which* layer is wrong before you start reading.
@@ -290,9 +312,10 @@ you *which* layer is wrong before you start reading.
   made schema-level validation possible.
 - **Par ≤ 0 or empty = not counted** (stored NULL). A zero target is
   meaningless on a bar floor, so the data model refuses to represent it.
-- **Weight items are excluded from the count walk in v1** (you count bottles,
-  you *weigh* stock — a different job). That boundary is explicit in code,
-  not an accident. (**S2** codifies it: par on a weight item raises 400.)
+- **Weight items are excluded from the count walk** (you count bottles, you
+  *weigh* stock — a different job). The S2 code makes the boundary explicit:
+  par on a weight item raises 400 rather than silently counting something
+  that should be weighed.
 - **Menu print hides currency symbols** — a domain decision (price cues
   suppress spend) implemented as a `no-print` CSS class system.
 - **Duplicate spec = " (copy)" suffix**, lines re-pointed at the same stock
@@ -354,7 +377,8 @@ fuzzy.
 
 The product direction, market reasoning and phased plan live in the vault
 dev plan (`Projects/Bar-Tech-Venture/BarSpec-Vision-and-Dev-Plan.md`):
-Phase A = stock-take ✅ → units engine (**S2/S3 in flight**) → syrups as
-costed batches (migration 004) → categories/search → PT-PT UI. Phase B/C
-(tenancy, VPS+Caddy, auth, PWA) are deliberately gated on a real paying
-venue. Update this doc when those land — the code will have changed shape.
+Phase A = stock-take ✅ → units engine ✅ (S2 shipped, S3 entry UI
+pending) → syrups as costed batches (migration 004) → categories/search →
+PT-PT UI. Phase B/C (tenancy, VPS+Caddy, auth, PWA) are deliberately gated
+on a real paying venue. Update this doc when those land — the code will have
+changed shape.

@@ -51,7 +51,7 @@ what to buy, and how much cash is sitting *over* par ("cash asleep").
 
 ---
 
-## The four screens
+## The five screens
 
 ### Specs — your recipe book
 
@@ -73,22 +73,46 @@ links to the existing bottle (ABV/price/size fields hide — the bottle owns
 them). If it's a name BarSpec doesn't know, it creates the bottle for you —
 fill ABV/price/size now or later in Stock.
 
-### Stock — the shared bottle list
+### Stock — the shared list (bottles, bags, pieces)
 
-One row per bottle: name, ABV, price €, size, par. Everything edits inline —
+One row per item: name, ABV, price €, size, par. Everything edits inline —
 click a field, change it, click away (or press Enter).
 
-- **Used in** shows how many specs use that bottle.
-- Bottles **no spec uses** are dimmed and can be deleted. Bottles in use
-  can't be deleted (remove them from specs first).
-- **Par** column: set the number of bottles you want on hand. Empty = not
-  counted in stock-takes.
-- **+ Add bottle** for a new one. Name first — "price and size can wait
-  until you have the receipt."
+- **Kind matters** (top of the + Add form): **Bottle/keg** (volume, ABV),
+  **Weight** (coffee, sugar — no ABV, size in g/kg) or **Per piece** (limes).
+  Size is stored canonically (ml / g / pieces); you type it in whatever unit
+  suits (700 ml or 0.7 l; 1 kg or 1000 g).
+- **Used in** shows how many specs use that item.
+- Items **no spec uses** are dimmed and can be deleted. Items in use can't be
+  deleted (remove them from specs first).
+- **Par** column: set how many you want on hand. Empty = not counted in
+  stock-takes. Weight items sit out of the count walk — you count bottles and
+  pieces, you *weigh* stock.
+- **+ Add** for a new one. Name first — "price and size can wait until you
+  have the receipt."
 
-**The ripple report:** change a bottle's *price* and a panel appears listing
-every spec whose cost moved, old → new per serve. That's your "Campari went
-up €2 — what does that do to my menu?" answer, instantly.
+**The ripple report:** change an item's *price* and a panel appears listing
+every spec whose cost moved, old → new per serve — **including specs that use
+a house batch containing that item**. That's your "Campari went up €2 — what
+does that do to my menu?" answer, instantly, through every layer.
+
+### Batches — house-made syrups & infusions
+
+Costing a homemade syrup as a vague "€1 guess" is how margins lie. A **batch**
+is a mini-recipe: its cost is **derived from ingredients, never typed**.
+
+- **+ New batch**: name, finished size (1 litre is the norm), shelf life in
+  days, made date, method note.
+- **Add ingredients** by name: if it's in Stock it **links live** (sugar by
+  kg, Campari by ml — a price change flows into the batch automatically). If
+  it isn't stock, type a **€ cost for that amount** (water = €0).
+- The batch shows **total €**, **€ per litre**, and an **expiry chip** — days
+  left, red past expiry, "keeps" with no shelf life.
+- In a spec, pour it like any ingredient: pick the batch, type the amount.
+  Cost = your pour × (batch total ÷ batch size).
+
+A classic first batch: **1:1 simple syrup** — 500 g sugar (linked or €0.45)
++ 500 ml water (€0) → €0.45 per litre instead of €3+ for bought-in.
 
 ### Stock-take — count, order, trend
 
@@ -148,12 +172,16 @@ server-side, not by your browser.
 
 ---
 
-## Units: ml, cl or oz (display only)
+## Units: display and entry
 
-Top-right toggle: **ml / cl / oz**. It converts *display and entry* only —
-everything is stored internally as ml, so flipping the toggle never changes
-your data. Pick whichever you think in (US recipes read in oz; PT floors pour
-in cl) and BarSpec follows.
+Top-right toggle: **ml / cl / oz** — converts display *and* volume entry
+(material is always stored canonically, so flipping never changes your data).
+On top of that, every spec line has its **own unit**: volumes take
+ml/cl/oz, weight ingredients take **g/kg** (9 g of coffee is 9 g, not
+"0 ml"), pieces take **piece**. Amounts convert in place when you flip a
+line's unit — 30 ml becomes 3 cl, same pour, same cost. Weight and piece
+amounts show their own unit inline in the table, because a single header
+can't honestly cover a mixed-unit drink.
 
 ---
 
@@ -191,11 +219,16 @@ docker compose up -d --build   # serves on http://localhost:8780
 add each bottle (known names link, unknown names create bottles) → Save →
 read cost/serve, ABV, and the cost-share bars.
 
-**2. Reprice the menu after a price hike** → Stock → edit the bottle's price
+**2. Make a house syrup and pour it** → Batches → + New batch (1 litre,
+shelf 14–30 days) → add ingredients (stock names link; water is €0) → then
+Specs → open any drink → Ingredients → pick your batch → 20 ml → the spec
+costs the real syrup, not a guess.
+
+**3. Reprice the menu after a price hike** → Stock → edit the bottle's price
 → read the ripple report → for each affected spec, drag the margin slider →
 use suggested → Save.
 
-**3. Set up ordering discipline** → Stock → set a par on every bottle you
+**4. Set up ordering discipline** → Stock → set a par on every bottle you
 count → Stock-take → Count (correct what changed) → Save count → Order list
 gives you this week's shopping list and the cash-asleep figure.
 
@@ -225,6 +258,7 @@ schema.
 one file. That's a feature for the target market (offline, no subscription,
 data you own), and the plan for multi-venue lives in the dev plan.
 
-**What's next?** Units engine for weight/piece ingredients (g of coffee,
-limes by the piece), house syrups as costed batches, categories/search,
-PT-PT UI. See the Developer Guide / dev plan for the roadmap.
+**What's next?** The units engine is in (costing handles weight/piece — g of
+coffee, limes by the piece), but the on-screen entry for those is still
+building; house syrups as costed batches, categories/search, PT-PT UI. See
+the dev plan for the roadmap.
