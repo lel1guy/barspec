@@ -12,10 +12,11 @@
 <body>
 
 <aside class="side">
-  <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v0.3</span></div>
+  <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v0.4</span></div>
   <div class="grp">Workspace</div>
   <nav class="sidenav">
     <button id="navSpecs" class="navitem active"><span class="ic">▤</span>Specs<span class="navbadge" id="countSpecs">0</span></button>
+    <button id="navBatches" class="navitem"><span class="ic">≋</span>Batches<span class="navbadge" id="countBatches">0</span></button>
     <button id="navStock" class="navitem"><span class="ic">◫</span>Stock<span class="navbadge" id="countStock">0</span></button>
     <button id="navTake" class="navitem"><span class="ic">▦</span>Stock-take<span class="navbadge" id="countTake">0</span></button>
     <button id="navMenu" class="navitem"><span class="ic">☰</span>Menu<span class="navbadge" id="countMenu">0</span></button>
@@ -50,6 +51,37 @@
     </div>
   </section>
 
+  <!-- ============ BATCHES (house syrups / infusions) ============ -->
+  <section id="view-batches" class="view">
+    <div class="panel">
+      <div class="panel-head no-print">
+        <h2>House batches</h2>
+        <span class="hint" id="batchHint">Simple syrups, infusions, mixes — cost is derived from ingredients, never typed.</span>
+        <div class="spacer"></div>
+        <button id="newBatchBtn" class="btn primary">+ New batch</button>
+      </div>
+      <div id="newBatchForm" class="hidden no-print" style="border-bottom:1px solid var(--line2); padding-bottom:12px; margin-bottom:6px;">
+        <div class="formrow">
+          <div style="flex:2; min-width:150px;"><label>Name</label><input id="btName" placeholder="Simple syrup 1:1"></div>
+          <div style="flex:1; min-width:70px;"><label>Batch size</label>
+            <div style="display:flex; gap:4px;"><input id="btSize" type="number" value="1000" min="0" step="1" style="flex:1;">
+            <select id="btUnit" style="width:80px;"><option value="ml">ml</option><option value="l">l</option></select></div>
+          </div>
+          <div style="flex:1; min-width:80px;"><label>Shelf life (days)</label><input id="btShelf" type="number" placeholder="30 (blank = keeps)"></div>
+          <div style="flex:1; min-width:110px;"><label>Made</label><input id="btMade" type="date"></div>
+        </div>
+        <div class="formrow" style="margin-top:6px;">
+          <div style="flex:3; min-width:200px;"><label>Method</label><input id="btMethod" placeholder="stir 2:1 sugar:water, no heat"></div>
+          <button id="saveBatch" class="btn">Save batch</button>
+          <button id="cancelBatch" class="btn ghost">Cancel</button>
+        </div>
+      </div>
+      <div id="batchList"></div>
+      <div id="batchDetail"></div>
+      <div id="batchEmpty" class="edit-note hidden" style="padding:20px 0;">No batches yet — a house syrup starts with a name and a pan of sugar.</div>
+    </div>
+  </section>
+
   <!-- ============ STOCK ============ -->
   <section id="view-stock" class="view">
     <div class="panel">
@@ -70,13 +102,26 @@
       <div id="addStockForm" class="hidden no-print">
         <div class="hint" style="margin-top:14px;">New bottle — name first; price and size can wait until you have the receipt.</div>
         <div class="formrow">
-          <div style="flex:2; min-width:160px;"><label>Name</label><input id="stName" placeholder="Campari"></div>
-          <div style="flex:1; min-width:80px;"><label>ABV %</label><input id="stAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
-          <div style="flex:1; min-width:90px;"><label>Price €</label><input id="stPrice" type="number" value="0" min="0" step="0.1"></div>
-          <div style="flex:1; min-width:90px;"><label id="stSizeLbl">Size (ml)</label><input id="stVol" type="number" value="700" min="0" step="1"></div>
+          <div style="flex:2; min-width:150px;"><label>Name</label><input id="stName" placeholder="Campari"></div>
+          <div style="flex:1; min-width:110px;"><label>Kind</label>
+            <select id="stDim">
+              <option value="volume">Bottle / keg</option>
+              <option value="weight">Weight (coffee, sugar)</option>
+              <option value="count">Per piece (limes)</option>
+            </select>
+          </div>
+          <div style="flex:1; min-width:70px;" id="abvWrap"><label>ABV %</label><input id="stAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
+          <div style="flex:1; min-width:80px;"><label>Price €</label><input id="stPrice" type="number" value="0" min="0" step="0.1"></div>
+          <div style="flex:1; min-width:150px;"><label>Size per purchase</label>
+            <div style="display:flex; gap:4px;">
+              <input id="stVol" type="number" value="700" min="0" step="1" style="flex:1;">
+              <select id="stVolUnit" style="width:86px;"><option value="ml">ml</option><option value="l">l</option></select>
+            </div>
+          </div>
           <button id="saveStock" class="btn">Save</button>
           <button id="cancelStock" class="btn ghost">Cancel</button>
         </div>
+        <div class="edit-note" style="margin-top:6px;" id="stockDimHint">A bottle is € per 700 ml; coffee € per kg (g); limes € per box of pieces. Size is stored canonically (ml / g / pc).</div>
       </div>
     </div>
   </section>

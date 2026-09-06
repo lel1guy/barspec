@@ -14,6 +14,37 @@ Conventions:
 import math
 
 
+# ---------- units engine (S2): dimensions + canonical conversion ----------
+
+# A unit belongs to exactly one dimension. Canonical unit per dimension:
+#   volume -> ml, weight -> g, count -> piece.
+# UNIT_CANONICAL is the factor from the unit to its dimension's canonical unit.
+# dash = 1 ml and barspoon = 5 ml are fixed volume sub-units (locked 2026-09-06)
+# so bitters cost via the bottle instead of being ignored.
+UNIT_DIMENSION = {
+    "ml": "volume", "cl": "volume", "l": "volume", "oz": "volume",
+    "dash": "volume", "barspoon": "volume",
+    "g": "weight", "kg": "weight",
+    "piece": "count", "each": "count",
+}
+UNIT_CANONICAL = {
+    "ml": 1.0, "cl": 10.0, "l": 1000.0, "oz": 29.5735,
+    "dash": 1.0, "barspoon": 5.0,
+    "g": 1.0, "kg": 1000.0,
+    "piece": 1.0, "each": 1.0,
+}
+CANONICAL_PER_DIMENSION = {"volume": "ml", "weight": "g", "count": "piece"}
+
+
+def valid_unit(unit: str) -> bool:
+    return unit in UNIT_CANONICAL
+
+
+def canonical_amount(amount: float, unit: str) -> float:
+    """Convert an amount expressed in `unit` to its dimension's canonical unit."""
+    return amount * UNIT_CANONICAL.get(unit, 1.0)
+
+
 def _cost_per_ml(bottle_price_eur: float, bottle_volume_ml: float) -> float:
     """EUR per ml of a bottle. Volume <= 0 means 'no price' -> 0 cost."""
     if bottle_volume_ml <= 0 or bottle_price_eur <= 0:
@@ -21,11 +52,77 @@ def _cost_per_ml(bottle_price_eur: float, bottle_volume_ml: float) -> float:
     return bottle_price_eur / bottle_volume_ml
 
 
+# ---------- batches (004): house-made syrups / infusions ----------
+
+def batch_cost(lines: list[dict]) -> float:
+    """Total ingredient cost of a batch across its lines, EUR (unrounded).
+    Stock-linked lines derive through the units engine (sugar by kg, bitters
+    by ml); free-text lines carry a typed cost_eur for their exact amount.
+    Never typed as a total — the house-syrup cost hole fix."""
+    total = 0.0
+    for bl in lines:
+        if bl.get("stock_item_id") is not None:
+            total += line_cost(bl)
+        else:
+            total += float(bl.get("cost_eur", 0.0) or 0.0)
+    return total
+
+
+def batch_cost_per_ml(cost: float, batch_size_ml: float) -> float:
+    if batch_size_ml <= 0:
+        return 0.0
+    return cost / batch_size_ml
+
+
+def serve_batch_cost(amount: float, unit: str,
+                     batch_cost_total: float, batch_size_ml: float) -> float:
+    """Cost of pouring `amount` (a volume unit) of a finished batch into one
+    serve: amount->canonical ml x (batch total ÷ batch size)."""
+    if batch_size_ml <= 0:
+        return 0.0
+    ml = float(amount or 0.0) * UNIT_CANONICAL.get(unit, 1.0)
+    return ml * batch_cost_total / batch_size_ml
+
+
+def _line_volume_ml(line: dict) -> float:
+    """Canonical ml of a volume-dimension line. Legacy rows (no unit key /
+    unit 'ml', volume dimension) return the stored amount unchanged, so
+    pre-engine volumes and ABV are byte-identical. Weight/count lines carry no
+    drink volume: 9 g of coffee is not 9 ml of liquid."""
+    unit = line.get("unit") or "ml"
+    if UNIT_DIMENSION.get(unit, "volume") != "volume":
+        return 0.0
+    return float(line.get("amount_ml", 0.0) or 0.0) * UNIT_CANONICAL.get(unit, 1.0)
+
+
 def line_cost(line: dict) -> float:
-    """Cost of one line (one ingredient amount) in EUR, unrounded."""
-    return line["amount_ml"] * _cost_per_ml(
-        line.get("bottle_price_eur", 0.0), line.get("bottle_volume_ml", 0.0)
-    )
+    """Cost of one line (one ingredient amount) in EUR, unrounded.
+
+    The line's stock item is the price truth: bottle_price_eur = € per
+    purchase, bottle_volume_ml = canonical amount per purchase (ml for
+    volume, g for weight, pieces for count — dimension says which). The line's
+    own amount_ml holds amount-in-unit; unit converts to canonical.
+
+    Legacy ml/volume lines take the original formula path untouched. Spec
+    lines that pour a house syrup carry serve_batch and cost amount ×
+    (batch total ÷ size); batch ingredient rows keep their own batch_id
+    (parent) and take the normal engine path.
+    """
+    if line.get("serve_batch"):
+        return serve_batch_cost(
+            line.get("amount_ml", 0.0), line.get("unit") or "ml",
+            line.get("batch_cost_total", 0.0), line.get("batch_size_ml", 0.0))
+    unit = str(line.get("unit") or "ml")
+    dimension = UNIT_DIMENSION.get(unit, "volume")
+    amount = float(line.get("amount_ml", 0.0) or 0.0)
+    price = float(line.get("bottle_price_eur", 0.0) or 0.0)
+    per = float(line.get("bottle_volume_ml", 0.0) or 0.0)
+    if per <= 0 or price <= 0:
+        return 0.0
+    if dimension == "volume" and unit == "ml":
+        return amount * _cost_per_ml(price, per)
+    canonical = amount * UNIT_CANONICAL.get(unit, 1.0)
+    return canonical * price / per
 
 
 def drink_cost(lines: list[dict]) -> float:
@@ -34,7 +131,8 @@ def drink_cost(lines: list[dict]) -> float:
 
 
 def drink_volume(lines: list[dict]) -> float:
-    return sum(l["amount_ml"] for l in lines)
+    """Total canonical ml of volume-dimension lines (see _line_volume_ml)."""
+    return sum(_line_volume_ml(l) for l in lines)
 
 
 def drink_abv(lines: list[dict]) -> float:
@@ -42,7 +140,9 @@ def drink_abv(lines: list[dict]) -> float:
     total = drink_volume(lines)
     if total <= 0:
         return 0.0
-    abv_vol = sum(l["amount_ml"] * (l.get("abv", 0.0) / 100.0) for l in lines)
+    abv_vol = sum(
+        _line_volume_ml(l) * (l.get("abv", 0.0) / 100.0) for l in lines
+    )
     return abv_vol / total * 100.0
 
 
