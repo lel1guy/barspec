@@ -12,7 +12,7 @@ def _conn(db):
 class TestLegacyUpgrade:
     def test_version_bumped(self, legacy_db):
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         conn.close()
 
     def test_ingredients_table_gone(self, legacy_db):
@@ -54,6 +54,24 @@ class TestLegacyUpgrade:
         assert {"stock_takes", "stock_take_lines"} <= tables
         conn.close()
 
+    def test_units_schema_added(self, legacy_db):
+        """003 adds dimension on stock + unit on spec lines."""
+        conn = _conn(legacy_db.DB_PATH)
+        stock_cols = [r[1] for r in conn.execute(
+            "PRAGMA table_info(stock_items)").fetchall()]
+        line_cols = [r[1] for r in conn.execute(
+            "PRAGMA table_info(spec_lines)").fetchall()]
+        assert "dimension" in stock_cols
+        assert "unit" in line_cols
+        # legacy rows backfill as volume/ml — zero data rewrite
+        dims = conn.execute(
+            "SELECT DISTINCT dimension FROM stock_items").fetchall()
+        units = conn.execute(
+            "SELECT DISTINCT unit FROM spec_lines").fetchall()
+        assert dims == [("volume",)]
+        assert units == [("ml",)]
+        conn.close()
+
     def test_cost_unchanged_after_upgrade(self, legacy_db):
         """Negroni cost must equal the old formula on the same numbers."""
         spec = legacy_db.get_spec(1)
@@ -69,7 +87,7 @@ class TestLegacyUpgrade:
         """Running init_db twice never double-applies or reseeds."""
         legacy_db.init_db()
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         assert conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] == 4
         conn.close()

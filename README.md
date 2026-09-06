@@ -43,7 +43,7 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # 65 tests: pricing math, migration replay, API smoke, stock-take
+pytest            # 81 tests: pricing math, migration replay, API smoke, stock-take, units engine
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
@@ -61,6 +61,10 @@ A fresh install runs the same path as an upgrade — self-checking.
 - `002_stock_take.sql` — `par_level` on stock_items (NULL = not counted) +
   `stock_takes`/`stock_take_lines` dated snapshots (full bottles + open
   fraction 0/¼/½/¾/1). Count history, not throwaway UI state.
+- `003_units.sql` — `dimension` on stock_items (volume|weight|count) +
+  `unit` on spec_lines (default ml, legacy byte-identical). Canonical units:
+  volume→ml, weight→g, count→piece. dash = 1 ml, barspoon = 5 ml. Allowed
+  units + conversion factors live in `pricing.py` (single source of truth).
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
@@ -90,9 +94,10 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
 ## Roadmap (not started)
 
-- oz / cl unit toggle
+- units engine entry UI (S3): dimension picker on stock, unit picker on lines
+  — engine + API land it already, S1 cl/oz/ml display toggle is live
 - dilution % per spec (shaken vs stirred)
 - categories + search (60+ specs breaks the flat list)
-- syrups / infusions as batches (migration 003 — see vault dev plan)
+- syrups / infusions as batches (migration 004 — see vault dev plan)
 - Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)

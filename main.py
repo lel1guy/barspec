@@ -37,6 +37,7 @@ class LineIn(BaseModel):
     abv: float = 0.0                     # used only when creating a NEW stock item
     bottle_price_eur: float = 0.0
     bottle_volume_ml: float = 700.0
+    unit: str = "ml"                     # ml|cl|l|oz|dash|barspoon|g|kg|piece|each
 
 
 class LineUpdate(BaseModel):
@@ -48,6 +49,7 @@ class StockIn(BaseModel):
     abv: float = 0.0
     bottle_price_eur: float = 0.0
     bottle_volume_ml: float = 700.0
+    dimension: str = "volume"            # volume (ml) | weight (g) | count (piece)
 
 
 class ParIn(BaseModel):
@@ -118,8 +120,12 @@ def duplicate_spec(spec_id: int):
 @app.post("/api/specs/{spec_id}/lines")
 def add_line(spec_id: int, line: LineIn):
     """Add an ingredient to a spec. Name resolves against stock; unknown names
-    create the stock item (bottle) automatically."""
-    s = db.add_line(spec_id, line.model_dump())
+    create the stock item (bottle) automatically. Unit must match the stock
+    item's dimension."""
+    try:
+        s = db.add_line(spec_id, line.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     if not s:
         raise HTTPException(404, "Spec not found")
     return s
@@ -184,7 +190,11 @@ def menu():
 @app.patch("/api/stock/{stock_id}/par")
 def set_par(stock_id: int, par: ParIn):
     """Set (or clear) a bottle's par level. Par <= 0 or null = not counted."""
-    if not db.set_stock_par(stock_id, par.par_level):
+    try:
+        ok = db.set_stock_par(stock_id, par.par_level)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not ok:
         raise HTTPException(404, "Stock item not found")
     return {"ok": True}
 

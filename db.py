@@ -250,11 +250,15 @@ def create_stock_item(data: dict):
     if dup:
         conn.close()
         raise ValueError("Stock item already exists")
+    dimension = data.get("dimension", "volume")
+    if dimension not in ("volume", "weight", "count"):
+        conn.close()
+        raise ValueError(f"Dimension must be volume|weight|count, got {dimension}")
     cur = conn.execute(
-        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml)
-           VALUES (?,?,?,?)""",
+        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension)
+           VALUES (?,?,?,?,?)""",
         (data["name"].strip(), data.get("abv", 0), data.get("bottle_price_eur", 0),
-         data.get("bottle_volume_ml", 700)),
+         data.get("bottle_volume_ml", 700), dimension),
     )
     conn.commit()
     new_id = _lastid(cur)
@@ -337,8 +341,9 @@ def _spec_lines_joined(conn, spec_id, price_override=None):
     bottle price without mutating anything.
     """
     rows = conn.execute(
-        """SELECT sl.id, sl.spec_id, sl.stock_item_id, sl.amount_ml,
-                  si.name, si.abv, si.bottle_price_eur, si.bottle_volume_ml
+        """SELECT sl.id, sl.spec_id, sl.stock_item_id, sl.amount_ml, sl.unit,
+                  si.name, si.abv, si.bottle_price_eur, si.bottle_volume_ml,
+                  si.dimension
            FROM spec_lines sl
            JOIN stock_items si ON si.id = sl.stock_item_id
            WHERE sl.spec_id = ? ORDER BY sl.id""",
@@ -389,6 +394,7 @@ def get_spec(spec_id: int):
             "name": l["name"], "amount_ml": l["amount_ml"], "abv": l["abv"],
             "bottle_price_eur": l["bottle_price_eur"],
             "bottle_volume_ml": l["bottle_volume_ml"],
+            "unit": l["unit"], "dimension": l["dimension"],
             "row_cost_eur": round(pricing.line_cost(l), 3),
             "row_cost_pct": round(pcts[i], 1),
         })
@@ -469,7 +475,9 @@ def duplicate_spec(spec_id: int):
 
 def add_line(spec_id: int, data: dict):
     """Add an ingredient line to a spec. Resolves the name against stock:
-    existing bottle -> reuse it; new name -> create the stock item first."""
+    existing bottle -> reuse it; new name -> create the stock item first.
+    The line unit (default 'ml') must match the stock item's dimension —
+    pouring 9 g of a volume bottle, or 30 ml of a weight bag, is nonsense."""
     conn = _conn()
     spec = conn.execute("SELECT id FROM specs WHERE id=?", (spec_id,)).fetchone()
     if not spec:
@@ -478,9 +486,18 @@ def add_line(spec_id: int, data: dict):
     stock = _resolve_stock(conn, data["name"], data.get("abv", 0),
                            data.get("bottle_price_eur", 0),
                            data.get("bottle_volume_ml", 700))
+    unit = str(data.get("unit") or "ml")
+    if not pricing.valid_unit(unit):
+        conn.close()
+        raise ValueError(f"Unknown unit '{unit}'")
+    if pricing.UNIT_DIMENSION[unit] != stock["dimension"]:
+        conn.close()
+        raise ValueError(
+            f"Unit '{unit}' is {pricing.UNIT_DIMENSION[unit]}, but "
+            f"'{stock['name']}' is measured in {stock['dimension']}")
     conn.execute(
-        "INSERT INTO spec_lines (spec_id, stock_item_id, amount_ml) VALUES (?,?,?)",
-        (spec_id, stock["id"], data["amount_ml"]),
+        "INSERT INTO spec_lines (spec_id, stock_item_id, amount_ml, unit) VALUES (?,?,?,?)",
+        (spec_id, stock["id"], data["amount_ml"], unit),
     )
     conn.commit()
     conn.close()
@@ -535,11 +552,22 @@ def get_menu():
 
 def set_stock_par(stock_id: int, par_level: float | None) -> bool:
     """Set (or clear, with None) a bottle's par level. Par <= 0 is treated as
-    'not counted' (stored NULL) — a zero target makes no sense on a bar floor."""
+    'not counted' (stored NULL) — a zero target makes no sense on a bar floor.
+    Weight items (kg bags etc) are excluded from the count walk in v1: you
+    count bottles and pieces, you weigh stock — different job, later design."""
+    conn = _conn()
+    row = conn.execute(
+        "SELECT dimension FROM stock_items WHERE id=?", (stock_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return False
+    if row["dimension"] == "weight":
+        conn.close()
+        raise ValueError("Weight items (kg/g) aren't counted in the stock-take yet")
     par = par_level
     if par is None or par <= 0:
         par = None
-    conn = _conn()
     cur = conn.execute(
         "UPDATE stock_items SET par_level=?, updated_at=datetime('now') WHERE id=?",
         (par, stock_id),
@@ -576,7 +604,8 @@ def get_take_sheet():
             last_vals[r["stock_item_id"]] = dict(r)
     rows = []
     for r in conn.execute(
-        "SELECT * FROM stock_items WHERE par_level IS NOT NULL ORDER BY lower(name)"
+        "SELECT * FROM stock_items WHERE par_level IS NOT NULL "
+        "AND dimension IN ('volume','count') ORDER BY lower(name)"
     ):
         d = dict(r)
         prev = last_vals.get(d["id"])
