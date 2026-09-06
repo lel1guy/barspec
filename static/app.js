@@ -33,22 +33,54 @@ const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const eur = (v) => "€" + (Math.round((v || 0) * 100) / 100).toFixed(2);
 
-// ---------- display unit (S1: cl/oz/ml toggle; storage stays ml) ----------
-// The server stores canonical ml everywhere. This is display + entry only:
-// values convert at the edges, nothing persists except the preference.
+// ---------- display unit + units engine (S1 toggle + S3 pickers) ----------
+// The server stores canonical amounts (ml for volume, g for weight, pieces for
+// count); spec lines store amount-in-unit + unit. These helpers convert for
+// display and entry only. Mirrors pricing.UNIT_CANONICAL/UNIT_DIMENSION.
 let unit = localStorage.getItem("barspec.unit") || "ml";
 const UNIT_ML = { ml: 1, cl: 10, oz: 29.5735 };      // canonical per display unit
+const U_FACTOR = { ml: 1, cl: 10, l: 1000, oz: 29.5735, dash: 1, barspoon: 5,
+                   g: 1, kg: 1000, piece: 1 };
+const U_DIM = { ml: "volume", cl: "volume", l: "volume", oz: "volume",
+                dash: "volume", barspoon: "volume", g: "weight", kg: "weight",
+                piece: "count" };
+const UNITS_FOR_DIM = { volume: ["ml", "cl", "oz", "dash", "barspoon"],
+                        weight: ["g", "kg"], count: ["piece"] };
 const dispAmt = (ml) => {                            // canonical ml -> display string
   const v = (ml || 0) / UNIT_ML[unit];
   return (Math.round(v * 100) / 100).toString();
 };
 const toMl = (v) => v * UNIT_ML[unit];               // display amount -> canonical ml
 const unitLabel = () => unit;
+const fmtAmt = (v) => (Math.round((v || 0) * 100) / 100).toString();  // raw trim
+// Convert an amount between two units OF THE SAME DIMENSION (e.g. 30 ml -> 3 cl).
+const convertUnit = (value, from, to) => value * U_FACTOR[from] / U_FACTOR[to];
+const dimCanonical = (d) => d === "weight" ? "g" : d === "count" ? "piece" : "ml";
+// A spec-line amount cell: ml/cl/oz follow the display toggle; fixed sub-units
+// (dash, barspoon) and weight/count amounts show their own unit inline — a
+// header can't cover a mixed-unit spec honestly.
+const lineAmtHtml = (l) => {
+  const u = l.unit || "ml";
+  if (U_DIM[u] !== "volume" || u === "dash" || u === "barspoon") {
+    return esc(fmtAmt(l.amount_ml)) + ' <span class="edit-note">' + esc(u) + "</span>";
+  }
+  return dispAmt((l.amount_ml || 0) * U_FACTOR[u]);
+};
+// Purchase summary for a stock item/line: "€22 / 70 cl" (volume follows the
+// toggle) or "€18 / 1 kg" / "€3.60 / 12 pc" for the other dimensions.
+const purchaseText = (it) => {
+  if (!it || !it.bottle_price_eur) return "no price set";
+  const dim = it.dimension || "volume";
+  const size = dim === "volume"
+    ? dispAmt(it.bottle_volume_ml) + " " + unitLabel()
+    : fmtAmt(it.bottle_volume_ml) + " " + (dim === "weight" ? "g" : "pc");
+  return eur(it.bottle_price_eur) + " / " + size;
+};
 function applyUnitLabels() {                         // static labels that carry a unit
   const th = document.getElementById("stockSizeTh");
-  if (th) th.textContent = "Size " + unit;
+  if (th) th.textContent = "Size";
   const lb = document.getElementById("stSizeLbl");
-  if (lb) lb.textContent = "Size (" + unit + ")";
+  if (lb) lb.textContent = "Size";
 }
 function setUnit(u) {
   unit = u;
@@ -217,8 +249,8 @@ function renderDetail(s) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><span class="ing-name">${esc(l.name)}</span>
-          <div class="edit-note">${l.bottle_price_eur ? eur(l.bottle_price_eur) + " / " + dispAmt(l.bottle_volume_ml) + " " + unitLabel() : "no bottle price set"}</div></td>
-      <td class="num">${dispAmt(l.amount_ml)}</td>
+          <div class="edit-note">${purchaseText(l)}</div></td>
+      <td class="num">${lineAmtHtml(l)}</td>
       <td class="num">${l.abv ? l.abv + "%" : "—"}</td>
       <td class="num">${l.bottle_price_eur ? eur(l.row_cost_eur) : "—"}</td>
       <td><div class="costbar-wrap"><div class="costbar"><i style="width:${l.row_cost_pct}%"></i></div></div></td>
@@ -339,14 +371,19 @@ function editIngredientsForm(s) {
     <div class="edit-note">Bottles live in Stock. Type a known name and it links to the existing
       bottle; a new name creates one (set its price later in Stock).</div>
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">${unitLabel()}</th><th class="num">Bottle</th><th></th></tr></thead>
+      <thead><tr><th>Ingredient</th><th class="num">Amount</th><th class="num">Bottle</th><th></th></tr></thead>
       <tbody id="editBody"></tbody>
     </table>
-    <div class="edit-note" id="newHint" style="margin-top:10px;">New bottle — ABV/price/size only matter if it isn't in stock yet.</div>
+    <div class="edit-note" id="newHint" style="margin-top:10px;">Amount is in the unit you pick per row — a Margarita lime is "1 piece", bitters are "2 dash". New bottles (weight/count stock) are created in Stock first.</div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:6px;">
       <div style="flex:2; min-width:150px;"><label>Name</label>
         <input id="addName" list="stockNames" placeholder="Type or pick…"></div>
-      <div style="flex:1; min-width:70px;"><label>${unitLabel()}</label><input id="addMl" type="number" value="${dispAmt(30)}" min="0" step="0.5"></div>
+      <div style="flex:1; min-width:170px;"><label>Amount + unit</label>
+        <div style="display:flex; gap:4px;">
+          <input id="addMl" type="number" value="3" min="0" step="0.5" style="flex:1.4; min-width:80px;">
+          <select id="addUnit" style="width:100px;"></select>
+        </div>
+      </div>
       <div id="advWrap" style="display:flex; gap:8px; flex-wrap:wrap;">
         <div style="width:70px;"><label>ABV %</label><input id="addAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
         <div style="width:90px;"><label>Bottle €</label><input id="addPrice" type="number" value="0" min="0" step="0.1"></div>
@@ -359,33 +396,52 @@ function editIngredientsForm(s) {
       <button class="ghost" id="doneIng">Done</button>
     </div>`;
 
-  // Hide the advanced fields when the typed name is already in stock.
-  const onName = () => {
-    const known = stockMap[($("#addName").value || "").trim().toLowerCase()];
-    $("#advWrap").style.visibility = known ? "hidden" : "visible";
-  };
-  $("#addName").addEventListener("input", onName);
-  onName();
-
+  const unitOptions = (dim) => UNITS_FOR_DIM[dim] || ["ml"];
   const renderRows = () => {
     const body = $("#editBody");
     body.innerHTML = "";
     rows.forEach((l, i) => {
       const tr = document.createElement("tr");
       const stock = stockMap[(l.name || "").toLowerCase()];
+      const dim = stock ? stock.dimension : "volume";
+      const opts = unitOptions(dim);
+      // Stored unit must belong to this stock's dimension; else fall back to
+      // the dimension's canonical unit (rename across dimensions = delete+add).
+      if (!opts.includes(l.unit)) l.unit = dimCanonical(dim);
       const bottleTxt = stock && stock.bottle_price_eur
-        ? `${eur(stock.bottle_price_eur)} · ${Math.round(stock.bottle_volume_ml)} ml`
+        ? purchaseText(stock)
         : (stock ? "no price yet" : "—");
       tr.innerHTML = `
         <td><input data-i="${i}" data-k="name" value="${esc(l.name)}" list="stockNames" placeholder="Ingredient"></td>
-        <td><input class="num" type="number" data-i="${i}" data-k="amount_ml" value="${dispAmt(l.amount_ml)}" min="0" step="0.5" style="width:90px; text-align:right;"></td>
+        <td class="num"><span class="amt-cell">
+          <input class="num" type="number" data-i="${i}" data-k="amount_ml" value="${fmtAmt(l.amount_ml)}" min="0" step="0.5" style="width:80px; text-align:right;">
+          <select data-i="${i}" data-ku="unit" class="unitmini">${opts.map((u) =>
+            `<option value="${u}" ${u === l.unit ? "selected" : ""}>${u}</option>`).join("")}</select>
+        </span></td>
         <td class="edit-note">${esc(bottleTxt)}</td>
         <td><button class="danger small" data-rm="${i}">✕</button></td>`;
-      tr.querySelectorAll("input").forEach((inp) => {
+      tr.querySelectorAll("input[data-k]").forEach((inp) => {
         inp.addEventListener("input", () => {
           const k = inp.dataset.k;
-          const raw = parseFloat(inp.value) || 0;
-          rows[+inp.dataset.i][k] = k === "amount_ml" ? toMl(raw) : inp.value.trim();
+          if (k === "amount_ml") rows[+inp.dataset.i].amount_ml = parseFloat(inp.value) || 0;
+          else rows[+inp.dataset.i][k] = inp.value.trim();
+        });
+      });
+      tr.querySelectorAll("select[data-ku]").forEach((sel) => {
+        sel.addEventListener("change", () => {
+          const row = rows[+sel.dataset.i];
+          const from = row.unit || dimCanonical(dim);
+          const to = sel.value;
+          const inp = tr.querySelector("input[data-k=amount_ml]");
+          if (U_DIM[from] === U_DIM[to]) {            // same dimension: keep the amount
+            const v = convertUnit(parseFloat(inp.value) || 0, from, to);
+            inp.value = fmtAmt(v);
+            row.amount_ml = v;
+          } else {                                    // defensive: reset, user retypes
+            inp.value = to === "g" ? 9 : to === "piece" ? 1 : 3;
+            row.amount_ml = parseFloat(inp.value) || 0;
+          }
+          row.unit = to;
         });
       });
       tr.querySelector("[data-rm]").addEventListener("click", () => {
@@ -398,21 +454,44 @@ function editIngredientsForm(s) {
   };
   renderRows();
 
+  // Hide the advanced fields when the typed name is already in stock; drive the
+  // add-line unit picker from the stock item's dimension (volume honours the
+  // display toggle as the default entry unit).
+  const onName = () => {
+    const known = stockMap[($("#addName").value || "").trim().toLowerCase()];
+    $("#advWrap").style.visibility = known ? "hidden" : "visible";
+    const dim = known ? known.dimension : "volume";
+    const sel = $("#addUnit");
+    const want = dim === "volume" ? unit : dimCanonical(dim);
+    const prevDim = sel.dataset.dim;
+    sel.innerHTML = unitOptions(dim).map((u) =>
+      `<option value="${u}" ${u === want ? "selected" : ""}>${u}</option>`).join("");
+    sel.dataset.dim = dim;
+    if (prevDim !== dim) {        // new dimension: reset to a sane starting amount
+      $("#addMl").value = (want === "g" || want === "piece") ? 1
+        : want === "kg" ? 1 : dispAmt(30);
+    }
+  };
+  $("#addName").addEventListener("input", onName);
+  onName();
+
   $("#addLine").addEventListener("click", () => {
     const name = $("#addName").value.trim();
-    const ml = toMl(parseFloat($("#addMl").value) || 0);
-    if (!name || !ml) { toast("Name + " + unitLabel() + " needed"); return; }
+    const amt = parseFloat($("#addMl").value) || 0;
+    if (!name || !amt) { toast("Name + amount needed"); return; }
     const known = stockMap[name.toLowerCase()];
     const line = {
       name,
-      amount_ml: ml,
+      amount_ml: amt,                          // amount in `unit`, not ml
+      unit: $("#addUnit").value || "ml",
       abv: parseFloat($("#addAbv").value) || 0,
       bottle_price_eur: known ? 0 : parseFloat($("#addPrice").value) || 0,
       bottle_volume_ml: toMl(parseFloat($("#addVol").value) || 0) || 700,
     };
     rows.push(line);
-    $("#addName").value = ""; $("#addMl").value = dispAmt(30); $("#addAbv").value = 0;
+    $("#addName").value = ""; $("#addAbv").value = 0;
     $("#addPrice").value = 0; $("#addVol").value = dispAmt(700);
+    $("#addMl").value = "";
     renderRows(); onName();
   });
 
@@ -421,9 +500,11 @@ function editIngredientsForm(s) {
     try {
       for (const l of rows) {
         if (!l.name) continue;
-        if (l.id) await api("/api/lines/" + l.id, "PUT", { amount_ml: l.amount_ml });
+        if (l.id) await api("/api/lines/" + l.id, "PUT",
+                            { amount_ml: l.amount_ml, unit: l.unit || "ml" });
         else await api(`/api/specs/${s.id}/lines`, "POST", {
-          name: l.name, amount_ml: l.amount_ml, abv: l.abv,
+          name: l.name, amount_ml: l.amount_ml, unit: l.unit || "ml",
+          abv: l.abv,
           bottle_price_eur: l.bottle_price_eur, bottle_volume_ml: l.bottle_volume_ml,
         });
       }
@@ -466,13 +547,27 @@ async function renderStock() {
   items.forEach((it) => {
     const tr = document.createElement("tr");
     tr.className = it.spec_count ? "" : "unused";
+    const dim = it.dimension || "volume";
+    const isVol = dim === "volume";
+    const wKg = dim === "weight" && (it.bottle_volume_ml || 0) >= 1000;
+    // Size cell: volume follows the display toggle (S1); weight gets a g/kg
+    // picker; count is pieces. Entry converts to canonical on commit.
+    const sizeCell = isVol
+      ? `<input type="number" data-k="bottle_volume_ml" value="${dispAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:90px;">`
+      : dim === "weight"
+        ? `<span class="size-ctl"><input type="number" data-k="bottle_volume_ml" value="${fmtAmt(it.bottle_volume_ml / (wKg ? 1000 : 1))}" min="0" step="0.1" style="width:70px;">
+           <select class="unitmini" data-wunit><option value="g" ${wKg ? "" : "selected"}>g</option><option value="kg" ${wKg ? "selected" : ""}>kg</option></select></span>`
+        : `<span class="size-ctl"><input type="number" data-k="bottle_volume_ml" value="${fmtAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:70px;"><span class="edit-note">pc</span></span>`;
+    const abvCell = isVol
+      ? `<input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;">`
+      : `<span class="edit-note">—</span>`;
     tr.innerHTML = `
-      <td><input data-k="name" value="${esc(it.name)}"></td>
-      <td><input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;"></td>
+      <td><input data-k="name" value="${esc(it.name)}" ${dim === "volume" ? "" : `title="${dim}"`}></td>
+      <td>${abvCell}</td>
       <td><input type="number" data-k="bottle_price_eur" value="${it.bottle_price_eur}" min="0" step="0.1" class="stock-price-input"></td>
-      <td><input type="number" data-k="bottle_volume_ml" value="${dispAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:90px;"></td>
+      <td>${sizeCell}</td>
       <td><input type="number" data-par="${it.id}" value="${it.par_level ?? ""}" min="0" step="0.5"
-                 placeholder="—" class="par-input" title="Par level — bottles to keep on hand. Empty = not counted."></td>
+                 placeholder="—" class="par-input" title="Par level — how many to keep on hand. Empty = not counted."></td>
       <td class="num"><span class="spec-badge" title="specs using this bottle">${it.spec_count}×</span></td>
       <td><button class="danger small" data-del="${it.id}" ${it.spec_count ? "disabled title='Used by specs'" : ""}>✕</button></td>`;
     const commit = async () => {
@@ -481,7 +576,15 @@ async function renderStock() {
         const k = inp.dataset.k;
         payload[k] = inp.type === "number" ? (parseFloat(inp.value) || 0) : inp.value.trim();
       });
-      payload.bottle_volume_ml = toMl(payload.bottle_volume_ml);
+      const wsel = tr.querySelector("select[data-wunit]");
+      if (wsel) {
+        payload.bottle_volume_ml = payload.bottle_volume_ml * (wsel.value === "kg" ? 1000 : 1);
+        payload.dimension = "weight";
+      } else if (isVol) {
+        payload.bottle_volume_ml = toMl(payload.bottle_volume_ml);
+      } else {
+        payload.dimension = "count";       // pieces stay canonical as typed
+      }
       if (!payload.name) { toast("Name can't be empty"); renderStock(); return; }
       try {
         const res = await api("/api/stock/" + it.id, "PUT", payload);
@@ -496,6 +599,18 @@ async function renderStock() {
       inp.addEventListener("change", commit);
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
     });
+    const wsel = tr.querySelector("select[data-wunit]");
+    if (wsel) {
+      wsel.dataset.prev = wsel.value;
+      wsel.addEventListener("change", () => {
+        const inp = tr.querySelector("input[data-k=bottle_volume_ml]");
+        const v = parseFloat(inp.value) || 0;
+        const from = wsel.dataset.prev;
+        inp.value = fmtAmt(from === "kg" && wsel.value === "g" ? v * 1000
+          : from === "g" && wsel.value === "kg" ? v / 1000 : v);
+        wsel.dataset.prev = wsel.value;
+      });
+    }
     const parInput = tr.querySelector("[data-par]");
     parInput.addEventListener("change", async () => {
       const raw = parInput.value.trim();
@@ -532,21 +647,54 @@ function showRipple(impact) {
 
 $("#addStockBtn").addEventListener("click", () => {
   const show = $("#addStockForm").classList.toggle("hidden");
-  if (!show) { $("#stName").focus(); $("#stVol").value = dispAmt(700); }
+  if (!show) { syncStockDimForm(); $("#stName").focus(); }
 });
 $("#cancelStock").addEventListener("click", () => $("#addStockForm").classList.add("hidden"));
+
+// Dimension picker drives which units + defaults the size field offers.
+function syncStockDimForm() {
+  const dim = $("#stDim").value;
+  const abvW = $("#abvWrap");
+  if (abvW) abvW.style.display = dim === "volume" ? "" : "none";
+  const u = $("#stVolUnit");
+  u.innerHTML = dim === "volume"
+    ? '<option value="ml">ml</option><option value="l">l</option>'
+    : dim === "weight"
+      ? '<option value="g">g</option><option value="kg" selected>kg</option>'
+      : '<option value="piece" selected>pc</option>';
+  const sv = $("#stVol");
+  sv.dataset.prev = u.value;
+  // Default size per dimension; always reset on change so switching kind can
+  // never carry a stale volume (700) into a weight/count item.
+  sv.value = dim === "weight" ? 1 : dim === "count" ? 12 : 700;
+}
+$("#stDim").addEventListener("change", syncStockDimForm);
+$("#stVolUnit").addEventListener("change", () => {
+  const sv = $("#stVol");
+  const from = sv.dataset.prev || "ml";
+  const to = $("#stVolUnit").value;
+  sv.value = fmtAmt(convertUnit(parseFloat(sv.value) || 0, from, to));
+  sv.dataset.prev = to;
+});
+
 $("#saveStock").addEventListener("click", async () => {
   const name = $("#stName").value.trim();
   if (!name) { toast("Name needed"); return; }
+  const dim = $("#stDim").value;
+  const unit = $("#stVolUnit").value;
+  const canonical = (parseFloat($("#stVol").value) || 0) * U_FACTOR[unit];
+  if (!canonical) { toast("Size needed"); return; }
   try {
     await api("/api/stock", "POST", {
       name,
-      abv: parseFloat($("#stAbv").value) || 0,
+      abv: dim === "volume" ? (parseFloat($("#stAbv").value) || 0) : 0,
       bottle_price_eur: parseFloat($("#stPrice").value) || 0,
-      bottle_volume_ml: toMl(parseFloat($("#stVol").value) || 0) || 700,
+      bottle_volume_ml: canonical,
+      dimension: dim,
     });
-    toast("Bottle added");
-    $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0; $("#stVol").value = dispAmt(700);
+    toast("Item added");
+    $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0;
+    $("#stVol").value = dim === "weight" ? 1 : dim === "count" ? 12 : 700;
     $("#addStockForm").classList.add("hidden");
     renderStock();
   } catch (err) { toast("Failed: " + err.message); }
@@ -644,7 +792,7 @@ function renderCount() {
     };
     tr.innerHTML = `
       <td><span class="ing-name">${esc(row.name)}</span>
-          <div class="edit-note">${row.bottle_price_eur ? eur(row.bottle_price_eur) + " / " + dispAmt(row.bottle_volume_ml) + " " + unitLabel() : "no bottle price set"}</div></td>
+          <div class="edit-note">${purchaseText(row)}</div></td>
       <td class="num"><input type="number" class="par-input take-par" value="${row.par_level ?? ""}"
           min="0" step="0.5" title="Par — bottles to keep on hand. Empty removes from the count."></td>
       <td class="num take-full">

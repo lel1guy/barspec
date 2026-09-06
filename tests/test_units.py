@@ -205,3 +205,53 @@ class TestCafeProof:
         assert r.status_code == 400
         sheet = client.get("/api/stock-takes/sheet").json()
         assert all(row["name"] != "Espresso beans" for row in sheet["rows"])
+
+    def test_dimension_change_blocked_while_in_use(self):
+        # seed London dry gin is used by Negroni -> dimension change must 400
+        stock = client.get("/api/stock").json()
+        gin = [s for s in stock if s["name"] == "London dry gin"][0]
+        r = client.put(f"/api/stock/{gin['id']}", json={
+            "name": "London dry gin", "abv": 40, "bottle_price_eur": 22.0,
+            "bottle_volume_ml": 700, "dimension": "weight"})
+        assert r.status_code == 400
+        # unchanged edit without dimension key keeps dimension (exclude_unset)
+        r2 = client.put(f"/api/stock/{gin['id']}", json={
+            "name": "London dry gin", "abv": 40, "bottle_price_eur": 24.0,
+            "bottle_volume_ml": 700})
+        assert r2.status_code == 200
+        item = client.get("/api/stock").json()
+        gin2 = [s for s in item if s["name"] == "London dry gin"][0]
+        assert gin2["dimension"] == "volume"
+
+    def test_dimension_change_allowed_when_unused(self):
+        ghost = db.create_stock_item({"name": "Free bottle", "dimension": "volume",
+                                      "bottle_volume_ml": 700, "bottle_price_eur": 5.0})
+        r = client.put(f"/api/stock/{ghost['id']}", json={
+            "name": "Free bottle", "abv": 0, "bottle_price_eur": 18.0,
+            "bottle_volume_ml": 1000, "dimension": "weight"})
+        assert r.status_code == 200
+        item = [s for s in client.get("/api/stock").json() if s["name"] == "Free bottle"][0]
+        assert item["dimension"] == "weight"
+
+    def test_line_unit_change_via_put(self):
+        db.create_stock_item({"name": "Espresso beans", "abv": 0,
+                              "bottle_price_eur": 18.0,
+                              "bottle_volume_ml": 1000.0, "dimension": "weight"})
+        spec = client.post("/api/specs", json={"name": "Unit flip"}).json()
+        r = client.post(f"/api/specs/{spec['id']}/lines",
+                        json={"name": "Espresso beans", "amount_ml": 1000,
+                              "unit": "g"})
+        assert r.status_code == 200
+        line_id = r.json()["lines"][0]["id"]
+        # 1000 g = 1 kg — flip the unit, halve nothing, cost stays identical
+        r2 = client.put(f"/api/lines/{line_id}",
+                        json={"amount_ml": 1, "unit": "kg"})
+        assert r2.status_code == 200
+        detail = client.get(f"/api/specs/{spec['id']}").json()
+        line = detail["lines"][0]
+        assert line["unit"] == "kg" and line["amount_ml"] == 1
+        assert line["row_cost_eur"] == pytest.approx(18.0)  # 1 kg of an 18 € bag
+        # flipping to a mismatched dimension -> 400
+        r3 = client.put(f"/api/lines/{line_id}",
+                        json={"amount_ml": 1, "unit": "piece"})
+        assert r3.status_code == 400

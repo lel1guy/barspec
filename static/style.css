@@ -312,6 +312,14 @@ select.frac-select { width: 96px; min-height: 36px; padding: 4px 8px; font-size:
 tr.trend-gained .num { color: var(--warn); }
 tr.trend-unmoved { opacity: .6; }
 .stat.warn .num { color: var(--warn); }
+/* units engine controls */
+.amt-cell { display: inline-flex; align-items: center; gap: 4px; }
+select.unitmini {
+  width: 72px; min-height: 32px; padding: 3px 6px; font-size: 12.5px;
+  font-family: var(--mono);
+}
+.size-ctl { display: inline-flex; align-items: center; gap: 4px; }
+.size-ctl .edit-note { font-size: 12px; }
 
 /* ---------- toast ---------- */
 .toast {

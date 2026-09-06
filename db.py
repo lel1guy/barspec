@@ -269,7 +269,7 @@ def create_stock_item(data: dict):
 def update_stock_item(stock_id: int, data: dict):
     """Update a stock item. If the bottle price changed, returns ripple impact:
     [{'spec_id', 'name', 'cost_old', 'cost_new'}] for every spec that uses it.
-    """
+    Dimension may only change while the item is unused by any spec line."""
     conn = _conn()
     row = conn.execute("SELECT * FROM stock_items WHERE id=?", (stock_id,)).fetchone()
     if not row:
@@ -277,6 +277,16 @@ def update_stock_item(stock_id: int, data: dict):
         return None
     old_price = row["bottle_price_eur"]
     new_price = float(data.get("bottle_price_eur", old_price))
+
+    new_dim = data.get("dimension") or row["dimension"]
+    if new_dim not in ("volume", "weight", "count"):
+        conn.close()
+        raise ValueError(f"Dimension must be volume|weight|count, got {new_dim}")
+    if new_dim != row["dimension"] and _stock_usage_count(conn, stock_id) > 0:
+        conn.close()
+        raise ValueError(
+            f"'{row['name']}' is used by specs — remove it from them before "
+            "changing its dimension")
 
     # Ripple impact (only meaningful when the price actually moves).
     # Only lines using THIS stock item change; other lines keep their bottles.
@@ -301,9 +311,10 @@ def update_stock_item(stock_id: int, data: dict):
 
     conn.execute(
         """UPDATE stock_items SET name=?, abv=?, bottle_price_eur=?, bottle_volume_ml=?,
-           updated_at=datetime('now') WHERE id=?""",
+           dimension=?, updated_at=datetime('now') WHERE id=?""",
         (data.get("name", row["name"]).strip(), data.get("abv", row["abv"]),
-         new_price, data.get("bottle_volume_ml", row["bottle_volume_ml"]), stock_id),
+         new_price, data.get("bottle_volume_ml", row["bottle_volume_ml"]),
+         new_dim, stock_id),
     )
     conn.commit()
     conn.close()
@@ -504,11 +515,34 @@ def add_line(spec_id: int, data: dict):
     return get_spec(spec_id)
 
 
-def update_line(line_id: int, amount_ml: float) -> bool:
+def update_line(line_id: int, amount_ml: float, unit: str | None = None) -> bool:
     conn = _conn()
-    cur = conn.execute(
-        "UPDATE spec_lines SET amount_ml=? WHERE id=?", (amount_ml, line_id)
-    )
+    if unit is not None:
+        if not pricing.valid_unit(unit):
+            conn.close()
+            raise ValueError(f"Unknown unit '{unit}'")
+        row = conn.execute(
+            """SELECT sl.id, si.dimension FROM spec_lines sl
+               JOIN stock_items si ON si.id = sl.stock_item_id
+               WHERE sl.id=?""",
+            (line_id,),
+        ).fetchone()
+        if not row:
+            conn.close()
+            return False
+        if pricing.UNIT_DIMENSION[unit] != row["dimension"]:
+            conn.close()
+            raise ValueError(
+                f"Unit '{unit}' doesn't match this ingredient's dimension "
+                f"({row['dimension']})")
+        cur = conn.execute(
+            "UPDATE spec_lines SET amount_ml=?, unit=? WHERE id=?",
+            (amount_ml, unit, line_id),
+        )
+    else:
+        cur = conn.execute(
+            "UPDATE spec_lines SET amount_ml=? WHERE id=?", (amount_ml, line_id)
+        )
     conn.commit()
     ok = cur.rowcount > 0
     conn.close()

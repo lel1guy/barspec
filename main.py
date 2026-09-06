@@ -42,6 +42,7 @@ class LineIn(BaseModel):
 
 class LineUpdate(BaseModel):
     amount_ml: float = Field(gt=0)
+    unit: str | None = None            # set to change a line's unit (ml -> cl etc)
 
 
 class StockIn(BaseModel):
@@ -133,7 +134,11 @@ def add_line(spec_id: int, line: LineIn):
 
 @app.put("/api/lines/{line_id}")
 def update_line(line_id: int, upd: LineUpdate):
-    if not db.update_line(line_id, upd.amount_ml):
+    try:
+        ok = db.update_line(line_id, upd.amount_ml, upd.unit)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not ok:
         raise HTTPException(404, "Line not found")
     return {"ok": True}
 
@@ -163,8 +168,13 @@ def create_stock(item: StockIn):
 @app.put("/api/stock/{stock_id}")
 def update_stock(stock_id: int, item: StockIn):
     """Bottle price edited once. If the price moved, the response carries the
-    ripple: every spec whose drink cost changed, old -> new."""
-    result = db.update_stock_item(stock_id, item.model_dump())
+    ripple: every spec whose drink cost changed, old -> new. exclude_unset:
+    the frontend edits one field at a time — dimension only moves when sent."""
+    try:
+        result = db.update_stock_item(
+            stock_id, item.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     if result is None:
         raise HTTPException(404, "Stock item not found")
     return {"ok": True, "impact": result["impact"]}
