@@ -7,6 +7,11 @@ let currentSpec = null;      // open spec id
 let servings = 1;
 let stockMap = {};           // lower(name) -> stock item (for autocomplete + ripple)
 let currentView = "specs";
+// stock-take state (in-memory count grid; server is source of truth on save)
+let takeRows = [];           // [{stock_item_id, name, par_level, bottle_price_eur, bottle_volume_ml, full_bottles, open_fraction}]
+let takeDirty = false;       // unsaved edits -> confirm before leaving
+let takeLast = null;         // review payload of the last saved/fetched snapshot
+let takeTab = "count";
 
 // ---------- tiny helpers ----------
 async function api(url, method = "GET", body = null) {
@@ -46,13 +51,17 @@ function applySearch() {
 const VIEWS = {
   specs: { title: "Specs", crumb: "SPECS", header: true },
   stock: { title: "Stock", crumb: "STOCK", header: false },
+  stocktake: { title: "Stock-take", crumb: "STOCK-TAKE", header: false },
   menu:  { title: "Menu",  crumb: "MENU",  header: false },
 };
+const NAV_IDS = { specs: "navSpecs", stock: "navStock", stocktake: "navTake", menu: "navMenu" };
 function showView(v) {
+  if (v !== currentView && currentView === "stocktake" && takeDirty &&
+      !confirm("You have an unsaved count. Leave and lose it?")) return;
   currentView = v;
-  ["specs", "stock", "menu"].forEach((x) => {
+  Object.keys(VIEWS).forEach((x) => {
     $("#view-" + x).classList.toggle("active", x === v);
-    $("#nav" + x[0].toUpperCase() + x.slice(1)).classList.toggle("active", x === v);
+    $("#" + NAV_IDS[x]).classList.toggle("active", x === v);
   });
   const meta = VIEWS[v];
   $("#viewTitle").textContent = meta.title;
@@ -60,6 +69,7 @@ function showView(v) {
   $("#newSpecBtn").classList.toggle("hidden", !meta.header);
   $("#searchBox").classList.toggle("hidden", !meta.header);
   if (v === "stock") renderStock();
+  if (v === "stocktake") loadStocktake();
   if (v === "menu") renderMenu();
 }
 
@@ -419,7 +429,7 @@ async function renderStock() {
   const body = $("#stockBody");
   body.innerHTML = "";
   if (!items.length) {
-    body.innerHTML = '<tr><td colspan="6" class="edit-note">No bottles yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="edit-note">No bottles yet.</td></tr>';
     return;
   }
   items.forEach((it) => {
@@ -430,6 +440,8 @@ async function renderStock() {
       <td><input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;"></td>
       <td><input type="number" data-k="bottle_price_eur" value="${it.bottle_price_eur}" min="0" step="0.1" class="stock-price-input"></td>
       <td><input type="number" data-k="bottle_volume_ml" value="${it.bottle_volume_ml}" min="0" step="50" style="width:90px;"></td>
+      <td><input type="number" data-par="${it.id}" value="${it.par_level ?? ""}" min="0" step="0.5"
+                 placeholder="—" class="par-input" title="Par level — bottles to keep on hand. Empty = not counted."></td>
       <td class="num"><span class="spec-badge" title="specs using this bottle">${it.spec_count}×</span></td>
       <td><button class="danger small" data-del="${it.id}" ${it.spec_count ? "disabled title='Used by specs'" : ""}>✕</button></td>`;
     const commit = async () => {
@@ -448,8 +460,20 @@ async function renderStock() {
       } catch (err) { toast("Failed: " + err.message); }
     };
     tr.querySelectorAll("input").forEach((inp) => {
+      if (inp.dataset.par !== undefined) return; // par commits via its own handler
       inp.addEventListener("change", commit);
       inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+    });
+    const parInput = tr.querySelector("[data-par]");
+    parInput.addEventListener("change", async () => {
+      const raw = parInput.value.trim();
+      const v = raw === "" ? null : parseFloat(raw);
+      if (raw !== "" && (isNaN(v) || v <= 0)) { toast("Par must be a positive number — or empty to clear"); renderStock(); return; }
+      try {
+        await api(`/api/stock/${it.id}/par`, "PATCH", { par_level: v });
+        toast(v ? `Par ${v} saved — counted in stock-take` : "Par cleared — not counted");
+        renderStock();
+      } catch (err) { toast("Failed: " + err.message); renderStock(); }
     });
     tr.querySelector("[data-del]").addEventListener("click", async () => {
       if (!confirm("Delete " + it.name + "? (only possible when no spec uses it)")) return;
@@ -496,7 +520,300 @@ $("#saveStock").addEventListener("click", async () => {
   } catch (err) { toast("Failed: " + err.message); }
 });
 
-// ---------- menu (pricing + print) ----------
+// ---------- stock-take (count grid + order list + trends) ----------
+
+const FRAC_OPTS = [[0, "—"], [0.25, "¼"], [0.5, "½"], [0.75, "¾"], [1, "full"]];
+const fmtFbe = (v) => (Math.round(v * 100) / 100).toString();
+
+function takeBadge() {
+  const n = Object.values(stockMap).filter((i) => i.par_level).length;
+  $("#countTake").textContent = n;
+}
+
+function setTakeTab(tab) {
+  takeTab = tab;
+  ["Count", "Order", "Trends"].forEach((label) => {
+    const id = "tab" + label.replace(" ", "");
+    $("#" + id).classList.toggle("active", tab === label.toLowerCase());
+  });
+  $("#countPanel").classList.toggle("hidden", tab !== "count");
+  $("#orderPanel").classList.toggle("hidden", tab !== "order");
+  $("#trendsPanel").classList.toggle("hidden", tab !== "trends");
+}
+
+async function loadStocktake() {
+  const sheet = await api("/api/stock-takes/sheet");
+  takeRows = sheet.rows.map((r) => ({
+    stock_item_id: r.id, name: r.name, par_level: r.par_level,
+    bottle_price_eur: r.bottle_price_eur, bottle_volume_ml: r.bottle_volume_ml,
+    full_bottles: r.last_full_bottles ?? 0,
+    open_fraction: r.last_open_fraction ?? 0,
+  }));
+  takeDirty = false;
+  setTakeTab("count");
+  renderCount();
+  takeBadge();
+}
+
+function rowFbe(row) {
+  return row.full_bottles + row.open_fraction;
+}
+
+function renderCount() {
+  const box = $("#countBody");
+  if (!takeRows.length) {
+    box.innerHTML = `
+      <div class="empty-note">
+        <p><strong>No bottles have a par level yet.</strong></p>
+        <p class="edit-note">A stock-take counts the bottles you set a target ("par") for.
+        Set pars in Stock — one number per bottle you actually order. Everything with a par
+        shows up here automatically.</p>
+        <button class="btn" id="goStockBtn">Set par levels in Stock →</button>
+      </div>`;
+    $("#goStockBtn").addEventListener("click", () => showView("stock"));
+    $("#saveTakeBtn").disabled = true;
+    $("#countTotals").textContent = "";
+    return;
+  }
+  $("#saveTakeBtn").disabled = false;
+  const table = document.createElement("table");
+  table.className = "take-table";
+  table.innerHTML = `
+    <thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Full</th>
+      <th class="num">Open</th><th class="num">FBE</th></tr></thead>
+    <tbody id="countBodyRows"></tbody>`;
+  box.innerHTML = "";
+  box.appendChild(table);
+  const tbody = $("#countBodyRows");
+
+  const updateTotals = () => {
+    const totalFbe = takeRows.reduce((a, r) => a + rowFbe(r), 0);
+    $("#countTotals").textContent = `${takeRows.length} bottles · ${fmtFbe(totalFbe)} FBE`;
+  };
+
+  takeRows.forEach((row, i) => {
+    const tr = document.createElement("tr");
+    const parChange = async (inp) => {
+      const raw = inp.value.trim();
+      const v = raw === "" ? null : parseFloat(raw);
+      if (raw !== "" && (isNaN(v) || v <= 0)) { toast("Par: positive number, or empty to clear"); return; }
+      try {
+        await api(`/api/stock/${row.stock_item_id}/par`, "PATCH", { par_level: v });
+        row.par_level = v;
+        if (v === null) {
+          takeRows.splice(i, 1);       // no par = drops off the count
+          toast("Par cleared — removed from the count");
+          renderCount();
+        } else {
+          toast(`Par ${v} set`);
+        }
+        takeBadge();
+      } catch (err) { toast("Failed: " + err.message); }
+    };
+    tr.innerHTML = `
+      <td><span class="ing-name">${esc(row.name)}</span>
+          <div class="edit-note">${row.bottle_price_eur ? eur(row.bottle_price_eur) + " / " + Math.round(row.bottle_volume_ml) + " ml" : "no bottle price set"}</div></td>
+      <td class="num"><input type="number" class="par-input take-par" value="${row.par_level ?? ""}"
+          min="0" step="0.5" title="Par — bottles to keep on hand. Empty removes from the count."></td>
+      <td class="num take-full">
+        <button class="step" data-step="-1">−</button>
+        <input type="number" class="full-input" value="${row.full_bottles}" min="0" max="999">
+        <button class="step" data-step="1">+</button>
+      </td>
+      <td class="num">
+        <select class="frac-select">${FRAC_OPTS.map(([v, lab]) =>
+          `<option value="${v}" ${row.open_fraction === v ? "selected" : ""}>${lab}</option>`).join("")}</select>
+      </td>
+      <td class="num fbe-cell">${fmtFbe(rowFbe(row))}</td>`;
+    const dirty = () => { takeDirty = true; };
+    tr.querySelector("input.take-par").addEventListener("change", (e) => parChange(e.target));
+    const fullInput = tr.querySelector("input.full-input");
+    const syncFull = () => {
+      let v = Math.max(0, Math.min(999, parseInt(fullInput.value) || 0));
+      fullInput.value = v;
+      row.full_bottles = v;
+      tr.querySelector(".fbe-cell").textContent = fmtFbe(rowFbe(row));
+      dirty(); updateTotals();
+    };
+    fullInput.addEventListener("change", syncFull);
+    fullInput.addEventListener("keydown", (e) => { if (e.key === "Enter") fullInput.blur(); });
+    tr.querySelectorAll("button.step").forEach((b) => {
+      b.addEventListener("click", () => {
+        const delta = parseInt(b.dataset.step);
+        row.full_bottles = Math.max(0, Math.min(999, row.full_bottles + delta));
+        fullInput.value = row.full_bottles;
+        tr.querySelector(".fbe-cell").textContent = fmtFbe(rowFbe(row));
+        dirty(); updateTotals();
+      });
+    });
+    tr.querySelector("select.frac-select").addEventListener("change", (e) => {
+      row.open_fraction = parseFloat(e.target.value);
+      tr.querySelector(".fbe-cell").textContent = fmtFbe(rowFbe(row));
+      dirty(); updateTotals();
+    });
+    tbody.appendChild(tr);
+  });
+  updateTotals();
+}
+
+async function saveTake() {
+  if (!takeRows.length) { toast("Nothing to save"); return; }
+  const lines = takeRows.map((r) => ({
+    stock_item_id: r.stock_item_id,
+    full_bottles: r.full_bottles,
+    open_fraction: r.open_fraction,
+  }));
+  const btn = $("#saveTakeBtn");
+  btn.disabled = true;
+  try {
+    takeLast = await api("/api/stock-takes", "POST", { lines });
+    takeDirty = false;
+    toast(`Count saved — ${takeLast.counted} bottles`);
+    renderOrder(takeLast);
+    setTakeTab("order");
+    takeBadge();
+  } catch (err) {
+    toast("Save failed: " + err.message);
+    btn.disabled = false;
+  }
+}
+
+async function loadLastOrder() {
+  try {
+    takeLast = await api("/api/stock-takes/last");
+    renderOrder(takeLast);
+  } catch (err) {
+    renderOrder(null);
+  }
+}
+
+function renderOrder(payload) {
+  const box = $("#orderBody");
+  box.innerHTML = "";
+  if (!payload) {
+    box.innerHTML = '<div class="empty-note"><p><strong>No count saved yet.</strong></p>' +
+      '<p class="edit-note">Save a count and your order list appears here: what to buy to reach par, ' +
+      "and how much cash is sitting over it.</p></div>";
+    return;
+  }
+  const when = payload.take.taken_at.replace("T", " ").slice(0, 16);
+  $("#orderHint").textContent = `From your latest count (${when} UTC).`;
+  const stats = document.createElement("div");
+  stats.className = "stat-strip";
+  stats.innerHTML = `
+    <div class="stat"><div class="num">${payload.order_total}</div><div class="cap">to order</div></div>
+    <div class="stat ${payload.cash_asleep_total > 0 ? "warn" : "good"}"><div class="num">${eur(payload.cash_asleep_total)}</div><div class="cap">cash asleep</div></div>
+    <div class="stat"><div class="num">${payload.counted}</div><div class="cap">bottles counted</div></div>`;
+  box.appendChild(stats);
+
+  const short = payload.short || [];
+  const over = payload.over || [];
+  const atPar = payload.at_par || [];
+
+  const section = (title, rows, rowHtml, emptyMsg) => {
+    const wrap = document.createElement("div");
+    wrap.className = "order-section";
+    const h = document.createElement("h3");
+    h.textContent = title;
+    wrap.appendChild(h);
+    if (!rows.length) {
+      const e = document.createElement("p");
+      e.className = "edit-note";
+      e.textContent = emptyMsg;
+      wrap.appendChild(e);
+      return wrap;
+    }
+    const t = document.createElement("table");
+    t.innerHTML = rowHtml(rows);
+    wrap.appendChild(t);
+    return wrap;
+  };
+
+  box.appendChild(section("To order", short,
+    (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Order</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr>
+        <td>${esc(r.name)}</td>
+        <td class="num">${fmtFbe(r.par_level)}</td>
+        <td class="num">${fmtFbe(r.fbe)}</td>
+        <td class="num"><span class="order-chip">+${r.to_order}</span></td></tr>`).join("")}</tbody>`,
+    "Nothing to order — you're at or above par everywhere. Nice."));
+
+  box.appendChild(section("Over par — cash asleep", over,
+    (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Over</th><th class="num">€ tied up</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr>
+        <td>${esc(r.name)}</td>
+        <td class="num">${fmtFbe(r.par_level)}</td>
+        <td class="num">${fmtFbe(r.fbe)}</td>
+        <td class="num">${fmtFbe(r.excess_fbe)}</td>
+        <td class="num over-amt">${eur(r.cash_asleep_eur)}</td></tr>`).join("")}</tbody>`,
+    "Nothing over par."));
+
+  if (atPar.length) {
+    const note = document.createElement("p");
+    note.className = "edit-note";
+    note.textContent = `${atPar.length} bottle${atPar.length === 1 ? "" : "s"} exactly at par.`;
+    box.appendChild(note);
+  }
+}
+
+async function renderTrends() {
+  const box = $("#trendsBody");
+  box.innerHTML = "";
+  const t = await api("/api/stock-takes/trends");
+  if (t.takes_count < 2) {
+    box.innerHTML = `
+      <div class="empty-note">
+        <p><strong>${t.takes_count === 0 ? "No snapshots yet." : "One snapshot saved — one more and movement appears."}</strong></p>
+        <p class="edit-note">Trends need history: save a second count and this shows per-bottle movement between
+        the two — what moved, what didn't, and in €.</p>
+        <button class="btn" id="trendsGoCount">Start a count →</button>
+      </div>`;
+    $("#trendsGoCount").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
+  } else {
+    const movement = t.movement || [];
+    const states = { used: "used", unmoved: "unmoved", gained: "gained", first_count: "first count", not_counted: "not counted" };
+    const tbl = document.createElement("table");
+    tbl.innerHTML = `
+      <thead><tr><th>Bottle</th><th class="num">Before</th><th class="num">Now</th>
+        <th class="num">Used</th><th class="num">ml</th><th class="num">€</th><th>State</th></tr></thead>
+      <tbody>${movement.map((m) => `
+        <tr class="trend-${m.state}">
+          <td>${esc(m.name)}</td>
+          <td class="num">${m.prev_fbe === null ? "—" : fmtFbe(m.prev_fbe)}</td>
+          <td class="num">${m.fbe === null ? "—" : fmtFbe(m.fbe)}</td>
+          <td class="num">${m.used_fbe === null ? "—" : fmtFbe(m.used_fbe)}</td>
+          <td class="num">${m.used_ml === null ? "—" : Math.round(m.used_ml)}</td>
+          <td class="num">${m.used_eur === null ? "—" : eur(m.used_eur)}</td>
+          <td><span class="margin-chip ${m.state === "used" ? "good" : m.state === "unmoved" ? "unpriced" : m.state === "gained" ? "low" : "ok"}">${states[m.state] || m.state}</span></td>
+        </tr>`).join("")}</tbody>`;
+    box.appendChild(tbl);
+    const note = document.createElement("p");
+    note.className = "edit-note";
+    note.textContent = "Between your last two counts. Deliveries between counts show as little or no movement — counts are still your fastest signal.";
+    box.appendChild(note);
+  }
+  const dead = t.dead_stock || [];
+  if (dead.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "order-section";
+    const h = document.createElement("h3");
+    h.textContent = "Dead stock — in the list, in no spec";
+    wrap.appendChild(h);
+    const tbl = document.createElement("table");
+    tbl.innerHTML = `<thead><tr><th>Bottle</th><th class="num">Price €</th><th class="num">Size ml</th><th class="num">Par</th></tr></thead>
+      <tbody>${dead.map((d) => `<tr>
+        <td>${esc(d.name)}</td>
+        <td class="num">${d.bottle_price_eur ? eur(d.bottle_price_eur) : "—"}</td>
+        <td class="num">${Math.round(d.bottle_volume_ml)}</td>
+        <td class="num">${d.par_level ? fmtFbe(d.par_level) : "—"}</td></tr>`).join("")}</tbody>`;
+    wrap.appendChild(tbl);
+    const note = document.createElement("p");
+    note.className = "edit-note";
+    note.textContent = "Bottles no spec uses — either build a spec for them or stop buying them. Dead money on the shelf.";
+    wrap.appendChild(note);
+    box.appendChild(wrap);
+  }
+}
 async function renderMenu() {
   const items = await api("/api/menu");
   const onlyPriced = $("#pricedOnly").checked;
@@ -542,13 +859,25 @@ async function renderMenu() {
 $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
 $("#navStock").addEventListener("click", () => showView("stock"));
+$("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
 $("#printMenuBtn").addEventListener("click", () => window.print());
 $("#pricedOnly").addEventListener("change", renderMenu);
 $("#specSearch").addEventListener("input", applySearch);
+$("#tabCount").addEventListener("click", () => setTakeTab("count"));
+$("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOrder(); });
+$("#tabTrends").addEventListener("click", () => { setTakeTab("trends"); renderTrends(); });
+$("#saveTakeBtn").addEventListener("click", saveTake);
+$("#newCountBtn").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
+window.addEventListener("beforeunload", (e) => {
+  if (!takeDirty) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
 
 window.addEventListener("load", async () => {
   await refreshStockMap();
+  takeBadge();
   loadSpecs(false);
   try {
     const m = await api("/api/menu");

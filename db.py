@@ -529,3 +529,256 @@ def get_menu():
         })
     conn.close()
     return menu
+
+
+# ---------- stock-take (par levels + dated snapshots) ----------
+
+def set_stock_par(stock_id: int, par_level: float | None) -> bool:
+    """Set (or clear, with None) a bottle's par level. Par <= 0 is treated as
+    'not counted' (stored NULL) — a zero target makes no sense on a bar floor."""
+    par = par_level
+    if par is None or par <= 0:
+        par = None
+    conn = _conn()
+    cur = conn.execute(
+        "UPDATE stock_items SET par_level=?, updated_at=datetime('now') WHERE id=?",
+        (par, stock_id),
+    )
+    conn.commit()
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
+
+
+def _fractions() -> tuple:
+    return pricing.OPEN_FRACTIONS
+
+
+def get_take_sheet():
+    """The count list: every bottle with a par, prefilled with the values from
+    the most recent snapshot (correct only what changed). No par = not counted.
+
+    Returns {"last_take": {id, taken_at} | None, "rows": [stock items with
+    par_level plus last_full_bottles / last_open_fraction (None when the item
+    was never counted)]}.
+    """
+    conn = _conn()
+    last = conn.execute(
+        "SELECT id, taken_at FROM stock_takes ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    last_vals = {}
+    if last:
+        for r in conn.execute(
+            """SELECT stock_item_id, full_bottles, open_fraction
+               FROM stock_take_lines WHERE take_id=?""",
+            (last["id"],),
+        ):
+            last_vals[r["stock_item_id"]] = dict(r)
+    rows = []
+    for r in conn.execute(
+        "SELECT * FROM stock_items WHERE par_level IS NOT NULL ORDER BY lower(name)"
+    ):
+        d = dict(r)
+        prev = last_vals.get(d["id"])
+        d["last_full_bottles"] = prev["full_bottles"] if prev else None
+        d["last_open_fraction"] = prev["open_fraction"] if prev else None
+        rows.append(d)
+    conn.close()
+    return {"last_take": dict(last) if last else None, "rows": rows}
+
+
+def _review_rows(conn, lines):
+    """lines: [{stock_item_id, full_bottles, open_fraction}] already validated.
+    Builds the order-list rows: FBE, shortfall to order, cash asleep — all via
+    pricing.py. Bottle metadata joined live so prices/pars are never stale."""
+    rows = []
+    for ln in lines:
+        stock = conn.execute(
+            "SELECT id, name, bottle_price_eur, bottle_volume_ml, par_level "
+            "FROM stock_items WHERE id=?",
+            (ln["stock_item_id"],),
+        ).fetchone()
+        if not stock:
+            continue  # bottle deleted mid-count; drop the line, keep the take
+        par = stock["par_level"]
+        if par is None:
+            continue  # par cleared mid-count; nothing to order against
+        fb = ln["full_bottles"]
+        frac = ln["open_fraction"]
+        fbe_val = pricing.fbe(fb, frac)
+        rows.append({
+            "stock_item_id": stock["id"],
+            "name": stock["name"],
+            "bottle_price_eur": stock["bottle_price_eur"],
+            "bottle_volume_ml": stock["bottle_volume_ml"],
+            "par_level": par,
+            "full_bottles": fb,
+            "open_fraction": frac,
+            "fbe": round(fbe_val, 2),
+            "to_order": pricing.order_shortfall(par, fbe_val),
+            "excess_fbe": round(pricing.excess_fbe(par, fbe_val), 2),
+            "cash_asleep_eur": round(
+                pricing.cash_asleep_eur(fbe_val, par, stock["bottle_price_eur"] or 0), 2),
+        })
+    return rows
+
+
+def _review_payload(take_id, taken_at, rows):
+    order_total = sum(r["to_order"] for r in rows)
+    asleep_total = round(sum(r["cash_asleep_eur"] for r in rows), 2)
+    short = [r for r in rows if r["to_order"] > 0]
+    over = [r for r in rows if r["excess_fbe"] > 0]
+    at_par = [r for r in rows if r["to_order"] == 0 and r["excess_fbe"] <= 0]
+    return {
+        "take": {"id": take_id, "taken_at": taken_at},
+        "counted": len(rows),
+        "order_total": order_total,
+        "cash_asleep_total": asleep_total,
+        "short": short,
+        "over": over,
+        "at_par": at_par,
+    }
+
+
+def save_stock_take(lines: list[dict]) -> dict:
+    """Persist one dated snapshot. lines must reference bottles that have a par
+    set; fractions must be in the allowed set. Returns the review payload
+    computed from the saved snapshot (single round-trip for the UI)."""
+    if not lines:
+        raise ValueError("Nothing to count — set par levels first")
+    conn = _conn()
+    try:
+        seen = set()
+        clean = []
+        for ln in lines:
+            sid = int(ln["stock_item_id"])
+            fb = int(ln.get("full_bottles", 0) or 0)
+            frac = float(ln.get("open_fraction", 0) or 0)
+            if fb < 0:
+                raise ValueError(f"Full bottles can't be negative ({fb})")
+            if frac not in _fractions():
+                raise ValueError(f"Open fraction must be one of {_fractions()}, got {frac}")
+            stock = conn.execute(
+                "SELECT par_level FROM stock_items WHERE id=?", (sid,)
+            ).fetchone()
+            if not stock:
+                raise ValueError(f"Unknown bottle id {sid}")
+            if stock["par_level"] is None:
+                raise ValueError(f"'{sid}' has no par level — set one before counting")
+            if sid in seen:
+                continue  # duplicate line for same bottle: last write wins
+            seen.add(sid)
+            clean.append({"stock_item_id": sid, "full_bottles": fb, "open_fraction": frac})
+
+        cur = conn.execute("INSERT INTO stock_takes (taken_at) VALUES (datetime('now'))")
+        take_id = _lastid(cur)
+        conn.executemany(
+            "INSERT INTO stock_take_lines (take_id, stock_item_id, full_bottles, open_fraction) "
+            "VALUES (?,?,?,?)",
+            [(take_id, ln["stock_item_id"], ln["full_bottles"], ln["open_fraction"])
+             for ln in clean],
+        )
+        conn.commit()
+        taken_at = conn.execute(
+            "SELECT taken_at FROM stock_takes WHERE id=?", (take_id,)
+        ).fetchone()["taken_at"]
+        rows = _review_rows(conn, clean)
+        conn.close()
+        return _review_payload(take_id=take_id, taken_at=taken_at, rows=rows)
+    except ValueError:
+        conn.close()
+        raise
+
+
+def get_last_stock_take() -> dict | None:
+    """The most recent snapshot's order-list review (what the Order tab shows
+    after a reload). None when no snapshot exists yet."""
+    conn = _conn()
+    last = conn.execute(
+        "SELECT id, taken_at FROM stock_takes ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    if not last:
+        conn.close()
+        return None
+    lines = [
+        dict(r) for r in conn.execute(
+            "SELECT stock_item_id, full_bottles, open_fraction "
+            "FROM stock_take_lines WHERE take_id=? ORDER BY id",
+            (last["id"],),
+        )
+    ]
+    rows = _review_rows(conn, lines)
+    payload = _review_payload(last["id"], last["taken_at"], rows)
+    conn.close()
+    return payload
+
+
+def get_stock_trends() -> dict:
+    """Movement between the two latest snapshots + dead-stock list.
+
+    Movement needs 2+ snapshots (views gate on history): FBE delta per bottle
+    between the last two takes. Positive = consumed. When a bottle appears in
+    only one of the two, it's flagged rather than guessed.
+    Dead stock (spec_count == 0) works immediately, no history needed.
+    """
+    conn = _conn()
+    takes = conn.execute(
+        "SELECT id, taken_at FROM stock_takes ORDER BY id DESC LIMIT 2"
+    ).fetchall()
+    movement = []
+    if len(takes) == 2:
+        newest, older = takes[0], takes[1]
+
+        def counts_of(take_id):
+            return {
+                r["stock_item_id"]: dict(r) for r in conn.execute(
+                    "SELECT stock_item_id, full_bottles, open_fraction "
+                    "FROM stock_take_lines WHERE take_id=?", (take_id,))
+            }
+
+        nc, oc = counts_of(newest["id"]), counts_of(older["id"])
+        for sid in sorted(set(nc) | set(oc)):
+            stock = conn.execute(
+                "SELECT name, bottle_price_eur, bottle_volume_ml FROM stock_items WHERE id=?",
+                (sid,),
+            ).fetchone()
+            if not stock:
+                continue
+            new_line, old_line = nc.get(sid), oc.get(sid)
+            new_fbe = pricing.fbe(new_line["full_bottles"], new_line["open_fraction"]) if new_line else None
+            old_fbe = pricing.fbe(old_line["full_bottles"], old_line["open_fraction"]) if old_line else None
+            if old_line and new_line:
+                used = round(old_fbe - new_fbe, 2)
+                movement.append({
+                    "stock_item_id": sid, "name": stock["name"],
+                    "bottle_price_eur": stock["bottle_price_eur"],
+                    "bottle_volume_ml": stock["bottle_volume_ml"],
+                    "prev_fbe": old_fbe, "fbe": new_fbe,
+                    "used_fbe": used,
+                    "used_ml": round(used * stock["bottle_volume_ml"], 0),
+                    "used_eur": round(used * (stock["bottle_price_eur"] or 0), 2),
+                    "state": "used" if used > 0.001 else ("unmoved" if abs(used) <= 0.001 else "gained"),
+                })
+            else:
+                movement.append({
+                    "stock_item_id": sid, "name": stock["name"],
+                    "bottle_price_eur": stock["bottle_price_eur"],
+                    "bottle_volume_ml": stock["bottle_volume_ml"],
+                    "prev_fbe": old_fbe, "fbe": new_fbe,
+                    "used_fbe": None, "used_ml": None, "used_eur": None,
+                    "state": "first_count" if new_line else "not_counted",
+                })
+    # Dead stock: bottles in the list that no spec uses. Works from day one.
+    dead = []
+    for r in conn.execute(
+        "SELECT id, name, abv, bottle_price_eur, bottle_volume_ml, par_level "
+        "FROM stock_items ORDER BY lower(name)"
+    ):
+        if _stock_usage_count(conn, r["id"]) == 0:
+            dead.append(dict(r))
+    conn.close()
+    return {
+        "takes_count": len(takes),
+        "movement": movement,
+        "dead_stock": dead,
+    }

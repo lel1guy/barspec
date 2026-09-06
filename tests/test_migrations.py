@@ -12,7 +12,7 @@ def _conn(db):
 class TestLegacyUpgrade:
     def test_version_bumped(self, legacy_db):
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
         conn.close()
 
     def test_ingredients_table_gone(self, legacy_db):
@@ -44,6 +44,16 @@ class TestLegacyUpgrade:
         assert "price_eur" in cols and "target_gp" in cols
         conn.close()
 
+    def test_stock_take_schema_added(self, legacy_db):
+        """002 adds par_level + the two snapshot tables on top of 001."""
+        conn = _conn(legacy_db.DB_PATH)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(stock_items)").fetchall()]
+        assert "par_level" in cols
+        tables = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        assert {"stock_takes", "stock_take_lines"} <= tables
+        conn.close()
+
     def test_cost_unchanged_after_upgrade(self, legacy_db):
         """Negroni cost must equal the old formula on the same numbers."""
         spec = legacy_db.get_spec(1)
@@ -59,7 +69,7 @@ class TestLegacyUpgrade:
         """Running init_db twice never double-applies or reseeds."""
         legacy_db.init_db()
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] == 4
         conn.close()

@@ -89,3 +89,38 @@ class TestRowPcts:
 
     def test_zero_cost_all_zero(self):
         assert pricing.row_pcts([line(price=0), line(price=0)]) == [0.0, 0.0]
+
+
+class TestStockTakeMath:
+    """FBE + order-list math: the numbers behind the count screen."""
+
+    def test_fbe_full_and_fraction(self):
+        assert pricing.fbe(2, 0.5) == 2.5
+        assert pricing.fbe(0, 0) == 0.0
+        assert pricing.fbe(3) == 3.0
+
+    def test_stock_ml(self):
+        assert pricing.stock_ml(2.5, 700) == 1750.0
+
+    def test_shortfall_orders_whole_bottles(self):
+        # par 3, have 2.5 -> ceil(0.5) = 1
+        assert pricing.order_shortfall(3, 2.5) == 1
+        # par 3, have 0.75 -> ceil(2.25) = 3
+        assert pricing.order_shortfall(3, 0.75) == 3
+        # par 4, have 2 -> 2
+        assert pricing.order_shortfall(4, 2) == 2
+
+    def test_shortfall_floor_at_zero(self):
+        assert pricing.order_shortfall(3, 3.0) == 0   # exactly at par
+        assert pricing.order_shortfall(3, 4.0) == 0   # over par
+        assert pricing.order_shortfall(3, 2.9999999999) == 0  # float noise at par
+
+    def test_excess_fbe(self):
+        assert pricing.excess_fbe(3, 4.5) == 1.5
+        assert pricing.excess_fbe(3, 3.0) == 0.0
+        assert pricing.excess_fbe(3, 2.0) == 0.0
+
+    def test_cash_asleep(self):
+        # 1.5 FBE over par x 19.0/bottle = 28.50 tied up
+        assert pricing.cash_asleep_eur(4.5, 3, 19.0) == pytest.approx(28.5)
+        assert pricing.cash_asleep_eur(2.0, 3, 19.0) == 0.0

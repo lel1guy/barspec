@@ -106,3 +106,49 @@ def margin_band(margin: float, target_gp_pct: float) -> str:
 def menu_round_up(x: float) -> float:
     """Nearest 0.50 above x (helper, same rule as suggested_price)."""
     return round(math.ceil(x * 2) / 2, 2)
+
+
+# ---------- stock-take math (par levels, order list, cash asleep) ----------
+
+# Visual 4-step estimate of an open bottle. All values exact in binary float.
+OPEN_FRACTIONS = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+def fbe(full_bottles, open_fraction=0.0) -> float:
+    """Full-bottle equivalents: full bottles + open-bottle fraction.
+
+    The count unit of a stock-take: '2 full + one at half' = 2.5 FBE.
+    """
+    return float(full_bottles) + float(open_fraction)
+
+
+def stock_ml(fbe_value: float, bottle_volume_ml: float) -> float:
+    """Volume a count represents: FBE x bottle size (700 ml etc)."""
+    return fbe_value * bottle_volume_ml
+
+
+def order_shortfall(par_level: float, fbe_value: float) -> int:
+    """Whole bottles to order to reach par: ceil(par - fbe), floored at 0.
+
+    Par is a target in bottles; you order whole bottles. Ceil so a half-bottle
+    gap ('par 3, have 2.5') still orders 1. Float noise guard: an exact par
+    (par 2.0 vs fbe 2.0) must order 0, never 1.
+    """
+    gap = float(par_level) - float(fbe_value)
+    if gap <= 1e-9:
+        return 0
+    return int(math.ceil(gap - 1e-9))
+
+
+def excess_fbe(par_level: float, fbe_value: float) -> float:
+    """FBE above par (the 'cash asleep' count), 0 when at or below par."""
+    return max(0.0, float(fbe_value) - float(par_level))
+
+
+def cash_asleep_eur(fbe_value: float, par_level: float, bottle_price_eur: float) -> float:
+    """Euro of stock sitting above par: excess FBE x bottle price.
+
+    Over-par stock is cash tied up in bottles instead of the bank. Raw value
+    (round to cents on output, per module convention).
+    """
+    return excess_fbe(par_level, fbe_value) * bottle_price_eur

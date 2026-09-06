@@ -17,6 +17,7 @@
   <nav class="sidenav">
     <button id="navSpecs" class="navitem active"><span class="ic">▤</span>Specs<span class="navbadge" id="countSpecs">0</span></button>
     <button id="navStock" class="navitem"><span class="ic">◫</span>Stock<span class="navbadge" id="countStock">0</span></button>
+    <button id="navTake" class="navitem"><span class="ic">▦</span>Stock-take<span class="navbadge" id="countTake">0</span></button>
     <button id="navMenu" class="navitem"><span class="ic">☰</span>Menu<span class="navbadge" id="countMenu">0</span></button>
   </nav>
 </aside>
@@ -57,7 +58,7 @@
       <table id="stockTable">
         <thead>
           <tr><th>Bottle</th><th class="num">ABV %</th><th class="num">Price €</th>
-              <th class="num">Size ml</th><th class="num">Used in</th><th></th></tr>
+              <th class="num">Size ml</th><th class="num">Par</th><th class="num">Used in</th><th></th></tr>
         </thead>
         <tbody id="stockBody"></tbody>
       </table>
@@ -72,6 +73,44 @@
           <button id="cancelStock" class="btn ghost">Cancel</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ STOCK-TAKE ============ -->
+  <section id="view-stocktake" class="view">
+    <div class="seg no-print" id="takeTabs">
+      <button id="tabCount" class="segbtn active">Count</button>
+      <button id="tabOrder" class="segbtn">Order list</button>
+      <button id="tabTrends" class="segbtn">Trends</button>
+    </div>
+
+    <div class="panel" id="countPanel">
+      <div class="panel-head no-print">
+        <h2>Count</h2>
+        <span class="hint" id="countHint">Bottles with a par level — walk the shelf and correct what changed.</span>
+        <div class="spacer"></div>
+        <span class="hint" id="countTotals"></span>
+        <button id="saveTakeBtn" class="btn primary">Save count</button>
+      </div>
+      <div id="countBody"></div>
+    </div>
+
+    <div class="panel hidden" id="orderPanel">
+      <div class="panel-head">
+        <h2>Order list</h2>
+        <span class="hint" id="orderHint">From your latest count vs par.</span>
+        <div class="spacer"></div>
+        <button id="newCountBtn" class="btn ghost no-print">+ New count</button>
+      </div>
+      <div id="orderBody"></div>
+    </div>
+
+    <div class="panel hidden" id="trendsPanel">
+      <div class="panel-head">
+        <h2>Trends &amp; dead stock</h2>
+        <span class="hint">Movement between your last two counts — insight appears as history accrues.</span>
+      </div>
+      <div id="trendsBody"></div>
     </div>
   </section>
 
