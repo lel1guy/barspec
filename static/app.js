@@ -33,6 +33,35 @@ const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const eur = (v) => "€" + (Math.round((v || 0) * 100) / 100).toFixed(2);
 
+// ---------- display unit (S1: cl/oz/ml toggle; storage stays ml) ----------
+// The server stores canonical ml everywhere. This is display + entry only:
+// values convert at the edges, nothing persists except the preference.
+let unit = localStorage.getItem("barspec.unit") || "ml";
+const UNIT_ML = { ml: 1, cl: 10, oz: 29.5735 };      // canonical per display unit
+const dispAmt = (ml) => {                            // canonical ml -> display string
+  const v = (ml || 0) / UNIT_ML[unit];
+  return (Math.round(v * 100) / 100).toString();
+};
+const toMl = (v) => v * UNIT_ML[unit];               // display amount -> canonical ml
+const unitLabel = () => unit;
+function applyUnitLabels() {                         // static labels that carry a unit
+  const th = document.getElementById("stockSizeTh");
+  if (th) th.textContent = "Size " + unit;
+  const lb = document.getElementById("stSizeLbl");
+  if (lb) lb.textContent = "Size (" + unit + ")";
+}
+function setUnit(u) {
+  unit = u;
+  localStorage.setItem("barspec.unit", u);
+  document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.unit === u));
+  applyUnitLabels();
+  if (currentView === "specs" && currentSpec) openSpec(currentSpec);
+  else if (currentView === "specs") loadSpecs(false);
+  else if (currentView === "stock") renderStock();
+  else if (currentView === "stocktake") loadStocktake();
+}
+
 // JS mirrors of pricing.py (server stays authoritative).
 const jsSuggested = (cost, gpPct) => cost > 0
   ? Math.ceil(cost / (1 - Math.min(gpPct, 99) / 100) * 2) / 2 : 0;
@@ -142,11 +171,11 @@ async function openSpec(id) {
     </div>
 
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">ml</th><th class="num">ABV</th>
+      <thead><tr><th>Ingredient</th><th class="num">${unitLabel()}</th><th class="num">ABV</th>
           <th class="num">Cost</th><th style="width:120px;">Share of cost</th><th></th></tr></thead>
       <tbody id="ingBody"></tbody>
     </table>
-    <div class="edit-note">Bottle prices live in Stock — edit once, every spec updates. Ice dilution not included.</div>`;
+    <div class="edit-note">Bottle prices live in Stock — edit once, every spec updates. Ice dilution not included. Amounts show in ${unitLabel()} (ml stays canonical).</div>`;
 
   $("#servings").addEventListener("input", (e) => {
     servings = Math.max(1, parseInt(e.target.value) || 1);
@@ -176,7 +205,7 @@ function renderDetail(s) {
   $("#statServe").textContent = eur(sum.cost_eur);
   $("#statBatch").textContent = eur(sum.cost_eur * servings);
   $("#statAbv").textContent = sum.abv + "%";
-  $("#statVol").textContent = Math.round(sum.total_ml) + " ml";
+  $("#statVol").textContent = dispAmt(sum.total_ml) + " " + unitLabel();
 
   const body = $("#ingBody");
   body.innerHTML = "";
@@ -188,8 +217,8 @@ function renderDetail(s) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><span class="ing-name">${esc(l.name)}</span>
-          <div class="edit-note">${l.bottle_price_eur ? eur(l.bottle_price_eur) + " / " + Math.round(l.bottle_volume_ml) + " ml" : "no bottle price set"}</div></td>
-      <td class="num">${l.amount_ml}</td>
+          <div class="edit-note">${l.bottle_price_eur ? eur(l.bottle_price_eur) + " / " + dispAmt(l.bottle_volume_ml) + " " + unitLabel() : "no bottle price set"}</div></td>
+      <td class="num">${dispAmt(l.amount_ml)}</td>
       <td class="num">${l.abv ? l.abv + "%" : "—"}</td>
       <td class="num">${l.bottle_price_eur ? eur(l.row_cost_eur) : "—"}</td>
       <td><div class="costbar-wrap"><div class="costbar"><i style="width:${l.row_cost_pct}%"></i></div></div></td>
@@ -310,18 +339,18 @@ function editIngredientsForm(s) {
     <div class="edit-note">Bottles live in Stock. Type a known name and it links to the existing
       bottle; a new name creates one (set its price later in Stock).</div>
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">ml</th><th class="num">Bottle</th><th></th></tr></thead>
+      <thead><tr><th>Ingredient</th><th class="num">${unitLabel()}</th><th class="num">Bottle</th><th></th></tr></thead>
       <tbody id="editBody"></tbody>
     </table>
     <div class="edit-note" id="newHint" style="margin-top:10px;">New bottle — ABV/price/size only matter if it isn't in stock yet.</div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:6px;">
       <div style="flex:2; min-width:150px;"><label>Name</label>
         <input id="addName" list="stockNames" placeholder="Type or pick…"></div>
-      <div style="flex:1; min-width:70px;"><label>ml</label><input id="addMl" type="number" value="30" min="0" step="0.5"></div>
+      <div style="flex:1; min-width:70px;"><label>${unitLabel()}</label><input id="addMl" type="number" value="${dispAmt(30)}" min="0" step="0.5"></div>
       <div id="advWrap" style="display:flex; gap:8px; flex-wrap:wrap;">
         <div style="width:70px;"><label>ABV %</label><input id="addAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
         <div style="width:90px;"><label>Bottle €</label><input id="addPrice" type="number" value="0" min="0" step="0.1"></div>
-        <div style="width:90px;"><label>Size ml</label><input id="addVol" type="number" value="700" min="0" step="50"></div>
+        <div style="width:90px;"><label>Size ${unitLabel()}</label><input id="addVol" type="number" value="${dispAmt(700)}" min="0" step="1"></div>
       </div>
       <button id="addLine">+ Add</button>
     </div>
@@ -349,13 +378,14 @@ function editIngredientsForm(s) {
         : (stock ? "no price yet" : "—");
       tr.innerHTML = `
         <td><input data-i="${i}" data-k="name" value="${esc(l.name)}" list="stockNames" placeholder="Ingredient"></td>
-        <td><input class="num" type="number" data-i="${i}" data-k="amount_ml" value="${l.amount_ml}" min="0" step="0.5" style="width:90px; text-align:right;"></td>
+        <td><input class="num" type="number" data-i="${i}" data-k="amount_ml" value="${dispAmt(l.amount_ml)}" min="0" step="0.5" style="width:90px; text-align:right;"></td>
         <td class="edit-note">${esc(bottleTxt)}</td>
         <td><button class="danger small" data-rm="${i}">✕</button></td>`;
       tr.querySelectorAll("input").forEach((inp) => {
         inp.addEventListener("input", () => {
           const k = inp.dataset.k;
-          rows[+inp.dataset.i][k] = inp.type === "number" ? (parseFloat(inp.value) || 0) : inp.value.trim();
+          const raw = parseFloat(inp.value) || 0;
+          rows[+inp.dataset.i][k] = k === "amount_ml" ? toMl(raw) : inp.value.trim();
         });
       });
       tr.querySelector("[data-rm]").addEventListener("click", () => {
@@ -370,19 +400,19 @@ function editIngredientsForm(s) {
 
   $("#addLine").addEventListener("click", () => {
     const name = $("#addName").value.trim();
-    const ml = parseFloat($("#addMl").value);
-    if (!name || !ml) { toast("Name + ml needed"); return; }
+    const ml = toMl(parseFloat($("#addMl").value) || 0);
+    if (!name || !ml) { toast("Name + " + unitLabel() + " needed"); return; }
     const known = stockMap[name.toLowerCase()];
     const line = {
       name,
       amount_ml: ml,
       abv: parseFloat($("#addAbv").value) || 0,
       bottle_price_eur: known ? 0 : parseFloat($("#addPrice").value) || 0,
-      bottle_volume_ml: parseFloat($("#addVol").value) || 700,
+      bottle_volume_ml: toMl(parseFloat($("#addVol").value) || 0) || 700,
     };
     rows.push(line);
-    $("#addName").value = ""; $("#addMl").value = 30; $("#addAbv").value = 0;
-    $("#addPrice").value = 0; $("#addVol").value = 700;
+    $("#addName").value = ""; $("#addMl").value = dispAmt(30); $("#addAbv").value = 0;
+    $("#addPrice").value = 0; $("#addVol").value = dispAmt(700);
     renderRows(); onName();
   });
 
@@ -426,6 +456,7 @@ async function refreshStockMap() {
 
 async function renderStock() {
   const items = await refreshStockMap();
+  applyUnitLabels();
   const body = $("#stockBody");
   body.innerHTML = "";
   if (!items.length) {
@@ -439,7 +470,7 @@ async function renderStock() {
       <td><input data-k="name" value="${esc(it.name)}"></td>
       <td><input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;"></td>
       <td><input type="number" data-k="bottle_price_eur" value="${it.bottle_price_eur}" min="0" step="0.1" class="stock-price-input"></td>
-      <td><input type="number" data-k="bottle_volume_ml" value="${it.bottle_volume_ml}" min="0" step="50" style="width:90px;"></td>
+      <td><input type="number" data-k="bottle_volume_ml" value="${dispAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:90px;"></td>
       <td><input type="number" data-par="${it.id}" value="${it.par_level ?? ""}" min="0" step="0.5"
                  placeholder="—" class="par-input" title="Par level — bottles to keep on hand. Empty = not counted."></td>
       <td class="num"><span class="spec-badge" title="specs using this bottle">${it.spec_count}×</span></td>
@@ -450,6 +481,7 @@ async function renderStock() {
         const k = inp.dataset.k;
         payload[k] = inp.type === "number" ? (parseFloat(inp.value) || 0) : inp.value.trim();
       });
+      payload.bottle_volume_ml = toMl(payload.bottle_volume_ml);
       if (!payload.name) { toast("Name can't be empty"); renderStock(); return; }
       try {
         const res = await api("/api/stock/" + it.id, "PUT", payload);
@@ -499,8 +531,8 @@ function showRipple(impact) {
 }
 
 $("#addStockBtn").addEventListener("click", () => {
-  $("#addStockForm").classList.toggle("hidden");
-  if (!$("#addStockForm").classList.contains("hidden")) $("#stName").focus();
+  const show = $("#addStockForm").classList.toggle("hidden");
+  if (!show) { $("#stName").focus(); $("#stVol").value = dispAmt(700); }
 });
 $("#cancelStock").addEventListener("click", () => $("#addStockForm").classList.add("hidden"));
 $("#saveStock").addEventListener("click", async () => {
@@ -511,10 +543,10 @@ $("#saveStock").addEventListener("click", async () => {
       name,
       abv: parseFloat($("#stAbv").value) || 0,
       bottle_price_eur: parseFloat($("#stPrice").value) || 0,
-      bottle_volume_ml: parseFloat($("#stVol").value) || 700,
+      bottle_volume_ml: toMl(parseFloat($("#stVol").value) || 0) || 700,
     });
     toast("Bottle added");
-    $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0; $("#stVol").value = 700;
+    $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0; $("#stVol").value = dispAmt(700);
     $("#addStockForm").classList.add("hidden");
     renderStock();
   } catch (err) { toast("Failed: " + err.message); }
@@ -612,7 +644,7 @@ function renderCount() {
     };
     tr.innerHTML = `
       <td><span class="ing-name">${esc(row.name)}</span>
-          <div class="edit-note">${row.bottle_price_eur ? eur(row.bottle_price_eur) + " / " + Math.round(row.bottle_volume_ml) + " ml" : "no bottle price set"}</div></td>
+          <div class="edit-note">${row.bottle_price_eur ? eur(row.bottle_price_eur) + " / " + dispAmt(row.bottle_volume_ml) + " " + unitLabel() : "no bottle price set"}</div></td>
       <td class="num"><input type="number" class="par-input take-par" value="${row.par_level ?? ""}"
           min="0" step="0.5" title="Par — bottles to keep on hand. Empty removes from the count."></td>
       <td class="num take-full">
@@ -775,14 +807,14 @@ async function renderTrends() {
     const tbl = document.createElement("table");
     tbl.innerHTML = `
       <thead><tr><th>Bottle</th><th class="num">Before</th><th class="num">Now</th>
-        <th class="num">Used</th><th class="num">ml</th><th class="num">€</th><th>State</th></tr></thead>
+        <th class="num">Used</th><th class="num">${unitLabel()}</th><th class="num">€</th><th>State</th></tr></thead>
       <tbody>${movement.map((m) => `
         <tr class="trend-${m.state}">
           <td>${esc(m.name)}</td>
           <td class="num">${m.prev_fbe === null ? "—" : fmtFbe(m.prev_fbe)}</td>
           <td class="num">${m.fbe === null ? "—" : fmtFbe(m.fbe)}</td>
           <td class="num">${m.used_fbe === null ? "—" : fmtFbe(m.used_fbe)}</td>
-          <td class="num">${m.used_ml === null ? "—" : Math.round(m.used_ml)}</td>
+          <td class="num">${m.used_ml === null ? "—" : dispAmt(m.used_ml)}</td>
           <td class="num">${m.used_eur === null ? "—" : eur(m.used_eur)}</td>
           <td><span class="margin-chip ${m.state === "used" ? "good" : m.state === "unmoved" ? "unpriced" : m.state === "gained" ? "low" : "ok"}">${states[m.state] || m.state}</span></td>
         </tr>`).join("")}</tbody>`;
@@ -869,6 +901,8 @@ $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOr
 $("#tabTrends").addEventListener("click", () => { setTakeTab("trends"); renderTrends(); });
 $("#saveTakeBtn").addEventListener("click", saveTake);
 $("#newCountBtn").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
+document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
+  b.addEventListener("click", () => setUnit(b.dataset.unit)));
 window.addEventListener("beforeunload", (e) => {
   if (!takeDirty) return;
   e.preventDefault();
@@ -876,6 +910,9 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 window.addEventListener("load", async () => {
+  document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.unit === unit));
+  applyUnitLabels();
   await refreshStockMap();
   takeBadge();
   loadSpecs(false);

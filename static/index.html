@@ -28,6 +28,11 @@
       <div class="crumb" id="crumbLabel">BARSPEC / SPECS</div>
       <h1 id="viewTitle">Specs</h1>
     </div>
+    <div class="unitctl no-print" id="unitBox" title="Display unit — values are stored in ml">
+      <button class="unitbtn active" data-unit="ml">ml</button>
+      <button class="unitbtn" data-unit="cl">cl</button>
+      <button class="unitbtn" data-unit="oz">oz</button>
+    </div>
     <div class="search no-print" id="searchBox">
       <input id="specSearch" placeholder="Search specs…" autocomplete="off">
     </div>
@@ -58,7 +63,7 @@
       <table id="stockTable">
         <thead>
           <tr><th>Bottle</th><th class="num">ABV %</th><th class="num">Price €</th>
-              <th class="num">Size ml</th><th class="num">Par</th><th class="num">Used in</th><th></th></tr>
+              <th class="num" id="stockSizeTh">Size ml</th><th class="num">Par</th><th class="num">Used in</th><th></th></tr>
         </thead>
         <tbody id="stockBody"></tbody>
       </table>
@@ -68,7 +73,7 @@
           <div style="flex:2; min-width:160px;"><label>Name</label><input id="stName" placeholder="Campari"></div>
           <div style="flex:1; min-width:80px;"><label>ABV %</label><input id="stAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
           <div style="flex:1; min-width:90px;"><label>Price €</label><input id="stPrice" type="number" value="0" min="0" step="0.1"></div>
-          <div style="flex:1; min-width:90px;"><label>Size ml</label><input id="stVol" type="number" value="700" min="0" step="50"></div>
+          <div style="flex:1; min-width:90px;"><label id="stSizeLbl">Size (ml)</label><input id="stVol" type="number" value="700" min="0" step="1"></div>
           <button id="saveStock" class="btn">Save</button>
           <button id="cancelStock" class="btn ghost">Cancel</button>
         </div>
