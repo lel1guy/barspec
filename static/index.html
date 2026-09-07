@@ -118,6 +118,11 @@
               <select id="stVolUnit" style="width:86px;"><option value="ml">ml</option><option value="l">l</option></select>
             </div>
           </div>
+          <div style="flex:1; min-width:80px; display:none;" id="yieldWrap">
+            <label>Yield %</label>
+            <input id="stYield" type="number" value="100" min="1" max="100" step="1"
+                   title="Usable after trim/cook: pay for 1 kg, use 800 g -> 80">
+          </div>
           <button id="saveStock" class="btn">Save</button>
           <button id="cancelStock" class="btn ghost">Cancel</button>
         </div>

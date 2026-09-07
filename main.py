@@ -53,6 +53,7 @@ class StockIn(BaseModel):
     bottle_price_eur: float = 0.0
     bottle_volume_ml: float = 700.0
     dimension: Literal["volume", "weight", "count"] = "volume"
+    yield_frac: float = Field(1.0, gt=0, le=1.0)   # usable/bought (meat trim)
 
 
 class ParIn(BaseModel):

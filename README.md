@@ -59,7 +59,7 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # 98 tests: pricing math, migration replay, API smoke, stock-take, units engine, batches
+pytest            # 107 tests: pricing math, migrations, API, stock-take, units, batches, yield
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
@@ -87,6 +87,9 @@ A fresh install runs the same path as an upgrade — self-checking.
   `spec_lines` gains nullable `batch_id` + a CHECK enforcing exactly one of
   bottle/batch per line. Spec pour = amount × (batch total ÷ size); two-level
   price ripple walks bottle → batches → specs.
+- `005_yield.sql` — `yield_frac` on stock_items (default 1.0, byte-identical
+  legacy): usable/bought for trim & cook loss. €6 ÷ (1000 g × 0.80) prices
+  trimmed meat honestly; flows through specs AND batches; ripple inherits.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
