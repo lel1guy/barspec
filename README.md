@@ -3,7 +3,7 @@
 Cocktail spec manager for bartenders — store recipes, scale any drink to N
 servings, see cost-per-drink and ABV, then **price the menu** and print it.
 
-Built solo by lel1guy — an ex-bartender scratching his own itch. Python +
+Built by Vitor Vareiro. Python +
 FastAPI + SQLite + vanilla JS.
 No build step, no ORM — every query is visible in `db.py`, every € is computed
 in `pricing.py` (pure functions, unit-tested).
