@@ -181,6 +181,9 @@
         <label style="display:flex; align-items:center; gap:6px; margin:0;" class="checklabel">
           <input type="checkbox" id="pricedOnly"> <span data-i18n="menu.onlyPriced">only priced</span>
         </label>
+        <button id="exportSpecsBtn" class="btn ghost" data-i18n="export.specs">⤓ Specs .xlsx</button>
+        <button id="exportStockBtn" class="btn ghost" data-i18n="export.stock">⤓ Stock .xlsx</button>
+        <button id="qrMenuBtn" class="btn ghost" data-i18n="export.qr">◈ Share / QR</button>
         <button id="printMenuBtn" class="btn primary" data-i18n="menu.print">⤢ Print menu</button>
       </div>
       <div id="menuPrintTitle" data-i18n="menu.printTitle">Cocktail Menu</div>
@@ -192,6 +195,15 @@
 
 <datalist id="stockNames"></datalist>
 <datalist id="catNames"></datalist>
+<div class="overlay hidden no-print" id="qrOverlay" role="dialog" aria-modal="true" aria-label="Menu QR">
+  <div class="overlay-card">
+    <h3 data-i18n="export.qrTitle">Menu link</h3>
+    <div id="qrSvg"></div>
+    <div class="edit-note" data-i18n="export.qrHint">Point a phone at it — opens this bar's menu.</div>
+    <div class="edit-note mono" id="qrUrl"></div>
+    <button class="btn" id="qrClose" data-i18n="f.close">Close</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="/static/app.js" defer></script>

@@ -38,6 +38,9 @@ in `pricing.py` (pure functions, unit-tested).
 - **EN / PT-PT**: one-click language toggle (top bar, remembered per browser).
   All navigation, forms, buttons, hints and menus translate; numbers and €
   never do.
+- **Export & share**: the whole spec book + stock to .xlsx or .csv (owner /
+  accountant files, costs included), plus a menu QR — point a phone at it and
+  the menu opens (`?view=menu` deep link).
 - **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
   get the order list (what to buy, cash asleep) and week-to-week trends.
 - **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;
