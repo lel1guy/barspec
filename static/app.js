@@ -87,6 +87,10 @@ const I18N = {
     "pricing.use": "use", "pricing.savePrice": "Save price",
     "pricing.unpriced": "unpriced",
     "all": "All", "uncat": "Uncategorised",
+    "export.specs": "⤓ Specs .xlsx", "export.stock": "⤓ Stock .xlsx",
+    "export.qr": "◈ Share / QR", "export.qrTitle": "Menu link",
+    "export.qrHint": "Point a phone at it — opens this bar's menu.",
+    "f.close": "Close",
   },
   pt: {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
@@ -140,6 +144,10 @@ const I18N = {
     "pricing.use": "usar", "pricing.savePrice": "Guardar preço",
     "pricing.unpriced": "sem preço",
     "all": "Todas", "uncat": "Sem categoria",
+    "export.specs": "⤓ Receitas .xlsx", "export.stock": "⤓ Stock .xlsx",
+    "export.qr": "◈ Partilhar / QR", "export.qrTitle": "Link do menu",
+    "export.qrHint": "Aponte um telemóvel — abre o menu deste bar.",
+    "f.close": "Fechar",
   },
 };
 let lang = localStorage.getItem("barspec.lang") || "en";
@@ -1450,6 +1458,26 @@ $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
 $("#printMenuBtn").addEventListener("click", () => window.print());
 $("#pricedOnly").addEventListener("change", renderMenu);
+function dl(url, name) {
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+$("#exportSpecsBtn").addEventListener("click", () => dl("/api/export/specs.xlsx", "barspec-specs.xlsx"));
+$("#exportStockBtn").addEventListener("click", () => dl("/api/export/stock.xlsx", "barspec-stock.xlsx"));
+$("#qrMenuBtn").addEventListener("click", async () => {
+  const url = location.origin + location.pathname + "?view=menu";
+  try {
+    const svg = await (await fetch("/api/export/menu-qr.svg?url=" + encodeURIComponent(url))).text();
+    $("#qrSvg").innerHTML = svg;
+    $("#qrUrl").textContent = url;
+    $("#qrOverlay").classList.remove("hidden");
+  } catch (err) { toast("QR failed: " + err.message); }
+});
+$("#qrClose").addEventListener("click", () => $("#qrOverlay").classList.add("hidden"));
+$("#qrOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "qrOverlay") $("#qrOverlay").classList.add("hidden");
+});
 $("#specSearch").addEventListener("input", applySearch);
 $("#tabCount").addEventListener("click", () => setTakeTab("count"));
 $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOrder(); });
@@ -1467,11 +1495,13 @@ window.addEventListener("beforeunload", (e) => {
 window.addEventListener("load", async () => {
   applyI18n();
   updateChrome();
+  const qv = new URLSearchParams(location.search).get("view");
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));
   applyUnitLabels();
   await refreshStockMap();
   takeBadge();
+  if (qv && VIEWS[qv]) { showView(qv); return; }
   loadSpecs(false);
   try {
     const m = await api("/api/menu");

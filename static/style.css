@@ -368,6 +368,19 @@ select.unitmini {
 }
 .toast.show { opacity: 1; }
 
+/* share/QR overlay */
+.overlay { position: fixed; inset: 0; background: rgba(8, 10, 14, .72);
+           display: flex; align-items: center; justify-content: center; z-index: 60;
+           backdrop-filter: blur(2px); padding: 16px; }
+.overlay-card { background: var(--panel2); border: 1px solid var(--line2);
+                border-radius: 16px; padding: 22px; max-width: 340px; width: 100%;
+                text-align: center; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .7); }
+.overlay-card h3 { margin: 0 0 12px; }
+.overlay-card #qrSvg { background: #fff; border-radius: 10px; padding: 8px;
+                       display: inline-block; margin-bottom: 8px; }
+#qrSvg svg { width: 190px; height: 190px; display: block; }
+#qrUrl { word-break: break-all; margin: 8px 0 14px; font-size: 12px; }
+
 /* ---------- mobile: floor-friendly bottom nav ---------- */
 @media (max-width: 760px) {
   body { grid-template-columns: 1fr; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
