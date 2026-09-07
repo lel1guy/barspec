@@ -1166,3 +1166,33 @@ def get_stock_trends() -> dict:
         "movement": movement,
         "dead_stock": dead,
     }
+
+
+# ---------- settings (008): venue profile ----------
+
+def get_venue() -> dict:
+    """{name, iva_pct} — empty strings when unset."""
+    conn = _conn()
+    rows = conn.execute("SELECT key, value FROM settings").fetchall()
+    conn.close()
+    s = {r["key"]: r["value"] for r in rows}
+    def num(k):
+        try:
+            return float(s[k]) if s.get(k) else None
+        except (TypeError, ValueError):
+            return None
+    return {"name": s.get("venue.name", "") or "", "iva_pct": num("venue.iva_pct")}
+
+
+def save_venue(name: str, iva_pct: float | None) -> dict:
+    conn = _conn()
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('venue.name', ?) "
+        "ON CONFLICT (key) DO UPDATE SET value=excluded.value", (name,))
+    iva = "" if iva_pct is None else str(iva_pct)
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES ('venue.iva_pct', ?) "
+        "ON CONFLICT (key) DO UPDATE SET value=excluded.value", (iva,))
+    conn.commit()
+    conn.close()
+    return get_venue()

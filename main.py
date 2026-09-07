@@ -397,3 +397,20 @@ def export_stock_csv():
 def export_menu_qr(url: str = Query(..., description="absolute menu URL")):
     return Response(content=exporters.menu_qr_svg(url),
                     media_type="image/svg+xml")
+
+
+# ---------- Settings (008): venue profile ----------
+
+class VenueIn(BaseModel):
+    name: str = ""
+    iva_pct: float | None = Field(None, ge=0, le=100)
+
+
+@app.get("/api/settings")
+def get_settings():
+    return db.get_venue()
+
+
+@app.put("/api/settings")
+def put_settings(v: VenueIn):
+    return db.save_venue(v.name.strip(), v.iva_pct)

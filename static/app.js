@@ -93,6 +93,9 @@ const I18N = {
     "export.qr": "◈ Share / QR", "export.qrTitle": "Menu link",
     "export.qrHint": "Point a phone at it — opens this bar's menu.",
     "f.close": "Close",
+    "venue.btn": "☰ Venue", "venue.hint": "Shown on the printed menu — costs stay hidden.",
+    "venue.iva": "IVA %", "venue.footer": "All prices include IVA {p}%.",
+    "venue.saved": "Venue saved",
     "a11y.skip": "Skip to content",
     "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
@@ -155,6 +158,9 @@ const I18N = {
     "export.qr": "◈ Partilhar / QR", "export.qrTitle": "Link do menu",
     "export.qrHint": "Aponte um telemóvel — abre o menu deste bar.",
     "f.close": "Fechar",
+    "venue.btn": "☰ Espaço", "venue.hint": "Aparece no menu impresso — os custos ficam escondidos.",
+    "venue.iva": "IVA %", "venue.footer": "Todos os preços incluem IVA {p}%.",
+    "venue.saved": "Espaço guardado",
     "a11y.skip": "Saltar para o conteúdo",
     "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
@@ -1420,7 +1426,23 @@ async function renderTrends() {
     box.appendChild(wrap);
   }
 }
+let venueCache = null;
+async function getVenue() {
+  if (!venueCache) venueCache = await api("/api/settings");
+  return venueCache;
+}
 async function renderMenu() {
+  const v = await getVenue();
+  const title = $("#menuPrintTitle");
+  title.textContent = v.name || t("menu.printTitle");
+  const footer = $("#menuFooter");
+  if (v.iva_pct) {
+    footer.textContent = t("venue.footer").replace("{p}", v.iva_pct);
+    footer.style.display = "block";
+  } else {
+    footer.textContent = "";
+    footer.style.display = "none";
+  }
   const items = await api("/api/menu");
   const onlyPriced = $("#pricedOnly").checked;
   const body = $("#menuBody");
@@ -1486,6 +1508,26 @@ $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
 $("#printMenuBtn").addEventListener("click", () => window.print());
 $("#pricedOnly").addEventListener("change", renderMenu);
+$("#venueBtn").addEventListener("click", async () => {
+  const form = $("#venueForm");
+  if (form.classList.contains("hidden")) {
+    const v = await getVenue();
+    $("#vName").value = v.name || "";
+    $("#vIva").value = v.iva_pct ?? "";
+    form.classList.remove("hidden");
+  } else form.classList.add("hidden");
+});
+$("#saveVenue").addEventListener("click", async () => {
+  const iva = parseFloat($("#vIva").value);
+  venueCache = await api("/api/settings", "PUT", {
+    name: $("#vName").value.trim(),
+    iva_pct: isNaN(iva) ? null : iva,
+  });
+  $("#venueForm").classList.add("hidden");
+  renderMenu();
+  toast(t("venue.saved"));
+});
+$("#cancelVenue").addEventListener("click", () => $("#venueForm").classList.add("hidden"));
 function dl(url, name) {
   const a = document.createElement("a");
   a.href = url; a.download = name;
