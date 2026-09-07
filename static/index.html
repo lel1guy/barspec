@@ -29,20 +29,10 @@
       <div class="crumb" id="crumbLabel">BARSPEC / SPECS</div>
       <h1 id="viewTitle">Specs</h1>
     </div>
-    <div class="unitctl no-print" id="unitBox" data-i18n-title="mhead.unitsTitle" title="Display unit — values are stored in ml">
-      <button class="unitbtn active" data-unit="ml">ml</button>
-      <button class="unitbtn" data-unit="cl">cl</button>
-      <button class="unitbtn" data-unit="oz">oz</button>
-    </div>
-    <button class="langbtn no-print" id="langBtn" title="EN / PT">PT</button>
-    <div class="fontctl no-print" id="fontBox" role="group" aria-label="Text size">
-      <button class="fontbtn" data-fs="s" data-i18n-title="a11y.fsS" title="Text size: small" aria-pressed="false">A−</button>
-      <button class="fontbtn" data-fs="m" data-i18n-title="a11y.fsM" title="Text size: medium" aria-pressed="false">A</button>
-      <button class="fontbtn" data-fs="l" data-i18n-title="a11y.fsL" title="Text size: large" aria-pressed="false">A+</button>
-    </div>
     <div class="search no-print" id="searchBox">
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
+    <button class="btn ghost no-print" id="setBtn" data-i18n="mhead.settings">⚙ Settings</button>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
     <button class="btn ghost no-print" id="printCardsBtn" data-i18n="spec.cards">⤢ Cards</button>
   </div>
@@ -221,6 +211,7 @@
         </div>
       </div>
       <div id="menuBody"></div>
+      <div id="pnlBox" class="hidden no-print"></div>
       <div id="menuFooter" style="display:none;"></div>
       <div id="menuEmpty" class="edit-note hidden" style="padding:20px 0;" data-i18n="menu.empty">No specs yet — create one in Specs.</div>
     </div>
@@ -234,6 +225,35 @@
 
 <datalist id="stockNames"></datalist>
 <datalist id="catNames"></datalist>
+<div class="overlay hidden no-print" id="setOverlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="overlay-card set-card">
+    <h3 data-i18n="settings.title">Settings</h3>
+    <div class="set-row">
+      <div class="set-label" data-i18n="settings.lang">Language</div>
+      <div class="set-ctl" id="langRow">
+        <button class="langbtn setopt" data-lang="en">EN</button>
+        <button class="langbtn setopt" data-lang="pt">PT</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="settings.text">Text size</div>
+      <div class="set-ctl" id="fontBox" role="group" aria-label="Text size">
+        <button class="fontbtn" data-fs="s" data-i18n-title="a11y.fsS" title="Text size: small" aria-pressed="false">A−</button>
+        <button class="fontbtn" data-fs="m" data-i18n-title="a11y.fsM" title="Text size: medium" aria-pressed="false">A</button>
+        <button class="fontbtn" data-fs="l" data-i18n-title="a11y.fsL" title="Text size: large" aria-pressed="false">A+</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="settings.unit">Display unit</div>
+      <div class="unitctl set-ctl" id="unitBox" role="group" data-i18n-title="mhead.unitsTitle" title="Display unit — values are stored in ml">
+        <button class="unitbtn" data-unit="ml">ml</button>
+        <button class="unitbtn" data-unit="cl">cl</button>
+        <button class="unitbtn" data-unit="oz">oz</button>
+      </div>
+    </div>
+    <button class="btn" id="setClose" data-i18n="f.close">Close</button>
+  </div>
+</div>
 <div class="overlay hidden no-print" id="qrOverlay" role="dialog" aria-modal="true" aria-label="Menu QR">
   <div class="overlay-card">
     <h3 data-i18n="export.qrTitle">Menu link</h3>

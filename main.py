@@ -437,3 +437,10 @@ def log_adjustment(stock_id: int, a: AdjustIn):
 @app.get("/api/stock-adjustments")
 def list_adjustments(limit: int = 25):
     return db.get_adjustments(limit=max(1, min(limit, 200)))
+
+
+# ---------- Reports (K2): section P&L ----------
+
+@app.get("/api/report/pnl")
+def report_pnl():
+    return db.report_pnl()

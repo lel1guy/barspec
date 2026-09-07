@@ -1239,3 +1239,58 @@ def get_adjustments(limit: int = 25) -> list[dict]:
         "ORDER BY sa.created_at DESC, sa.id DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ---------- K2 report: section P&L ----------
+
+def report_pnl() -> dict:
+    """Margin story per menu section + dead stock value.
+
+    Sections grouped case-insensitively (bar taxonomy); uncategorised specs
+    land in '—'. Margins only over priced specs: margin = (price-cost)/price.
+    Dead stock = items referenced by NO spec/batch line — their purchase
+    value is cash sitting on the shelf.
+    """
+    conn = _conn()
+    specs = conn.execute(
+        "SELECT id, name, category, price_eur, target_gp FROM specs ORDER BY name").fetchall()
+    sections: dict[str, dict] = {}
+    used_items = set()
+    for s in specs:
+        cat = (s["category"] or "").strip() or "—"
+        sec = sections.setdefault(cat, {"category": cat, "count": 0, "cost_sum": 0.0,
+                                        "priced": 0, "price_sum": 0.0, "names": []})
+        spec_lines = conn.execute(
+            "SELECT stock_item_id FROM spec_lines WHERE spec_id=?", (s["id"],)).fetchall()
+        for ln in spec_lines:
+            used_items.add(ln["stock_item_id"])
+        cost = pricing.drink_cost(_spec_lines_all(conn, s["id"]))
+        sec["count"] += 1
+        sec["cost_sum"] += cost
+        sec["names"].append(s["name"])
+        if s["price_eur"]:
+            sec["priced"] += 1
+            sec["price_sum"] += s["price_eur"]
+    batch_lines = conn.execute("SELECT stock_item_id FROM batch_lines").fetchall()
+    for ln in batch_lines:
+        used_items.add(ln["stock_item_id"])
+    dead = conn.execute(
+        "SELECT id, name, bottle_price_eur FROM stock_items").fetchall()
+    dead_items = [{"name": r["name"], "value_eur": r["bottle_price_eur"] or 0}
+                  for r in dead if r["id"] not in used_items]
+    conn.close()
+    out = []
+    for sec in sections.values():
+        avg_cost = sec["cost_sum"] / sec["count"]
+        avg_price = sec["price_sum"] / sec["priced"] if sec["priced"] else None
+        out.append({
+            "category": sec["category"], "spec_count": sec["count"],
+            "avg_cost": round(avg_cost, 3),
+            "avg_price": round(avg_price, 3) if avg_price else None,
+            "margin_pct": round((avg_price - avg_cost) / avg_price * 100, 1)
+                          if avg_price and avg_price > 0 else None,
+        })
+    out.sort(key=lambda r: r["category"].lower())
+    return {"sections": out,
+            "dead_stock_eur": round(sum(d["value_eur"] for d in dead_items), 2),
+            "dead_items": dead_items}
