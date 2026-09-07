@@ -106,7 +106,8 @@ def line_cost(line: dict) -> float:
     Legacy ml/volume lines take the original formula path untouched. Spec
     lines that pour a house syrup carry serve_batch and cost amount ×
     (batch total ÷ size); batch ingredient rows keep their own batch_id
-    (parent) and take the normal engine path.
+    (parent) and take the normal engine path. yield_frac (default 1.0)
+    divides the purchase: €6 ÷ (1000 g × 0.80 yield) for trimmed meat.
     """
     if line.get("serve_batch"):
         return serve_batch_cost(
@@ -119,10 +120,14 @@ def line_cost(line: dict) -> float:
     per = float(line.get("bottle_volume_ml", 0.0) or 0.0)
     if per <= 0 or price <= 0:
         return 0.0
+    yield_frac = float(line.get("yield_frac", 1.0) or 1.0)
+    per_eff = per * yield_frac
+    if per_eff <= 0:
+        return 0.0
     if dimension == "volume" and unit == "ml":
-        return amount * _cost_per_ml(price, per)
+        return amount * _cost_per_ml(price, per_eff)
     canonical = amount * UNIT_CANONICAL.get(unit, 1.0)
-    return canonical * price / per
+    return canonical * price / per_eff
 
 
 def drink_cost(lines: list[dict]) -> float:

@@ -605,7 +605,8 @@ async function renderStock() {
       ? `<input type="number" data-k="bottle_volume_ml" value="${dispAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:90px;">`
       : dim === "weight"
         ? `<span class="size-ctl"><input type="number" data-k="bottle_volume_ml" value="${fmtAmt(it.bottle_volume_ml / (wKg ? 1000 : 1))}" min="0" step="0.1" style="width:70px;">
-           <select class="unitmini" data-wunit><option value="g" ${wKg ? "" : "selected"}>g</option><option value="kg" ${wKg ? "selected" : ""}>kg</option></select></span>`
+           <select class="unitmini" data-wunit><option value="g" ${wKg ? "" : "selected"}>g</option><option value="kg" ${wKg ? "selected" : ""}>kg</option></select>
+           <input type="number" data-k="yield_frac" value="${Math.round((it.yield_frac ?? 1) * 100)}" min="1" max="100" step="1" style="width:54px;" title="Yield % — usable after trim/cook">&nbsp;%</span>`
         : `<span class="size-ctl"><input type="number" data-k="bottle_volume_ml" value="${fmtAmt(it.bottle_volume_ml)}" min="0" step="1" style="width:70px;"><span class="edit-note">pc</span></span>`;
     const abvCell = isVol
       ? `<input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;">`
@@ -629,6 +630,7 @@ async function renderStock() {
       if (wsel) {
         payload.bottle_volume_ml = payload.bottle_volume_ml * (wsel.value === "kg" ? 1000 : 1);
         payload.dimension = "weight";
+        payload.yield_frac = (payload.yield_frac || 100) / 100;  // UI is percent
       } else if (isVol) {
         payload.bottle_volume_ml = toMl(payload.bottle_volume_ml);
       } else {
@@ -705,6 +707,8 @@ function syncStockDimForm() {
   const dim = $("#stDim").value;
   const abvW = $("#abvWrap");
   if (abvW) abvW.style.display = dim === "volume" ? "" : "none";
+  const yW = $("#yieldWrap");
+  if (yW) yW.style.display = dim === "weight" ? "" : "none";
   const u = $("#stVolUnit");
   u.innerHTML = dim === "volume"
     ? '<option value="ml">ml</option><option value="l">l</option>'
@@ -734,13 +738,15 @@ $("#saveStock").addEventListener("click", async () => {
   const canonical = (parseFloat($("#stVol").value) || 0) * U_FACTOR[unit];
   if (!canonical) { toast("Size needed"); return; }
   try {
-    await api("/api/stock", "POST", {
+    const payload = {
       name,
       abv: dim === "volume" ? (parseFloat($("#stAbv").value) || 0) : 0,
       bottle_price_eur: parseFloat($("#stPrice").value) || 0,
       bottle_volume_ml: canonical,
       dimension: dim,
-    });
+    };
+    if (dim === "weight") payload.yield_frac = (parseFloat($("#stYield").value) || 100) / 100;
+    await api("/api/stock", "POST", payload);
     toast("Item added");
     $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0;
     $("#stVol").value = dim === "weight" ? 1 : dim === "count" ? 12 : 700;

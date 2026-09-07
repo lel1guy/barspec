@@ -256,10 +256,11 @@ def create_stock_item(data: dict):
         conn.close()
         raise ValueError(f"Dimension must be volume|weight|count, got {dimension}")
     cur = conn.execute(
-        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension)
-           VALUES (?,?,?,?,?)""",
+        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension, yield_frac)
+           VALUES (?,?,?,?,?,?)""",
         (data["name"].strip(), data.get("abv", 0), data.get("bottle_price_eur", 0),
-         data.get("bottle_volume_ml", 700), dimension),
+         data.get("bottle_volume_ml", 700), dimension,
+         float(data.get("yield_frac") or 1.0)),
     )
     conn.commit()
     new_id = _lastid(cur)
@@ -307,10 +308,11 @@ def update_stock_item(stock_id: int, data: dict):
 
     conn.execute(
         """UPDATE stock_items SET name=?, abv=?, bottle_price_eur=?, bottle_volume_ml=?,
-           dimension=?, updated_at=datetime('now') WHERE id=?""",
+           dimension=?, yield_frac=?, updated_at=datetime('now') WHERE id=?""",
         (data.get("name", row["name"]).strip(), data.get("abv", row["abv"]),
          new_price, data.get("bottle_volume_ml", row["bottle_volume_ml"]),
-         new_dim, stock_id),
+         new_dim, float(data.get("yield_frac", row["yield_frac"]) or 1.0),
+         stock_id),
     )
     conn.commit()
     conn.close()
@@ -351,7 +353,8 @@ def _batch_lines_joined(conn, batch_id, override=None):
     rows = conn.execute(
         """SELECT bl.id, bl.batch_id, bl.stock_item_id, bl.name, bl.amount_ml,
                   bl.unit, bl.abv, bl.cost_eur,
-                  si.bottle_price_eur, si.bottle_volume_ml, si.dimension
+                  si.bottle_price_eur, si.bottle_volume_ml, si.dimension,
+                  si.yield_frac
            FROM batch_lines bl
            LEFT JOIN stock_items si ON si.id = bl.stock_item_id
            WHERE bl.batch_id = ? ORDER BY bl.sort, bl.id""",
@@ -429,6 +432,7 @@ def _spec_lines_all(conn, spec_id, override=None):
                   sl.amount_ml, sl.unit,
                   si.name AS stock_name, si.abv AS stock_abv,
                   si.bottle_price_eur, si.bottle_volume_ml, si.dimension,
+                  si.yield_frac,
                   b.name AS batch_name
            FROM spec_lines sl
            LEFT JOIN stock_items si ON si.id = sl.stock_item_id
@@ -449,6 +453,7 @@ def _spec_lines_all(conn, spec_id, override=None):
                 "name": r["stock_name"], "amount_ml": r["amount_ml"],
                 "abv": r["stock_abv"], "bottle_price_eur": price,
                 "bottle_volume_ml": r["bottle_volume_ml"],
+                "yield_frac": r["yield_frac"],
                 "unit": r["unit"], "dimension": r["dimension"],
             })
         else:
