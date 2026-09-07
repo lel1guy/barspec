@@ -28,8 +28,9 @@ class SpecIn(BaseModel):
     glass: str = ""
     method: str = ""
     garnish: str = ""
-    price_eur: float | None = None       # accepted sell price (menu)
-    target_gp: float = 70                # target gross-profit % for pricing
+    category: str | None = None          # menu section (free-form, datalist)
+    price_eur: float | None = None
+    target_gp: float = 70.0
 
 
 class LineIn(BaseModel):
@@ -116,7 +117,8 @@ def get_spec(spec_id: int):
 
 @app.put("/api/specs/{spec_id}")
 def update_spec(spec_id: int, spec: SpecIn):
-    if not db.update_spec(spec_id, spec.model_dump()):
+    # exclude_unset: partial PUTs (menu price edits) must not wipe category
+    if not db.update_spec(spec_id, spec.model_dump(exclude_unset=True)):
         raise HTTPException(404, "Spec not found")
     return {"ok": True}
 
