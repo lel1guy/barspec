@@ -29,6 +29,9 @@ in `pricing.py` (pure functions, unit-tested).
 - **Batches**: house-made syrups & infusions costed as mini-recipes — total €
   derived from ingredients (stock-linked lines price live; water is €0),
   €/litre, expiry days, and you pour them into specs like any bottle.
+- **Categories**: free-form menu sections on specs — filter chips over the
+  spec list and grouped sections on the printable menu (60+ specs stay
+  findable).
 - **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
   get the order list (what to buy, cash asleep) and week-to-week trends.
 - **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;
@@ -59,7 +62,7 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # 107 tests: pricing math, migrations, API, stock-take, units, batches, yield
+pytest            # 113 tests: pricing math, migrations, API, stock-take, units, batches, yield, categories
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
@@ -90,6 +93,10 @@ A fresh install runs the same path as an upgrade — self-checking.
 - `005_yield.sql` — `yield_frac` on stock_items (default 1.0, byte-identical
   legacy): usable/bought for trim & cook loss. €6 ÷ (1000 g × 0.80) prices
   trimmed meat honestly; flows through specs AND batches; ripple inherits.
+- `006_categories.sql` — `category` on specs (free-form menu section) + an
+  index. Chips in the spec list + grouped sections on the printable menu.
+  Partial spec PUTs (menu price edits) never wipe it (exclude_unset);
+  duplicates keep category and batch-pour lines.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
@@ -125,6 +132,5 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 ## Roadmap (not started)
 
 - dilution % per spec (shaken vs stirred)
-- categories + search (60+ specs breaks the flat list)
 - Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)

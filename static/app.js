@@ -102,11 +102,42 @@ const jsBand = (margin, gpPct) => margin <= 0 ? "unpriced"
   : margin >= gpPct ? "good" : margin >= gpPct - 10 ? "ok" : "low";
 
 // ---------- views ----------
+let currentCat = "__all__";   // filter state: __all__ | '' (uncategorized) | lower(category)
+function renderChips(specs) {
+  const box = $("#catChips");
+  if (!box) return;
+  const seen = new Map();          // lower -> { label, n }
+  let uncat = 0;
+  for (const s of specs) {
+    if (s.category) {
+      const k = s.category.toLowerCase();
+      const e = seen.get(k) || { label: s.category, n: 0 };
+      e.n += 1;
+      seen.set(k, e);
+    } else uncat += 1;
+  }
+  const cats = [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+  if (uncat) cats.push({ label: "Uncategorised", n: uncat, k: "" });
+  cats.forEach((c) => { if (c.k === undefined) c.k = c.label.toLowerCase(); });
+  box.classList.toggle("hidden", cats.length === 0);
+  box.innerHTML = [
+    `<button class="chip ${currentCat === "__all__" ? "active" : ""}" data-cat="__all__">All ${specs.length}</button>`,
+    ...cats.map((c) =>
+      `<button class="chip ${currentCat === c.k ? "active" : ""}" data-cat="${esc(c.k)}">${esc(c.label)} ${c.n}</button>`),
+  ].join("");
+  box.querySelectorAll(".chip").forEach((b) =>
+    b.addEventListener("click", () => {
+      currentCat = b.dataset.cat;
+      box.querySelectorAll(".chip").forEach((x) => x.classList.toggle("active", x === b));
+      applySearch();
+    }));
+}
 function applySearch() {
   const q = ($("#specSearch").value || "").trim().toLowerCase();
   document.querySelectorAll("#specList .spec-item").forEach((el) => {
     const name = (el.querySelector(".spec-name")?.textContent || "").toLowerCase();
-    el.style.display = (!q || name.includes(q)) ? "" : "none";
+    const okCat = currentCat === "__all__" || el.dataset.catkey === currentCat;
+    el.style.display = (okCat && (!q || name.includes(q))) ? "" : "none";
   });
 }
 const VIEWS = {
@@ -149,8 +180,10 @@ async function loadSpecs(keepOpen) {
     const el = document.createElement("div");
     el.className = "spec-item" + (s.id === currentSpec ? " active" : "");
     const meta = [s.method, s.price_eur ? eur(s.price_eur) : null].filter(Boolean).join(" · ");
+    el.dataset.catkey = (s.category || "").toLowerCase();
     el.innerHTML = `<div>
-        <div class="spec-name">${esc(s.name)}</div>
+        <div class="spec-name">${esc(s.name)}
+          ${s.category ? `<span class="dim-tag">${esc(s.category)}</span>` : ""}</div>
         <div class="spec-meta">${esc(meta || "—")}</div>
       </div>
       <button class="ghost small" data-del="${s.id}">✕</button>`;
@@ -165,6 +198,10 @@ async function loadSpecs(keepOpen) {
     box.appendChild(el);
   }
   if (keepOpen && currentSpec) openSpec(currentSpec);
+  renderChips(specs);
+  const dl = $("#catNames");
+  if (dl) dl.innerHTML = [...new Set(specs.map((s) => s.category).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b)).map((c) => `<option value="${esc(c)}">`).join("");
   applySearch();
 }
 function renderEmpty() {
@@ -346,6 +383,7 @@ function editSpecForm(s) {
     <label>Glass</label><input id="fGlass" value="${esc(s ? s.glass : "")}" placeholder="Rocks glass, big ice cube">
     <label>Method</label><input id="fMethod" value="${esc(s ? s.method : "")}" placeholder="Stirred">
     <label>Garnish</label><input id="fGarnish" value="${esc(s ? s.garnish : "")}" placeholder="Orange peel">
+    <label>Category</label><input id="fCat" list="catNames" value="${esc(s && s.category ? s.category : "")}" placeholder="Old Fashioneds · Martinis · Starters…">
     <div style="display:flex; gap:8px; margin-top:16px;">
       <button id="saveSpec">Save</button>
       <button class="ghost" id="cancelEdit">Cancel</button>
@@ -356,6 +394,7 @@ function editSpecForm(s) {
       glass: $("#fGlass").value.trim(),
       method: $("#fMethod").value.trim(),
       garnish: $("#fGarnish").value.trim(),
+      category: $("#fCat").value.trim() || null,
       price_eur: s ? s.price_eur : null,
       target_gp: s ? (s.target_gp || 70) : 70,
     };
@@ -1212,7 +1251,20 @@ async function renderMenu() {
       (items.length ? "Nothing priced yet — set prices in a spec or right here." : "No specs yet.") + "</div>";
     return;
   }
-  for (const m of list) {
+  // menu sections: specs grouped by category, then alphabetically
+  const sorted = [...list].sort((a, b) =>
+    (a.category || "").localeCompare(b.category || "") || a.name.localeCompare(b.name));
+  let lastCat = null;
+  for (const m of sorted) {
+    const cat = (m.category || "").toLowerCase();
+    if (m.category && cat !== lastCat) {
+      const h = document.createElement("div");
+      h.className = "menu-cat";
+      h.textContent = m.category;
+      body.appendChild(h);
+      lastCat = cat;
+    }
+    if (!m.category) lastCat = null;
     const row = document.createElement("div");
     row.className = "menu-row" + (m.priced ? "" : " unpriced");
     const band = jsBand(m.price_eur ? m.margin : 0, m.target_gp || 70);

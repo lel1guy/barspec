@@ -332,6 +332,17 @@ tr.trend-unmoved { opacity: .6; }
 }
 .batch-item:hover { background: var(--hover); }
 .batch-item.active { background: var(--panel2); }
+/* category chips + menu sections */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px;
+         border-bottom: 1px solid var(--line2); }
+.chip { border: 1px solid var(--line2); background: transparent; color: var(--muted);
+        border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+        cursor: pointer; font-family: var(--mono); }
+.chip:hover { color: var(--ink); }
+.chip.active { background: var(--panel2); color: var(--steel-hi); border-color: var(--steel-hi); }
+.menu-cat { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .14em;
+            text-transform: uppercase; color: var(--steel-hi); padding: 14px 4px 6px;
+            border-bottom: 1px solid var(--line2); }
 /* units engine controls */
 .amt-cell { display: inline-flex; align-items: center; gap: 4px; }
 select.unitmini {
