@@ -435,4 +435,26 @@ select.unitmini {
     text-align: right; min-height: auto; padding: 2px; font-size: 16px; width: 80px; font-family: var(--sans);
   }
   #menuPrintTitle { display: block !important; text-align: center; margin-bottom: 18px; font-weight: 700; }
+  /* training cards mode: body.printing-cards replaces the menu as the print target */
+  body.printing-cards #view-menu.active { display: none !important; }
+  body.printing-cards #view-cards { display: block !important; }
+  body.printing-cards #cardsDeck { display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 16px; align-items: start; }
+}
+/* training cards deck (screen: never shown; print: above) */
+#view-cards { display: none; }
+.tcard-group { grid-column: 1 / -1; font-weight: 700; font-size: 13px;
+               letter-spacing: .12em; text-transform: uppercase; margin-top: 8px; }
+.tcard { border: 1px solid #999; border-radius: 10px; padding: 12px 14px;
+         page-break-inside: avoid; background: #fff; color: #000; }
+.tcard-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.tcard-head b { font-size: 15px; }
+.tcard-cat { font-family: var(--mono); font-size: 9.5px; color: #333;
+             border: 1px solid #bbb; border-radius: 99px; padding: 0 7px; }
+.tcard-facts { font-size: 11.5px; color: #222; margin-bottom: 6px; }
+.tcard-lines { margin: 0; padding-left: 18px; font-size: 13px; }
+.tcard-lines li { margin-bottom: 2px; }
+.card-amt { font-family: var(--mono); font-weight: 700; color: #000; }
+@media (min-width: 900px) {
+  body.printing-cards #cardsDeck { grid-template-columns: repeat(3, 1fr); }
 }

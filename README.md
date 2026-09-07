@@ -41,6 +41,9 @@ in `pricing.py` (pure functions, unit-tested).
 - **Export & share**: the whole spec book + stock to .xlsx or .csv (owner /
   accountant files, costs included), plus a menu QR — point a phone at it and
   the menu opens (`?view=menu` deep link).
+- **Training cards**: print a spec-card deck (⤢ Cards) — one recipe per card,
+  amounts + method + garnish, grouped by category, honoring the current
+  filter/search. **Costs never appear** — these cards live on the floor.
 - **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
   get the order list (what to buy, cash asleep) and week-to-week trends.
 - **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;

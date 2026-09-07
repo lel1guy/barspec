@@ -40,6 +40,7 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
+    "spec.cards": "⤢ Cards",
     "specs.emptyHint": "Pick a spec on the left, or create one.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "view.take": "Stock-take", "view.menu": "Menu",
@@ -97,6 +98,7 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
+    "spec.cards": "⤢ Fichas",
     "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "view.take": "Contagens", "view.menu": "Menu",
@@ -305,6 +307,7 @@ function showView(v) {
   updateChrome();
   $("#newSpecBtn").classList.toggle("hidden", !meta.header);
   $("#searchBox").classList.toggle("hidden", !meta.header);
+  $("#printCardsBtn").classList.toggle("hidden", !meta.header);
   if (v === "batches") loadBatches();
   if (v === "stock") renderStock();
   if (v === "stocktake") loadStocktake();
@@ -1478,6 +1481,51 @@ $("#qrClose").addEventListener("click", () => $("#qrOverlay").classList.add("hid
 $("#qrOverlay").addEventListener("click", (e) => {
   if (e.target.id === "qrOverlay") $("#qrOverlay").classList.add("hidden");
 });
+
+// ---------- training cards (011): print a deck, never a cost ----------
+const cardAmt = (l) => `${fmtAmt(l.amount_ml)} ${l.unit || "ml"}`;
+function cardHtml(d) {
+  const facts = [d.glass, d.method, d.garnish].filter(Boolean).join(" · ");
+  const dil = d.summary && d.summary.dilution_pct > 0
+    ? ` · ~${d.summary.dilution_pct}% dilution` : "";
+  const lines = d.lines.map((l) =>
+    `<li><span class="card-amt">${esc(cardAmt(l))}</span> ${esc(l.name)}</li>`).join("");
+  return `<div class="tcard">
+    <div class="tcard-head"><b>${esc(d.name)}</b>
+      ${d.category ? `<span class="tcard-cat">${esc(d.category)}</span>` : ""}</div>
+    <div class="tcard-facts">${esc(facts)}${esc(dil)}</div>
+    <ol class="tcard-lines">${lines}</ol>
+  </div>`;
+}
+async function buildCardsDeck() {
+  // honors the current chips filter + search box — the deck prints what you see
+  const q = ($("#specSearch").value || "").trim().toLowerCase();
+  const all = await api("/api/specs");
+  const keep = all.filter((s) => {
+    const okCat = currentCat === "__all__" || (s.category || "").toLowerCase() === currentCat;
+    return okCat && (!q || s.name.toLowerCase().includes(q));
+  });
+  const full = [];
+  for (const s of keep) full.push(await api("/api/specs/" + s.id));
+  full.sort((a, b) =>
+    (a.category || "").localeCompare(b.category || "") || a.name.localeCompare(b.name));
+  let last = null, html = "";
+  for (const d of full) {
+    const cat = (d.category || "").toLowerCase();
+    if (d.category && cat !== last) html += `<div class="tcard-group">${esc(d.category)}</div>`;
+    if (!d.category) last = null;
+    html += cardHtml(d);
+    last = cat;
+  }
+  $("#cardsDeck").innerHTML = html;
+}
+$("#printCardsBtn").addEventListener("click", async () => {
+  await buildCardsDeck();
+  document.body.classList.add("printing-cards");
+  window.print();
+});
+window.addEventListener("afterprint", () =>
+  document.body.classList.remove("printing-cards"));
 $("#specSearch").addEventListener("input", applySearch);
 $("#tabCount").addEventListener("click", () => setTakeTab("count"));
 $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOrder(); });

@@ -39,6 +39,7 @@
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
+    <button class="btn ghost no-print" id="printCardsBtn" data-i18n="spec.cards">⤢ Cards</button>
   </div>
 
   <!-- ============ SPECS ============ -->
@@ -190,6 +191,11 @@
       <div id="menuBody"></div>
       <div id="menuEmpty" class="edit-note hidden" style="padding:20px 0;" data-i18n="menu.empty">No specs yet — create one in Specs.</div>
     </div>
+  </section>
+
+  <!-- ============ TRAINING CARDS (print-only deck) ============ -->
+  <section id="view-cards" class="view">
+    <div id="cardsDeck"></div>
   </section>
 </main>
 
