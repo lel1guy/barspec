@@ -40,6 +40,8 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
+    "mhead.settings": "⚙ Settings", "settings.title": "Settings",
+    "settings.lang": "Language", "settings.text": "Text size", "settings.unit": "Display unit",
     "spec.cards": "⤢ Cards",
     "specs.emptyHint": "Pick a spec on the left, or create one.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
@@ -102,6 +104,9 @@ const I18N = {
     "kitchen.reason": "Reason", "kitchen.note": "Note", "kitchen.log": "Log it",
     "kitchen.recent": "Recent adjustments", "kitchen.none": "Nothing logged yet.",
     "kitchen.adjSaved": "Logged", "kitchen.delta": "Amount (ml / g / pc)",
+    "pnl.title": "Sections P&L", "pnl.thCat": "Section", "pnl.thSpecs": "Specs",
+    "pnl.thCost": "Avg cost", "pnl.thPrice": "Avg price", "pnl.thMargin": "Margin",
+    "pnl.dead": "Dead stock on the shelf: {n} items worth {e}", "pnl.empty": "Unpriced — no P&L yet.",
     "a11y.skip": "Skip to content",
     "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
@@ -111,6 +116,8 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
+    "mhead.settings": "⚙ Definições", "settings.title": "Definições",
+    "settings.lang": "Idioma", "settings.text": "Tamanho do texto", "settings.unit": "Unidade de apresentação",
     "spec.cards": "⤢ Fichas",
     "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
@@ -173,6 +180,9 @@ const I18N = {
     "kitchen.reason": "Motivo", "kitchen.note": "Nota", "kitchen.log": "Registar",
     "kitchen.recent": "Perdas recentes", "kitchen.none": "Ainda nada registado.",
     "kitchen.adjSaved": "Registado", "kitchen.delta": "Quantidade (ml / g / pc)",
+    "pnl.title": "P&L por secção", "pnl.thCat": "Secção", "pnl.thSpecs": "Receitas",
+    "pnl.thCost": "Custo médio", "pnl.thPrice": "Preço médio", "pnl.thMargin": "Margem",
+    "pnl.dead": "Stock parado na prateleira: {n} artigos no valor de {e}", "pnl.empty": "Sem preços — ainda sem P&L.",
     "a11y.skip": "Saltar para o conteúdo",
     "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
@@ -185,8 +195,8 @@ function applyI18n() {
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
-  const lb = $("#langBtn");
-  if (lb) lb.textContent = lang === "pt" ? "EN" : "PT";
+  document.querySelectorAll(".setopt[data-lang]").forEach((b) =>
+    b.classList.toggle("active", b.dataset.lang === lang));
 }
 function setLang(l) {
   lang = l;
@@ -1495,13 +1505,13 @@ async function renderMenu() {
   }
   const items = await api("/api/menu");
   const onlyPriced = $("#pricedOnly").checked;
-  const body = $("#menuBody");
-  body.innerHTML = "";
+  const body = $("#menuBody");  body.innerHTML = "";
   $("#menuEmpty").classList.toggle("hidden", items.length > 0);
   const list = onlyPriced ? items.filter((m) => m.priced) : items;
   if (!list.length) {
     body.innerHTML = '<div class="edit-note">' +
       (items.length ? "Nothing priced yet — set prices in a spec or right here." : "No specs yet.") + "</div>";
+    renderPnl();
     return;
   }
   // menu sections: specs grouped by category, then alphabetically
@@ -1544,13 +1554,41 @@ async function renderMenu() {
     });
     body.appendChild(row);
   }
+  renderPnl();
+}
+async function renderPnl() {
+  const box = $("#pnlBox");
+  try {
+    const r = await api("/api/report/pnl");
+    box.classList.toggle("hidden", !r.sections.length);
+    if (!r.sections.length) return;
+    const rows = r.sections.map((s) => {
+      const m = s.margin_pct;
+      const tier = m === null ? "" : m >= 60 ? "hi" : m >= 40 ? "ok" : "lo";
+      const mtxt = m === null ? "—" : Math.round(m) + "%";
+      return `<tr>
+        <td>${esc(s.category)} <span class="edit-note">${s.spec_count}×</span></td>
+        <td class="num">${eur(s.avg_cost)}</td>
+        <td class="num">${s.avg_price === null ? "—" : eur(s.avg_price)}</td>
+        <td class="num"><span class="pnl-chip ${tier}">${mtxt}</span></td></tr>`;
+    }).join("");
+    const dead = t("pnl.dead").replace("{n}", r.dead_items.length)
+      .replace("{e}", eur(r.dead_stock_eur));
+    box.innerHTML = `<div class="hint" style="margin:14px 0 6px;">${t("pnl.title")}</div>
+      <table class="pnl"><thead><tr><th>${t("pnl.thCat")}</th>
+        <th class="num">${t("pnl.thCost")}</th><th class="num">${t("pnl.thPrice")}</th>
+        <th class="num">${t("pnl.thMargin")}</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      ${r.dead_items.length ? `<div class="edit-note" style="margin-top:8px;">${esc(dead)}</div>` : ""}`;
+  } catch (err) { /* non-fatal; menu still renders */ }
 }
 
 // ---------- wiring ----------
 $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
 $("#navBatches").addEventListener("click", () => showView("batches"));
-$("#langBtn").addEventListener("click", () => setLang(lang === "pt" ? "en" : "pt"));
+document.querySelectorAll(".setopt[data-lang]").forEach((b) =>
+  b.addEventListener("click", () => setLang(b.dataset.lang)));
 document.querySelectorAll("#fontBox .fontbtn").forEach((b) =>
   b.addEventListener("click", () => setFont(b.dataset.fs)));
 $("#navStock").addEventListener("click", () => showView("stock"));
@@ -1649,6 +1687,16 @@ $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOr
 $("#tabTrends").addEventListener("click", () => { setTakeTab("trends"); renderTrends(); });
 $("#saveTakeBtn").addEventListener("click", saveTake);
 $("#newCountBtn").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
+$("#setBtn").addEventListener("click", () => {
+  applyUnitLabels();
+  document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.unit === unit));
+  $("#setOverlay").classList.remove("hidden");
+});
+$("#setClose").addEventListener("click", () => $("#setOverlay").classList.add("hidden"));
+$("#setOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "setOverlay") $("#setOverlay").classList.add("hidden");
+});
 document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
   b.addEventListener("click", () => setUnit(b.dataset.unit)));
 window.addEventListener("beforeunload", (e) => {

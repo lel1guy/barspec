@@ -48,6 +48,11 @@ in `pricing.py` (pure functions, unit-tested).
   shows **€/portion** on the prep sheet (volume math still works). The loss
   log (+ Log loss) turns spills/waste/spoilage into visible lines with a
   reason — never a mystery at the next count.
+- **Section P&L**: under the menu, margin % per category (green ≥60 /
+  amber ≥40 / red below) plus **dead stock** — the purchase value of items
+  no recipe touches, cash sitting on the shelf.
+- **Settings**: one ⚙ dialog holds language (EN/PT), text size (A−/A/A+)
+  and display unit (ml/cl/oz) — the header stays clean on every screen.
 - **Accessibility**: text scale A−/A/A+ (persisted, content-only zoom), skip
   link to content, visible focus rings, and aria-labels on every icon-only
   button (✕/✎ read their target name).
