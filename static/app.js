@@ -277,8 +277,19 @@ function renderDetail(s) {
   const sum = s.summary;
   $("#statServe").textContent = eur(sum.cost_eur);
   $("#statBatch").textContent = eur(sum.cost_eur * servings);
-  $("#statAbv").textContent = sum.abv + "%";
-  $("#statVol").textContent = dispAmt(sum.total_ml) + " " + unitLabel();
+  const dil = sum.dilution_pct || 0;
+  if (dil > 0) {
+    // ice melt: what actually reaches the glass
+    $("#statAbv").textContent = sum.served_abv + "%";
+    $("#statVol").textContent = dispAmt(sum.served_ml) + " " + unitLabel();
+    $("#statAbv").title = `Recipe ABV ${sum.abv}% before ${dil}% dilution`;
+    $("#statVol").title = `Recipe ${fmtAmt(sum.total_ml)} ml + ${dil}% ice melt`;
+  } else {
+    $("#statAbv").textContent = sum.abv + "%";
+    $("#statVol").textContent = dispAmt(sum.total_ml) + " " + unitLabel();
+    $("#statAbv").title = "";
+    $("#statVol").title = "";
+  }
 
   const body = $("#ingBody");
   body.innerHTML = "";
@@ -384,6 +395,8 @@ function editSpecForm(s) {
     <label>Method</label><input id="fMethod" value="${esc(s ? s.method : "")}" placeholder="Stirred">
     <label>Garnish</label><input id="fGarnish" value="${esc(s ? s.garnish : "")}" placeholder="Orange peel">
     <label>Category</label><input id="fCat" list="catNames" value="${esc(s && s.category ? s.category : "")}" placeholder="Old Fashioneds · Martinis · Starters…">
+    <label>Dilution %</label><input id="fDil" type="number" min="0" max="60" step="1" value="${s && s.dilution_pct ? s.dilution_pct : 0}"
+           title="Ice melt adds water: hard shake ≈ 20–25%, stir ≈ 10–15%. 0 = served straight (default).">
     <div style="display:flex; gap:8px; margin-top:16px;">
       <button id="saveSpec">Save</button>
       <button class="ghost" id="cancelEdit">Cancel</button>
@@ -395,6 +408,7 @@ function editSpecForm(s) {
       method: $("#fMethod").value.trim(),
       garnish: $("#fGarnish").value.trim(),
       category: $("#fCat").value.trim() || null,
+      dilution_pct: parseFloat($("#fDil").value) || 0,
       price_eur: s ? s.price_eur : null,
       target_gp: s ? (s.target_gp || 70) : 70,
     };

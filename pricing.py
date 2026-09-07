@@ -84,6 +84,24 @@ def serve_batch_cost(amount: float, unit: str,
     return ml * batch_cost_total / batch_size_ml
 
 
+# ---------- dilution (007): ice melt during shake/stir ----------
+
+def dilution_factor(dilution_pct: float) -> float:
+    """1 + pct/100. Water is free — cost never changes, volume/ABV do."""
+    pct = max(0.0, float(dilution_pct or 0.0))
+    return 1.0 + pct / 100.0
+
+
+def served_volume(recipe_ml: float, dilution_pct: float) -> float:
+    return recipe_ml * dilution_factor(dilution_pct)
+
+
+def served_abv(recipe_abv: float, dilution_pct: float) -> float:
+    """Same alcohol in more liquid: pre-ABV / (1 + pct/100)."""
+    f = dilution_factor(dilution_pct)
+    return recipe_abv / f if f > 1.0 else recipe_abv
+
+
 def _line_volume_ml(line: dict) -> float:
     """Canonical ml of a volume-dimension line. Legacy rows (no unit key /
     unit 'ml', volume dimension) return the stored amount unchanged, so

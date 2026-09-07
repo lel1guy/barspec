@@ -32,6 +32,9 @@ in `pricing.py` (pure functions, unit-tested).
 - **Categories**: free-form menu sections on specs — filter chips over the
   spec list and grouped sections on the printable menu (60+ specs stay
   findable).
+- **Dilution**: optional ice-melt % per spec (shake ≈ 20–25, stir ≈ 10–15).
+  Served volume and served ABV tell the truth about what reaches the glass;
+  cost stays the measured pour — water is free.
 - **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
   get the order list (what to buy, cash asleep) and week-to-week trends.
 - **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;
@@ -62,7 +65,7 @@ First run seeds 5 classic specs with real bottle prices + sensible PT prices
 ## Tests
 
 ```bash
-pytest            # 113 tests: pricing math, migrations, API, stock-take, units, batches, yield, categories
+pytest            # 121 tests: pricing math, migrations, API, stock-take, units, batches, yield, categories, dilution
 ```
 
 The migration test builds a real v0 database and upgrades it — if that passes,
@@ -97,6 +100,9 @@ A fresh install runs the same path as an upgrade — self-checking.
   index. Chips in the spec list + grouped sections on the printable menu.
   Partial spec PUTs (menu price edits) never wipe it (exclude_unset);
   duplicates keep category and batch-pour lines.
+- `007_dilution.sql` — `dilution_pct` on specs (default 0, byte-identical):
+  ice melt during shake/stir. Served volume = recipe × (1 + pct/100), served
+  ABV = recipe ABV ÷ (1 + pct/100); cost unchanged (water is free).
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
@@ -131,6 +137,5 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
 ## Roadmap (not started)
 
-- dilution % per spec (shaken vs stirred)
 - Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)

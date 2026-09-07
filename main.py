@@ -29,6 +29,7 @@ class SpecIn(BaseModel):
     method: str = ""
     garnish: str = ""
     category: str | None = None          # menu section (free-form, datalist)
+    dilution_pct: float = 0.0            # ice melt: shaken ~20-25, stirred ~10-15
     price_eur: float | None = None
     target_gp: float = 70.0
 
