@@ -541,10 +541,15 @@ def get_spec(spec_id: int):
             })
     cost = pricing.drink_cost(lines)
     gp = spec.get("target_gp") or 70
+    dil = float(spec.get("dilution_pct") or 0.0)
+    recipe_abv = pricing.drink_abv(lines)
     spec["summary"] = {
         "total_ml": round(pricing.drink_volume(lines), 1),
         "cost_eur": round(cost, 3),
-        "abv": round(pricing.drink_abv(lines), 1),
+        "abv": round(recipe_abv, 1),
+        "dilution_pct": round(dil, 1),
+        "served_ml": round(pricing.served_volume(pricing.drink_volume(lines), dil), 1),
+        "served_abv": round(pricing.served_abv(recipe_abv, dil), 1),
         "suggested_price_eur": pricing.suggested_price(cost, gp),
         "target_gp": gp,
         "margin": round(pricing.margin_pct(spec.get("price_eur") or 0, cost), 1),
@@ -556,10 +561,11 @@ def get_spec(spec_id: int):
 def create_spec(data: dict):
     conn = _conn()
     cur = conn.execute(
-        """INSERT INTO specs (name, glass, method, garnish, category, price_eur, target_gp)
-           VALUES (?,?,?,?,?,?,?)""",
+        """INSERT INTO specs (name, glass, method, garnish, category, dilution_pct, price_eur, target_gp)
+           VALUES (?,?,?,?,?,?,?,?)""",
         (data["name"], data.get("glass", ""), data.get("method", ""),
          data.get("garnish", ""), data.get("category") or None,
+         data.get("dilution_pct", 0) or 0,
          data.get("price_eur"), data.get("target_gp", 70)),
     )
     conn.commit()
@@ -576,10 +582,12 @@ def update_spec(spec_id: int, data: dict) -> bool:
         return False
     cur = conn.execute(
         """UPDATE specs SET name=?, glass=?, method=?, garnish=?, category=?,
-           price_eur=?, target_gp=? WHERE id=?""",
+           dilution_pct=?, price_eur=?, target_gp=? WHERE id=?""",
         (data.get("name", row["name"]), data.get("glass", row["glass"]),
          data.get("method", row["method"]), data.get("garnish", row["garnish"]),
-         data.get("category", row["category"]), data.get("price_eur", row["price_eur"]),
+         data.get("category", row["category"]),
+         data.get("dilution_pct", row["dilution_pct"]),
+         data.get("price_eur", row["price_eur"]),
          data.get("target_gp", row["target_gp"]), spec_id),
     )
     conn.commit()
@@ -602,10 +610,11 @@ def duplicate_spec(spec_id: int):
         return None
     conn = _conn()
     cur = conn.execute(
-        """INSERT INTO specs (name, glass, method, garnish, category, target_gp)
-           VALUES (?,?,?,?,?,?)""",
+        """INSERT INTO specs (name, glass, method, garnish, category, dilution_pct, target_gp)
+           VALUES (?,?,?,?,?,?,?)""",
         (src["name"] + " (copy)", src.get("glass", ""), src.get("method", ""),
-         src.get("garnish", ""), src.get("category"), src.get("target_gp", 70)),
+         src.get("garnish", ""), src.get("category"), src.get("dilution_pct", 0),
+         src.get("target_gp", 70)),
     )
     new_id = cur.lastrowid
     for line in src["lines"]:
