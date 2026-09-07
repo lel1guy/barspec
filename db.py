@@ -408,6 +408,8 @@ def _batch_payload(conn, batch_id, override=None, cache=None):
         "id": row["id"], "name": row["name"], "method": row["method"],
         "batch_size_ml": size, "made_date": row["made_date"],
         "shelf_life_days": row["shelf_life_days"],
+        "servings": row["servings"],
+        "cost_per_serve": round(total / row["servings"], 3) if row["servings"] else None,
         "days_left": _days_left(row["made_date"], row["shelf_life_days"]),
         "cost_eur": round(total, 3),
         "cost_per_ml": round(per_ml, 6),
@@ -770,11 +772,12 @@ def create_batch(data: dict):
         conn.close()
         raise ValueError("Batch size must be > 0")
     cur = conn.execute(
-        """INSERT INTO batches (name, method, batch_size_ml, made_date, shelf_life_days)
-           VALUES (?,?,?,?,?)""",
+        """INSERT INTO batches (name, method, batch_size_ml, made_date, shelf_life_days, servings)
+           VALUES (?,?,?,?,?,?)""",
         (data["name"].strip(), data.get("method", ""), size,
          data.get("made_date") or date.today().isoformat(),
-         data.get("shelf_life_days")),
+         data.get("shelf_life_days"),
+         data.get("servings") if data.get("servings") else None),
     )
     conn.commit()
     new_id = _lastid(cur)
@@ -818,9 +821,10 @@ def update_batch(batch_id: int, data: dict):
     shelf = data.get("shelf_life_days", row["shelf_life_days"])
     conn.execute(
         """UPDATE batches SET name=?, method=?, batch_size_ml=?, made_date=?,
-           shelf_life_days=?, updated_at=datetime('now') WHERE id=?""",
+           shelf_life_days=?, servings=?, updated_at=datetime('now') WHERE id=?""",
         (name, data.get("method", row["method"]), size,
-         data.get("made_date", row["made_date"]), shelf, batch_id),
+         data.get("made_date", row["made_date"]), shelf,
+         data.get("servings", row["servings"]), batch_id),
     )
     conn.commit()
     conn.close()
@@ -1196,3 +1200,42 @@ def save_venue(name: str, iva_pct: float | None) -> dict:
     conn.commit()
     conn.close()
     return get_venue()
+
+
+# ---------- adjustments (009 kitchen): the loss log ----------
+
+def add_adjustment(stock_id: int, delta: float, reason: str, note: str = "") -> dict:
+    """Log a signed canonical-unit change with a reason (spillage/waste...).
+    Raises ValueError on unknown item, zero delta, or empty reason."""
+    conn = _conn()
+    item = conn.execute("SELECT id, name FROM stock_items WHERE id=?", (stock_id,)).fetchone()
+    if not item:
+        conn.close()
+        raise ValueError("Stock item not found")
+    if not delta or delta == 0:
+        conn.close()
+        raise ValueError("Delta must not be zero")
+    reason = (reason or "").strip()
+    if not reason:
+        conn.close()
+        raise ValueError("Reason is required")
+    cur = conn.execute(
+        "INSERT INTO stock_adjustments (stock_item_id, delta, reason, note) VALUES (?,?,?,?)",
+        (stock_id, delta, reason[:80], (note or "").strip()[:200]))
+    row = conn.execute(
+        "SELECT sa.*, si.name AS item_name FROM stock_adjustments sa "
+        "JOIN stock_items si ON si.id = sa.stock_item_id WHERE sa.id=?",
+        (cur.lastrowid,)).fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
+def get_adjustments(limit: int = 25) -> list[dict]:
+    conn = _conn()
+    rows = conn.execute(
+        "SELECT sa.*, si.name AS item_name FROM stock_adjustments sa "
+        "JOIN stock_items si ON si.id = sa.stock_item_id "
+        "ORDER BY sa.created_at DESC, sa.id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

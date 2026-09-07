@@ -44,6 +44,10 @@ in `pricing.py` (pure functions, unit-tested).
 - **Training cards**: print a spec-card deck (⤢ Cards) — one recipe per card,
   amounts + method + garnish, grouped by category, honoring the current
   filter/search. **Costs never appear** — these cards live on the floor.
+- **Kitchen (K1)**: batches declare portions — a mayo batch that makes 20
+  shows **€/portion** on the prep sheet (volume math still works). The loss
+  log (+ Log loss) turns spills/waste/spoilage into visible lines with a
+  reason — never a mystery at the next count.
 - **Accessibility**: text scale A−/A/A+ (persisted, content-only zoom), skip
   link to content, visible focus rings, and aria-labels on every icon-only
   button (✕/✎ read their target name).
@@ -115,6 +119,11 @@ A fresh install runs the same path as an upgrade — self-checking.
 - `007_dilution.sql` — `dilution_pct` on specs (default 0, byte-identical):
   ice melt during shake/stir. Served volume = recipe × (1 + pct/100), served
   ABV = recipe ABV ÷ (1 + pct/100); cost unchanged (water is free).
+- `008_settings.sql` — venue profile key/value (name, IVA %) for the printed
+  menu title + footer.
+- `009_kitchen.sql` — kitchen prep truth: `servings` on batches (portion
+  count → cost per portion on the prep sheet) + `stock_adjustments` loss log
+  (signed canonical delta + reason: spills, waste, spoilage, corrections).
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 

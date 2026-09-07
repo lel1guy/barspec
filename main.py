@@ -73,6 +73,7 @@ class BatchIn(BaseModel):
     batch_size_ml: float = 1000.0
     made_date: str | None = None
     shelf_life_days: int | None = None
+    servings: int | None = Field(None, gt=0)   # kitchen: portions the batch makes
 
 
 class BatchLineIn(BaseModel):
@@ -294,7 +295,8 @@ def get_batch(batch_id: int):
 @app.put("/api/batches/{batch_id}")
 def update_batch(batch_id: int, batch: BatchIn):
     try:
-        b = db.update_batch(batch_id, batch.model_dump())
+        # exclude_unset: serving-only or size-only edits must not wipe the other
+        b = db.update_batch(batch_id, batch.model_dump(exclude_unset=True))
     except ValueError as e:
         raise HTTPException(400, str(e))
     if not b:
@@ -414,3 +416,24 @@ def get_settings():
 @app.put("/api/settings")
 def put_settings(v: VenueIn):
     return db.save_venue(v.name.strip(), v.iva_pct)
+
+
+# ---------- Adjustments (009 kitchen): loss log ----------
+
+class AdjustIn(BaseModel):
+    delta: float                              # signed, canonical units
+    reason: str = "Other"
+    note: str = ""
+
+
+@app.post("/api/stock/{stock_id}/adjust")
+def log_adjustment(stock_id: int, a: AdjustIn):
+    try:
+        return db.add_adjustment(stock_id, a.delta, a.reason, a.note)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/stock-adjustments")
+def list_adjustments(limit: int = 25):
+    return db.get_adjustments(limit=max(1, min(limit, 200)))
