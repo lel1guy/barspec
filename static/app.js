@@ -96,6 +96,12 @@ const I18N = {
     "venue.btn": "☰ Venue", "venue.hint": "Shown on the printed menu — costs stay hidden.",
     "venue.iva": "IVA %", "venue.footer": "All prices include IVA {p}%.",
     "venue.saved": "Venue saved",
+    "kitchen.servings": "Servings (portions)", "kitchen.servingsPh": "20 — blank = volume only",
+    "kitchen.adj": "+ Log loss", "kitchen.adjTitle": "Loss log",
+    "kitchen.adjHint": "Spills, spoilage, trim waste — a signed amount in the item's canonical unit (ml / g / pc). Loss becomes a visible line.",
+    "kitchen.reason": "Reason", "kitchen.note": "Note", "kitchen.log": "Log it",
+    "kitchen.recent": "Recent adjustments", "kitchen.none": "Nothing logged yet.",
+    "kitchen.adjSaved": "Logged", "kitchen.delta": "Amount (ml / g / pc)",
     "a11y.skip": "Skip to content",
     "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
@@ -161,6 +167,12 @@ const I18N = {
     "venue.btn": "☰ Espaço", "venue.hint": "Aparece no menu impresso — os custos ficam escondidos.",
     "venue.iva": "IVA %", "venue.footer": "Todos os preços incluem IVA {p}%.",
     "venue.saved": "Espaço guardado",
+    "kitchen.servings": "Doses / porções", "kitchen.servingsPh": "20 — vazio = só volume",
+    "kitchen.adj": "+ Registar perda", "kitchen.adjTitle": "Registo de perdas",
+    "kitchen.adjHint": "Derrames, estragos, desperdício — valor assinado na unidade canónica (ml / g / pc). A perda torna-se uma linha visível.",
+    "kitchen.reason": "Motivo", "kitchen.note": "Nota", "kitchen.log": "Registar",
+    "kitchen.recent": "Perdas recentes", "kitchen.none": "Ainda nada registado.",
+    "kitchen.adjSaved": "Registado", "kitchen.delta": "Quantidade (ml / g / pc)",
     "a11y.skip": "Saltar para o conteúdo",
     "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
@@ -926,6 +938,40 @@ $("#addStockBtn").addEventListener("click", () => {
   const show = $("#addStockForm").classList.toggle("hidden");
   if (!show) { syncStockDimForm(); $("#stName").focus(); }
 });
+async function renderAdjList() {
+  const list = await api("/api/stock-adjustments?limit=6");
+  const box = $("#adjList");
+  if (!list.length) { box.textContent = t("kitchen.none"); return; }
+  box.innerHTML = list.map((a) =>
+    `<div>${a.delta > 0 ? "+" : ""}${a.delta} ${esc(a.item_name)} — ${esc(a.reason)}${a.note ? " · " + esc(a.note) : ""} <span class="edit-note">${esc((a.created_at || "").slice(0, 16))}</span></div>`
+  ).join("");
+}
+$("#adjToggle").addEventListener("click", async () => {
+  const box = $("#adjBox");
+  if (box.classList.contains("hidden")) {
+    const sel = $("#adjItem");
+    if (!sel.options.length) {
+      const items = await api("/api/stock");
+      sel.innerHTML = items.map((i) =>
+        `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+    }
+    box.classList.remove("hidden");
+    renderAdjList();
+  } else box.classList.add("hidden");
+});
+$("#adjSave").addEventListener("click", async () => {
+  const delta = parseFloat($("#adjDelta").value);
+  const item = $("#adjItem").value;
+  try {
+    if (!item) throw new Error(t("f.name") + "?");
+    await api(`/api/stock/${item}/adjust`, "POST", {
+      delta, reason: $("#adjReason").value, note: $("#adjNote").value.trim(),
+    });
+    $("#adjDelta").value = ""; $("#adjNote").value = "";
+    toast(t("kitchen.adjSaved"));
+    renderAdjList();
+  } catch (e) { toast("Failed: " + (e.message || "")); }
+});
 $("#cancelStock").addEventListener("click", () => $("#addStockForm").classList.add("hidden"));
 
 // Dimension picker drives which units + defaults the size field offers.
@@ -1004,7 +1050,8 @@ async function loadBatches() {
     el.innerHTML = `
       <div style="flex:1; min-width:0;">
         <div class="spec-name">${esc(b.name)} <span class="edit-note">${esc(b.method || "")}</span></div>
-        <div class="spec-meta">${fmtAmt(b.batch_size_ml)} ml batch · ${eur(b.cost_eur)} total · ${eur(b.cost_per_ml * 1000)}/litre · ${b.line_count} ingredients</div>
+        <div class="spec-meta">${fmtAmt(b.batch_size_ml)} ml batch · ${eur(b.cost_eur)} total
+          ${b.cost_per_serve ? ` · ${eur(b.cost_per_serve)}/portion` : ""} · ${eur(b.cost_per_ml * 1000)}/litre · ${b.line_count} ingredients</div>
       </div>
       ${batchExpiryHtml(b)}
       <div style="display:flex; gap:4px; margin-left:10px;">
@@ -1022,6 +1069,7 @@ async function loadBatches() {
       $("#btUnit").value = "ml";
       $("#btShelf").value = b.shelf_life_days ?? "";
       $("#btMade").value = b.made_date;
+      $("#btServ").value = b.servings ?? "";
       $("#btMethod").value = b.method || "";
       $("#saveBatch").dataset.id = b.id;
       $("#newBatchBtn").textContent = "Cancel";
@@ -1051,7 +1099,8 @@ async function renderBatchDetail() {
       ${batchExpiryHtml(b)}
       <span class="edit-note">${esc(b.method || "")}</span>
       <div class="spacer"></div>
-      <span class="edit-note">${fmtAmt(b.batch_size_ml)} ml · ${eur(b.cost_eur)} total · ${eur(b.cost_per_ml * 1000)}/litre</span>
+      <span class="edit-note">${fmtAmt(b.batch_size_ml)} ml · ${eur(b.cost_eur)} total
+        ${b.cost_per_serve ? ` · ${eur(b.cost_per_serve)}/portion` : ""} · ${eur(b.cost_per_ml * 1000)}/litre</span>
     </div>
     <table>
       <thead><tr><th>Ingredient</th><th class="num">Amount</th><th class="num">Cost</th><th></th></tr></thead>
@@ -1104,7 +1153,7 @@ $("#newBatchBtn").addEventListener("click", () => {
     delete $("#saveBatch").dataset.id;
     $("#btName").value = ""; $("#btSize").value = 1000; $("#btUnit").value = "ml";
     $("#btShelf").value = ""; $("#btMade").value = new Date().toISOString().slice(0, 10);
-    $("#btMethod").value = "";
+    $("#btMethod").value = ""; $("#btServ").value = "";
     $("#btName").focus();
   }
 });
@@ -1121,6 +1170,7 @@ $("#saveBatch").addEventListener("click", async () => {
       * U_FACTOR[$("#btUnit").value],
     shelf_life_days: $("#btShelf").value === "" ? null : parseInt($("#btShelf").value, 10),
     made_date: $("#btMade").value || undefined,
+    servings: parseInt($("#btServ").value, 10) > 0 ? parseInt($("#btServ").value, 10) : null,
   };
   if (!payload.name || !payload.batch_size_ml) return toast("Name + size needed");
   const res = id ? await api("/api/batches/" + id, "PUT", payload)

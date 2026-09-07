@@ -80,6 +80,7 @@
         </div>
         <div class="formrow" style="margin-top:6px;">
           <div style="flex:3; min-width:200px;"><label data-i18n="f.method">Method</label><input id="btMethod" data-i18n-ph="batches.methodPh" placeholder="stir 2:1 sugar:water, no heat"></div>
+          <div style="flex:1; min-width:110px;"><label data-i18n="kitchen.servings">Servings (portions)</label><input id="btServ" type="number" min="0" step="1" data-i18n-ph="kitchen.servingsPh" placeholder="20 — blank = volume only"></div>
           <button id="saveBatch" class="btn" data-i18n="f.saveBatch">Save batch</button>
           <button id="cancelBatch" class="btn ghost" data-i18n="f.cancel">Cancel</button>
         </div>
@@ -97,9 +98,25 @@
         <h2 data-i18n="stock.title">Stock</h2>
         <span class="hint" data-i18n="stock.hint">One row per item — change the price once, every spec updates.</span>
         <div class="spacer"></div>
+        <button id="adjToggle" class="btn ghost" data-i18n="kitchen.adj">+ Log loss</button>
         <button id="addStockBtn" class="btn ghost" data-i18n="stock.add">+ Add item</button>
       </div>
       <div id="stockRipple" class="hidden no-print"></div>
+      <div id="adjBox" class="hidden no-print" style="border-bottom:1px solid var(--line2); padding:10px 2px 14px; margin-bottom:6px;">
+        <div class="hint" style="margin-bottom:8px;" data-i18n="kitchen.adjHint">Spills, spoilage, trim waste — a signed amount in the item's canonical unit (ml / g / pc). Loss becomes a visible line.</div>
+        <div class="formrow">
+          <div style="flex:2; min-width:140px;"><label data-i18n="f.name">Name</label>
+            <select id="adjItem" style="width:100%;"></select></div>
+          <div style="flex:1; min-width:100px;"><label data-i18n="kitchen.delta">Amount (ml / g / pc)</label>
+            <input id="adjDelta" type="number" step="0.5" placeholder="-500"></div>
+          <div style="flex:1; min-width:110px;"><label data-i18n="kitchen.reason">Reason</label>
+            <select id="adjReason"><option>Spillage</option><option>Waste</option><option>Spoilage</option><option>Correction</option><option>Other</option></select></div>
+          <div style="flex:2; min-width:130px;"><label data-i18n="kitchen.note">Note</label><input id="adjNote"></div>
+          <button id="adjSave" class="btn" data-i18n="kitchen.log">Log it</button>
+        </div>
+        <div class="hint" style="margin:10px 0 6px;" data-i18n="kitchen.recent">Recent adjustments</div>
+        <div id="adjList" class="edit-note" data-i18n="kitchen.none">Nothing logged yet.</div>
+      </div>
       <table id="stockTable">
         <thead>
           <tr><th data-i18n="stock.thName">Item</th><th class="num" data-i18n="stock.thAbv">ABV %</th><th class="num" data-i18n="stock.thPrice">Price €</th>

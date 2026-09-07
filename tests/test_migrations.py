@@ -12,7 +12,7 @@ def _conn(db):
 class TestLegacyUpgrade:
     def test_version_bumped(self, legacy_db):
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
         conn.close()
 
     def test_ingredients_table_gone(self, legacy_db):
@@ -87,7 +87,7 @@ class TestLegacyUpgrade:
         """Running init_db twice never double-applies or reseeds."""
         legacy_db.init_db()
         conn = _conn(legacy_db.DB_PATH)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 8
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
         assert conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] == 4
         conn.close()
