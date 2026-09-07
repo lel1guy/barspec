@@ -1,0 +1,10 @@
+[Unit]
+Description=BarSpec nightly sqlite backup (03:17 daily)
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

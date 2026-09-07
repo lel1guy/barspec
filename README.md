@@ -138,6 +138,14 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 | GET | `/api/stock-takes/trends` | movement between last two counts + dead-stock list |
 | GET | `/api/menu` | priced menu view |
 
+## Ops
+
+- **Backups** — nightly at 03:17 via `barspec-backup.timer` (systemd): sqlite
+  online snapshot to `backups/`, integrity-checked, 14 kept, log in
+  `backups/backup.log`. Restore: `sudo ops/restore.sh backups/barspec-XXXX.db`
+  (stops the service, keeps the current db aside, verifies on restart).
+  Manual run: `python3 ops/backup.py`.
+
 ## Roadmap (not started)
 
 - PWA offline read cache (service worker — needs HTTPS)

@@ -4,3 +4,6 @@ __pycache__/
 barspec.db
 data/
 *.bak
+
+# local snapshots (ops/backup.py)
+backups/

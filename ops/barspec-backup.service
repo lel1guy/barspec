@@ -1,0 +1,9 @@
+[Unit]
+Description=BarSpec nightly sqlite backup
+After=barspec.service
+
+[Service]
+Type=oneshot
+User=vitor
+WorkingDirectory=/home/vitor/dev/barspec
+ExecStart=/usr/bin/python3 /home/vitor/dev/barspec/ops/backup.py
