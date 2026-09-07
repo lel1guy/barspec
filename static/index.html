@@ -12,14 +12,14 @@
 <body>
 
 <aside class="side">
-  <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v0.4</span></div>
-  <div class="grp">Workspace</div>
+  <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v0.6</span></div>
+  <div class="grp" data-i18n="side.workspace">Workspace</div>
   <nav class="sidenav">
-    <button id="navSpecs" class="navitem active"><span class="ic">▤</span>Specs<span class="navbadge" id="countSpecs">0</span></button>
-    <button id="navBatches" class="navitem"><span class="ic">≋</span>Batches<span class="navbadge" id="countBatches">0</span></button>
-    <button id="navStock" class="navitem"><span class="ic">◫</span>Stock<span class="navbadge" id="countStock">0</span></button>
-    <button id="navTake" class="navitem"><span class="ic">▦</span>Stock-take<span class="navbadge" id="countTake">0</span></button>
-    <button id="navMenu" class="navitem"><span class="ic">☰</span>Menu<span class="navbadge" id="countMenu">0</span></button>
+    <button id="navSpecs" class="navitem active"><span class="ic">▤</span><span data-i18n="nav.specs">Specs</span><span class="navbadge" id="countSpecs">0</span></button>
+    <button id="navBatches" class="navitem"><span class="ic">≋</span><span data-i18n="nav.batches">Batches</span><span class="navbadge" id="countBatches">0</span></button>
+    <button id="navStock" class="navitem"><span class="ic">◫</span><span data-i18n="nav.stock">Stock</span><span class="navbadge" id="countStock">0</span></button>
+    <button id="navTake" class="navitem"><span class="ic">▦</span><span data-i18n="nav.take">Stock-take</span><span class="navbadge" id="countTake">0</span></button>
+    <button id="navMenu" class="navitem"><span class="ic">☰</span><span data-i18n="nav.menu">Menu</span><span class="navbadge" id="countMenu">0</span></button>
   </nav>
 </aside>
 
@@ -29,15 +29,16 @@
       <div class="crumb" id="crumbLabel">BARSPEC / SPECS</div>
       <h1 id="viewTitle">Specs</h1>
     </div>
-    <div class="unitctl no-print" id="unitBox" title="Display unit — values are stored in ml">
+    <div class="unitctl no-print" id="unitBox" data-i18n-title="mhead.unitsTitle" title="Display unit — values are stored in ml">
       <button class="unitbtn active" data-unit="ml">ml</button>
       <button class="unitbtn" data-unit="cl">cl</button>
       <button class="unitbtn" data-unit="oz">oz</button>
     </div>
+    <button class="langbtn no-print" id="langBtn" title="EN / PT">PT</button>
     <div class="search no-print" id="searchBox">
-      <input id="specSearch" placeholder="Search specs…" autocomplete="off">
+      <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
-    <button class="btn primary no-print" id="newSpecBtn">+ New spec</button>
+    <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
   </div>
 
   <!-- ============ SPECS ============ -->
@@ -47,39 +48,39 @@
       <div id="specList"></div>
     </div>
     <div class="panel" id="detailPanel">
-      <div id="empty">Pick a spec on the left, or create one.</div>
+      <div id="empty" data-i18n="specs.emptyHint">Pick a spec on the left, or create one.</div>
       <div id="detail" class="hidden"></div>
     </div>
   </section>
 
-  <!-- ============ BATCHES (house syrups / infusions) ============ -->
+  <!-- ============ BATCHES ============ -->
   <section id="view-batches" class="view">
     <div class="panel">
       <div class="panel-head no-print">
-        <h2>House batches</h2>
-        <span class="hint" id="batchHint">Simple syrups, infusions, mixes — cost is derived from ingredients, never typed.</span>
+        <h2 data-i18n="batches.title">House batches</h2>
+        <span class="hint" id="batchHint" data-i18n="batches.hint">Simple syrups, infusions, mixes — cost is derived from ingredients, never typed.</span>
         <div class="spacer"></div>
-        <button id="newBatchBtn" class="btn primary">+ New batch</button>
+        <button id="newBatchBtn" class="btn primary" data-i18n="batches.new">+ New batch</button>
       </div>
       <div id="newBatchForm" class="hidden no-print" style="border-bottom:1px solid var(--line2); padding-bottom:12px; margin-bottom:6px;">
         <div class="formrow">
-          <div style="flex:2; min-width:150px;"><label>Name</label><input id="btName" placeholder="Simple syrup 1:1"></div>
-          <div style="flex:1; min-width:70px;"><label>Batch size</label>
+          <div style="flex:2; min-width:150px;"><label data-i18n="f.name">Name</label><input id="btName" data-i18n-ph="batches.namePh" placeholder="Simple syrup 1:1"></div>
+          <div style="flex:1; min-width:70px;"><label data-i18n="batches.size">Batch size</label>
             <div style="display:flex; gap:4px;"><input id="btSize" type="number" value="1000" min="0" step="1" style="flex:1;">
             <select id="btUnit" style="width:80px;"><option value="ml">ml</option><option value="l">l</option></select></div>
           </div>
-          <div style="flex:1; min-width:80px;"><label>Shelf life (days)</label><input id="btShelf" type="number" placeholder="30 (blank = keeps)"></div>
-          <div style="flex:1; min-width:110px;"><label>Made</label><input id="btMade" type="date"></div>
+          <div style="flex:1; min-width:80px;"><label data-i18n="batches.shelf">Shelf life (days)</label><input id="btShelf" type="number" data-i18n-ph="batches.shelfPh" placeholder="30 (blank = keeps)"></div>
+          <div style="flex:1; min-width:110px;"><label data-i18n="batches.made">Made</label><input id="btMade" type="date"></div>
         </div>
         <div class="formrow" style="margin-top:6px;">
-          <div style="flex:3; min-width:200px;"><label>Method</label><input id="btMethod" placeholder="stir 2:1 sugar:water, no heat"></div>
-          <button id="saveBatch" class="btn">Save batch</button>
-          <button id="cancelBatch" class="btn ghost">Cancel</button>
+          <div style="flex:3; min-width:200px;"><label data-i18n="f.method">Method</label><input id="btMethod" data-i18n-ph="batches.methodPh" placeholder="stir 2:1 sugar:water, no heat"></div>
+          <button id="saveBatch" class="btn" data-i18n="f.saveBatch">Save batch</button>
+          <button id="cancelBatch" class="btn ghost" data-i18n="f.cancel">Cancel</button>
         </div>
       </div>
       <div id="batchList"></div>
       <div id="batchDetail"></div>
-      <div id="batchEmpty" class="edit-note hidden" style="padding:20px 0;">No batches yet — a house syrup starts with a name and a pan of sugar.</div>
+      <div id="batchEmpty" class="edit-note hidden" style="padding:20px 0;" data-i18n="batches.empty">No batches yet — a house syrup starts with a name and a pan of sugar.</div>
     </div>
   </section>
 
@@ -87,47 +88,47 @@
   <section id="view-stock" class="view">
     <div class="panel">
       <div class="panel-head">
-        <h2>Stock</h2>
-        <span class="hint">One row per bottle — change the price once, every spec updates.</span>
+        <h2 data-i18n="stock.title">Stock</h2>
+        <span class="hint" data-i18n="stock.hint">One row per item — change the price once, every spec updates.</span>
         <div class="spacer"></div>
-        <button id="addStockBtn" class="btn ghost">+ Add bottle</button>
+        <button id="addStockBtn" class="btn ghost" data-i18n="stock.add">+ Add item</button>
       </div>
       <div id="stockRipple" class="hidden no-print"></div>
       <table id="stockTable">
         <thead>
-          <tr><th>Bottle</th><th class="num">ABV %</th><th class="num">Price €</th>
-              <th class="num" id="stockSizeTh">Size ml</th><th class="num">Par</th><th class="num">Used in</th><th></th></tr>
+          <tr><th data-i18n="stock.thName">Item</th><th class="num" data-i18n="stock.thAbv">ABV %</th><th class="num" data-i18n="stock.thPrice">Price €</th>
+              <th class="num" id="stockSizeTh" data-i18n="stock.thSize">Size</th><th class="num" data-i18n="stock.thPar">Par</th><th class="num" data-i18n="stock.thUsed">Used in</th><th></th></tr>
         </thead>
         <tbody id="stockBody"></tbody>
       </table>
       <div id="addStockForm" class="hidden no-print">
-        <div class="hint" style="margin-top:14px;">New bottle — name first; price and size can wait until you have the receipt.</div>
+        <div class="hint" style="margin-top:14px;" data-i18n="stock.newHint">New item — name first; price and size can wait until you have the receipt.</div>
         <div class="formrow">
-          <div style="flex:2; min-width:150px;"><label>Name</label><input id="stName" placeholder="Campari"></div>
-          <div style="flex:1; min-width:110px;"><label>Kind</label>
+          <div style="flex:2; min-width:150px;"><label data-i18n="f.name">Name</label><input id="stName" placeholder="Campari"></div>
+          <div style="flex:1; min-width:110px;"><label data-i18n="stock.kind">Kind</label>
             <select id="stDim">
-              <option value="volume">Bottle / keg</option>
-              <option value="weight">Weight (coffee, sugar)</option>
-              <option value="count">Per piece (limes)</option>
+              <option value="volume" data-i18n="stock.kindVol">Bottle / keg</option>
+              <option value="weight" data-i18n="stock.kindW">Weight (coffee, sugar)</option>
+              <option value="count" data-i18n="stock.kindC">Per piece (limes)</option>
             </select>
           </div>
-          <div style="flex:1; min-width:70px;" id="abvWrap"><label>ABV %</label><input id="stAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
-          <div style="flex:1; min-width:80px;"><label>Price €</label><input id="stPrice" type="number" value="0" min="0" step="0.1"></div>
-          <div style="flex:1; min-width:150px;"><label>Size per purchase</label>
+          <div style="flex:1; min-width:70px;" id="abvWrap"><label data-i18n="stock.abv">ABV %</label><input id="stAbv" type="number" value="0" min="0" max="100" step="0.5"></div>
+          <div style="flex:1; min-width:80px;"><label data-i18n="stock.price">Price €</label><input id="stPrice" type="number" value="0" min="0" step="0.1"></div>
+          <div style="flex:1; min-width:150px;"><label data-i18n="stock.sizePer">Size per purchase</label>
             <div style="display:flex; gap:4px;">
               <input id="stVol" type="number" value="700" min="0" step="1" style="flex:1;">
               <select id="stVolUnit" style="width:86px;"><option value="ml">ml</option><option value="l">l</option></select>
             </div>
           </div>
           <div style="flex:1; min-width:80px; display:none;" id="yieldWrap">
-            <label>Yield %</label>
+            <label data-i18n="stock.yield">Yield %</label>
             <input id="stYield" type="number" value="100" min="1" max="100" step="1"
-                   title="Usable after trim/cook: pay for 1 kg, use 800 g -> 80">
+                   data-i18n-title="stock.yieldTitle" title="Usable after trim/cook: pay for 1 kg, use 800 g -> 80">
           </div>
-          <button id="saveStock" class="btn">Save</button>
-          <button id="cancelStock" class="btn ghost">Cancel</button>
+          <button id="saveStock" class="btn" data-i18n="f.save">Save</button>
+          <button id="cancelStock" class="btn ghost" data-i18n="f.cancel">Cancel</button>
         </div>
-        <div class="edit-note" style="margin-top:6px;" id="stockDimHint">A bottle is € per 700 ml; coffee € per kg (g); limes € per box of pieces. Size is stored canonically (ml / g / pc).</div>
+        <div class="edit-note" style="margin-top:6px;" id="stockDimHint" data-i18n="stock.dimHint">A bottle is € per 700 ml; coffee € per kg (g); limes € per box of pieces. Size is stored canonically (ml / g / pc).</div>
       </div>
     </div>
   </section>
@@ -135,36 +136,36 @@
   <!-- ============ STOCK-TAKE ============ -->
   <section id="view-stocktake" class="view">
     <div class="seg no-print" id="takeTabs">
-      <button id="tabCount" class="segbtn active">Count</button>
-      <button id="tabOrder" class="segbtn">Order list</button>
-      <button id="tabTrends" class="segbtn">Trends</button>
+      <button id="tabCount" class="segbtn active" data-i18n="take.count">Count</button>
+      <button id="tabOrder" class="segbtn" data-i18n="take.order">Order list</button>
+      <button id="tabTrends" class="segbtn" data-i18n="take.trends">Trends</button>
     </div>
 
     <div class="panel" id="countPanel">
       <div class="panel-head no-print">
-        <h2>Count</h2>
-        <span class="hint" id="countHint">Bottles with a par level — walk the shelf and correct what changed.</span>
+        <h2 data-i18n="take.countTitle">Count</h2>
+        <span class="hint" id="countHint" data-i18n="take.countHint">Items with a par level — walk the shelf and correct what changed.</span>
         <div class="spacer"></div>
         <span class="hint" id="countTotals"></span>
-        <button id="saveTakeBtn" class="btn primary">Save count</button>
+        <button id="saveTakeBtn" class="btn primary" data-i18n="take.save">Save count</button>
       </div>
       <div id="countBody"></div>
     </div>
 
     <div class="panel hidden" id="orderPanel">
       <div class="panel-head">
-        <h2>Order list</h2>
-        <span class="hint" id="orderHint">From your latest count vs par.</span>
+        <h2 data-i18n="take.orderTitle">Order list</h2>
+        <span class="hint" id="orderHint" data-i18n="take.orderHint">From your latest count vs par.</span>
         <div class="spacer"></div>
-        <button id="newCountBtn" class="btn ghost no-print">+ New count</button>
+        <button id="newCountBtn" class="btn ghost no-print" data-i18n="take.newCount">+ New count</button>
       </div>
       <div id="orderBody"></div>
     </div>
 
     <div class="panel hidden" id="trendsPanel">
       <div class="panel-head">
-        <h2>Trends &amp; dead stock</h2>
-        <span class="hint">Movement between your last two counts — insight appears as history accrues.</span>
+        <h2 data-i18n="take.trendsTitle">Trends &amp; dead stock</h2>
+        <span class="hint" data-i18n="take.trendsHint">Movement between your last two counts — insight appears as history accrues.</span>
       </div>
       <div id="trendsBody"></div>
     </div>
@@ -174,17 +175,17 @@
   <section id="view-menu" class="view">
     <div class="panel">
       <div class="panel-head no-print">
-        <h2>Menu</h2>
-        <span class="hint">Price every spec, then print. Costs never appear on the sheet.</span>
+        <h2 data-i18n="menu.title">Menu</h2>
+        <span class="hint" data-i18n="menu.hint">Price every spec, then print. Costs never appear on the sheet.</span>
         <div class="spacer"></div>
         <label style="display:flex; align-items:center; gap:6px; margin:0;" class="checklabel">
-          <input type="checkbox" id="pricedOnly"> only priced
+          <input type="checkbox" id="pricedOnly"> <span data-i18n="menu.onlyPriced">only priced</span>
         </label>
-        <button id="printMenuBtn" class="btn primary">⤢ Print menu</button>
+        <button id="printMenuBtn" class="btn primary" data-i18n="menu.print">⤢ Print menu</button>
       </div>
-      <div id="menuPrintTitle">Cocktail Menu</div>
+      <div id="menuPrintTitle" data-i18n="menu.printTitle">Cocktail Menu</div>
       <div id="menuBody"></div>
-      <div id="menuEmpty" class="edit-note hidden" style="padding:20px 0;">No specs yet — create one in Specs.</div>
+      <div id="menuEmpty" class="edit-note hidden" style="padding:20px 0;" data-i18n="menu.empty">No specs yet — create one in Specs.</div>
     </div>
   </section>
 </main>

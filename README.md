@@ -35,6 +35,9 @@ in `pricing.py` (pure functions, unit-tested).
 - **Dilution**: optional ice-melt % per spec (shake ≈ 20–25, stir ≈ 10–15).
   Served volume and served ABV tell the truth about what reaches the glass;
   cost stays the measured pour — water is free.
+- **EN / PT-PT**: one-click language toggle (top bar, remembered per browser).
+  All navigation, forms, buttons, hints and menus translate; numbers and €
+  never do.
 - **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
   get the order list (what to buy, cash asleep) and week-to-week trends.
 - **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;
@@ -137,5 +140,4 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
 ## Roadmap (not started)
 
-- Portuguese UI (PT-PT) — ml/EUR already native
 - PWA offline read cache (service worker — needs HTTPS)
