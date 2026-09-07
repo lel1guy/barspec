@@ -98,6 +98,12 @@ main { padding: 20px 26px 32px; max-width: 1200px; min-width: 0; }
   background: var(--panel2); color: var(--steel-hi);
   box-shadow: inset 0 0 0 1px var(--line2);
 }
+.langbtn {
+  border: 1px solid var(--line2); background: var(--panel); color: var(--muted);
+  border-radius: 999px; padding: 2px 11px; font-family: var(--mono);
+  font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 6px;
+}
+.langbtn:hover { color: var(--ink); }
 .search input {
   border: 0; background: transparent; color: var(--ink); font-family: var(--sans);
   font-size: 13.5px; width: 100%; outline: none; padding: 4px 0; min-height: auto;

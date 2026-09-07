@@ -33,7 +33,136 @@ const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const eur = (v) => "€" + (Math.round((v || 0) * 100) / 100).toFixed(2);
 
-// ---------- display unit + units engine (S1 toggle + S3 pickers) ----------
+// ---------- i18n (008): EN / PT-PT ----------
+const I18N = {
+  en: {
+    "side.workspace": "Workspace", "nav.specs": "Specs", "nav.batches": "Batches",
+    "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
+    "mhead.unitsTitle": "Display unit — values are stored in ml",
+    "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
+    "specs.emptyHint": "Pick a spec on the left, or create one.",
+    "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
+    "view.take": "Stock-take", "view.menu": "Menu",
+    "batches.title": "House batches", "batches.hint": "Simple syrups, infusions, mixes — cost is derived from ingredients, never typed.",
+    "batches.new": "+ New batch", "batches.namePh": "Simple syrup 1:1", "batches.size": "Batch size",
+    "batches.shelf": "Shelf life (days)", "batches.shelfPh": "30 (blank = keeps)", "batches.made": "Made",
+    "batches.methodPh": "stir 2:1 sugar:water, no heat", "batches.empty": "No batches yet — a house syrup starts with a name and a pan of sugar.",
+    "f.name": "Name", "f.method": "Method", "f.saveBatch": "Save batch", "f.save": "Save", "f.cancel": "Cancel",
+    "stock.title": "Stock", "stock.hint": "One row per item — change the price once, every spec updates.",
+    "stock.add": "+ Add item", "stock.thName": "Item", "stock.thAbv": "ABV %", "stock.thPrice": "Price €",
+    "stock.thSize": "Size", "stock.thPar": "Par", "stock.thUsed": "Used in",
+    "stock.newHint": "New item — name first; price and size can wait until you have the receipt.",
+    "stock.kind": "Kind", "stock.kindVol": "Bottle / keg", "stock.kindW": "Weight (coffee, sugar)",
+    "stock.kindC": "Per piece (limes)", "stock.abv": "ABV %", "stock.price": "Price €",
+    "stock.sizePer": "Size per purchase", "stock.yield": "Yield %",
+    "stock.yieldTitle": "Usable after trim/cook: pay for 1 kg, use 800 g -> 80",
+    "stock.dimHint": "A bottle is € per 700 ml; coffee € per kg (g); limes € per box of pieces. Size is stored canonically (ml / g / pc).",
+    "take.count": "Count", "take.order": "Order list", "take.trends": "Trends",
+    "take.countTitle": "Count", "take.countHint": "Items with a par level — walk the shelf and correct what changed.",
+    "take.save": "Save count", "take.orderTitle": "Order list", "take.orderHint": "From your latest count vs par.",
+    "take.newCount": "+ New count", "take.trendsTitle": "Trends & dead stock",
+    "take.trendsHint": "Movement between your last two counts — insight appears as history accrues.",
+    "menu.title": "Menu", "menu.hint": "Price every spec, then print. Costs never appear on the sheet.",
+    "menu.onlyPriced": "only priced", "menu.print": "⤢ Print menu", "menu.printTitle": "Cocktail Menu",
+    "menu.empty": "No specs yet — create one in Specs.",
+    "spec.edit": "Edit", "spec.ing": "Ingredients", "spec.dup": "Duplicate", "spec.del": "Delete",
+    "spec.glass": "Glass", "spec.method": "Method", "spec.garnish": "Garnish", "spec.category": "Category",
+    "spec.dilution": "Dilution %", "spec.newTitle": "New spec", "spec.editTitle": "Edit spec",
+    "detail.thIng": "Ingredient", "detail.thAmt": "Amount", "detail.thBottle": "Bottle",
+    "ing.ingredient": "Ingredient", "ing.bottle": "Bottle", "ing.addIng": "+ Add", "ing.addBatch": "+ Add syrup",
+    "ing.houseBatch": "House batch", "ing.save": "Save changes", "ing.done": "Done",
+    "ing.namePh": "Type or pick…", "ing.amountUnit": "Amount + unit",
+    "ing.hintKnown": "Bottles live in Stock. Type a known name and it links to the existing bottle; a new name creates one (set its price later in Stock).",
+    "specs.none": "No specs yet.", "detail.capServe": "cost / serve",
+    "detail.capBatch1": "1 serve", "detail.capBatchN": "{n} serves",
+    "detail.capAbv": "ABV", "detail.capVol": "volume",
+    "detail.noLines": "No ingredients yet — add some.",
+    "detail.servings": "Servings", "detail.thAmt": "Amount", "detail.thAbv": "ABV",
+    "detail.thCost": "Cost",
+    "detail.thShare": "Share of cost", "detail.foot": "Bottle prices live in Stock — edit once, every spec updates.",
+    "stock.none": "No stock items yet.",
+    "take.unsaved": "You have an unsaved count. Leave and lose it?",
+    "del.spec": "Delete", "del.specQ": "Delete {n}?",
+    "pricing.target": "Target margin", "pricing.suggest": "Suggested for target:",
+    "pricing.use": "use", "pricing.savePrice": "Save price",
+    "pricing.unpriced": "unpriced",
+    "all": "All", "uncat": "Uncategorised",
+  },
+  pt: {
+    "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
+    "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
+    "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
+    "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
+    "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
+    "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
+    "view.take": "Contagens", "view.menu": "Menu",
+    "batches.title": "Xaropes e preparados", "batches.hint": "Xaropes, infusões, misturas — o custo vem dos ingredientes, nunca é escrito à mão.",
+    "batches.new": "+ Nova produção", "batches.namePh": "Xarope simples 1:1", "batches.size": "Tamanho do lote",
+    "batches.shelf": "Validade (dias)", "batches.shelfPh": "30 (vazio = não expira)", "batches.made": "Feito em",
+    "batches.methodPh": "mexer 2:1 açúcar:água, sem calor", "batches.empty": "Ainda sem produções — um xarope caseiro começa com um nome e uma panela de açúcar.",
+    "f.name": "Nome", "f.method": "Método", "f.saveBatch": "Guardar produção", "f.save": "Guardar", "f.cancel": "Cancelar",
+    "stock.title": "Stock", "stock.hint": "Uma linha por artigo — mude o preço uma vez e todas as receitas actualizam.",
+    "stock.add": "+ Adicionar artigo", "stock.thName": "Artigo", "stock.thAbv": "Álcool %", "stock.thPrice": "Preço €",
+    "stock.thSize": "Tamanho", "stock.thPar": "Par", "stock.thUsed": "Usado em",
+    "stock.newHint": "Novo artigo — primeiro o nome; preço e tamanho podem esperar até ter a factura.",
+    "stock.kind": "Tipo", "stock.kindVol": "Garrafa / barril", "stock.kindW": "Peso (café, açúcar)",
+    "stock.kindC": "À unidade (limas)", "stock.abv": "Álcool %", "stock.price": "Preço €",
+    "stock.sizePer": "Tamanho por compra", "stock.yield": "Rendimento %",
+    "stock.yieldTitle": "Aproveitamento após limpar/cozinhar: paga 1 kg, usa 800 g -> 80",
+    "stock.dimHint": "Uma garrafa é € por 700 ml; café € por kg (g); limas € por caixa de unidades. Tamanho guardado canónico (ml / g / pc).",
+    "take.count": "Contagem", "take.order": "Lista de compras", "take.trends": "Tendências",
+    "take.countTitle": "Contagem", "take.countHint": "Artigos com par — percorra o armário e corrija o que mudou.",
+    "take.save": "Guardar contagem", "take.orderTitle": "Lista de compras", "take.orderHint": "Da sua última contagem vs par.",
+    "take.newCount": "+ Nova contagem", "take.trendsTitle": "Tendências e stock parado",
+    "take.trendsHint": "Movimento entre as duas últimas contagens — a visão aparece com o histórico.",
+    "menu.title": "Menu", "menu.hint": "Dê preço a cada receita e imprima. Custos nunca aparecem na folha.",
+    "menu.onlyPriced": "só com preço", "menu.print": "⤢ Imprimir menu", "menu.printTitle": "Carta de Cocktails",
+    "menu.empty": "Ainda sem receitas — crie uma em Receitas.",
+    "spec.edit": "Editar", "spec.ing": "Ingredientes", "spec.dup": "Duplicar", "spec.del": "Apagar",
+    "spec.glass": "Copo", "spec.method": "Método", "spec.garnish": "Decoração", "spec.category": "Categoria",
+    "spec.dilution": "Diluição %", "spec.newTitle": "Nova receita", "spec.editTitle": "Editar receita",
+    "detail.thIng": "Ingrediente", "detail.thAmt": "Quantidade", "detail.thBottle": "Garrafa",
+    "ing.ingredient": "Ingrediente", "ing.bottle": "Garrafa", "ing.addIng": "+ Adicionar", "ing.addBatch": "+ Adicionar xarope",
+    "ing.houseBatch": "Xarope caseiro", "ing.save": "Guardar alterações", "ing.done": "Concluir",
+    "ing.namePh": "Escreva ou escolha…", "ing.amountUnit": "Quantidade + unidade",
+    "ing.hintKnown": "As garrafas vivem no Stock. Escreva um nome conhecido e liga à garrafa existente; um nome novo cria uma (defina o preço depois no Stock).",
+    "specs.none": "Ainda sem receitas.", "detail.capServe": "custo / dose",
+    "detail.capBatch1": "1 dose", "detail.capBatchN": "{n} doses",
+    "detail.capAbv": "Álcool", "detail.capVol": "volume",
+    "detail.noLines": "Sem ingredientes — adicione alguns.",
+    "detail.servings": "Doses", "detail.thAmt": "Quantidade", "detail.thAbv": "Álcool",
+    "detail.thCost": "Custo",
+    "detail.thShare": "Parte do custo", "detail.foot": "Os preços vivem no Stock — edite uma vez, todas as receitas actualizam.",
+    "stock.none": "Ainda sem artigos no stock.",
+    "take.unsaved": "Tem uma contagem por guardar. Sair e perdê-la?",
+    "del.spec": "Apagar", "del.specQ": "Apagar {n}?",
+    "pricing.target": "Margem alvo", "pricing.suggest": "Sugerido para a margem:",
+    "pricing.use": "usar", "pricing.savePrice": "Guardar preço",
+    "pricing.unpriced": "sem preço",
+    "all": "Todas", "uncat": "Sem categoria",
+  },
+};
+let lang = localStorage.getItem("barspec.lang") || "en";
+const t = (k) => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
+function applyI18n() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  const lb = $("#langBtn");
+  if (lb) lb.textContent = lang === "pt" ? "EN" : "PT";
+}
+function setLang(l) {
+  lang = l;
+  localStorage.setItem("barspec.lang", l);
+  applyI18n();
+  updateChrome();
+  if (currentView === "specs") loadSpecs();
+  else if (currentView === "batches") loadBatches();
+  else if (currentView === "stock") renderStock();
+  else if (currentView === "stocktake") loadStocktake();
+  else if (currentView === "menu") renderMenu();
+}
 // The server stores canonical amounts (ml for volume, g for weight, pieces for
 // count); spec lines store amount-in-unit + unit. These helpers convert for
 // display and entry only. Mirrors pricing.UNIT_CANONICAL/UNIT_DIMENSION.
@@ -117,11 +246,11 @@ function renderChips(specs) {
     } else uncat += 1;
   }
   const cats = [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
-  if (uncat) cats.push({ label: "Uncategorised", n: uncat, k: "" });
+  if (uncat) cats.push({ label: t("uncat"), n: uncat, k: "" });
   cats.forEach((c) => { if (c.k === undefined) c.k = c.label.toLowerCase(); });
   box.classList.toggle("hidden", cats.length === 0);
   box.innerHTML = [
-    `<button class="chip ${currentCat === "__all__" ? "active" : ""}" data-cat="__all__">All ${specs.length}</button>`,
+    `<button class="chip ${currentCat === "__all__" ? "active" : ""}" data-cat="__all__">${t("all")} ${specs.length}</button>`,
     ...cats.map((c) =>
       `<button class="chip ${currentCat === c.k ? "active" : ""}" data-cat="${esc(c.k)}">${esc(c.label)} ${c.n}</button>`),
   ].join("");
@@ -149,9 +278,15 @@ const VIEWS = {
 };
 const NAV_IDS = { specs: "navSpecs", batches: "navBatches", stock: "navStock",
                   stocktake: "navTake", menu: "navMenu" };
+const VIEW_KEYS = { specs: "view.specs", batches: "view.batches", stock: "view.stock",
+                    stocktake: "view.take", menu: "view.menu" };
+function updateChrome() {
+  $("#viewTitle").textContent = t(VIEW_KEYS[currentView]);
+  $("#crumbLabel").textContent = "BARSPEC / " + t(VIEW_KEYS[currentView]).toUpperCase();
+}
 function showView(v) {
   if (v !== currentView && currentView === "stocktake" && takeDirty &&
-      !confirm("You have an unsaved count. Leave and lose it?")) return;
+      !confirm(t("take.unsaved"))) return;
   currentView = v;
   Object.keys(VIEWS).forEach((x) => {
     $("body").dataset.view = v;
@@ -159,8 +294,7 @@ function showView(v) {
     $("#" + NAV_IDS[x]).classList.toggle("active", x === v);
   });
   const meta = VIEWS[v];
-  $("#viewTitle").textContent = meta.title;
-  $("#crumbLabel").textContent = "BARSPEC / " + meta.crumb;
+  updateChrome();
   $("#newSpecBtn").classList.toggle("hidden", !meta.header);
   $("#searchBox").classList.toggle("hidden", !meta.header);
   if (v === "batches") loadBatches();
@@ -175,7 +309,7 @@ async function loadSpecs(keepOpen) {
   $("#countSpecs").textContent = specs.length;
   const box = $("#specList");
   box.innerHTML = "";
-  if (!specs.length) { box.innerHTML = '<div class="edit-note">No specs yet.</div>'; return; }
+  if (!specs.length) { box.innerHTML = '<div class="edit-note">' + t("specs.none") + "</div>"; return; }
   for (const s of specs) {
     const el = document.createElement("div");
     el.className = "spec-item" + (s.id === currentSpec ? " active" : "");
@@ -190,7 +324,7 @@ async function loadSpecs(keepOpen) {
     el.addEventListener("click", () => openSpec(s.id));
     el.querySelector("[data-del]").addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (!confirm("Delete " + s.name + "?")) return;
+      if (!confirm(t("del.specQ").replace("{n}", s.name))) return;
       await api("/api/specs/" + s.id, "DELETE");
       if (currentSpec === s.id) { currentSpec = null; renderEmpty(); }
       loadSpecs();
@@ -221,34 +355,34 @@ async function openSpec(id) {
         <div class="spec-facts">${esc(s.glass || "")}${s.garnish ? " · " + esc(s.garnish) : ""}</div>
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="ghost small" id="editBtn">Edit</button>
-        <button class="ghost small" id="ingBtn">Ingredients</button>
-        <button class="ghost small" id="dupeBtn">Duplicate</button>
-        <button class="danger small" id="delBtn">Delete</button>
+        <button class="ghost small" id="editBtn">${t("spec.edit")}</button>
+        <button class="ghost small" id="ingBtn">${t("spec.ing")}</button>
+        <button class="ghost small" id="dupeBtn">${t("spec.dup")}</button>
+        <button class="danger small" id="delBtn">${t("spec.del")}</button>
       </div>
     </div>
     <div class="stat-strip">
-      <div class="stat"><div class="num" id="statServe">—</div><div class="cap">cost / serve</div></div>
-      <div class="stat"><div class="num" id="statBatch">—</div><div class="cap">batch (${servings})</div></div>
-      <div class="stat"><div class="num" id="statAbv">—</div><div class="cap">ABV</div></div>
-      <div class="stat"><div class="num" id="statVol">—</div><div class="cap">volume</div></div>
+      <div class="stat"><div class="num" id="statServe">—</div><div class="cap">${t("detail.capServe")}</div></div>
+      <div class="stat"><div class="num" id="statBatch">—</div><div class="cap">${t(servings === 1 ? "detail.capBatch1" : "detail.capBatchN").replace("{n}", servings)}</div></div>
+      <div class="stat"><div class="num" id="statAbv">—</div><div class="cap">${t("detail.capAbv")}</div></div>
+      <div class="stat"><div class="num" id="statVol">—</div><div class="cap">${t("detail.capVol")}</div></div>
     </div>
 
     <div class="pricing-panel" id="pricingPanel"></div>
 
     <div style="display:flex; gap:10px; margin:12px 0 4px; flex-wrap:wrap; align-items:end;">
       <div style="flex:1; min-width:140px;">
-        <label for="servings">Servings</label>
+        <label for="servings">${t("detail.servings")}</label>
         <input type="number" id="servings" min="1" max="999" value="1">
       </div>
     </div>
 
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">${unitLabel()}</th><th class="num">ABV</th>
-          <th class="num">Cost</th><th style="width:120px;">Share of cost</th><th></th></tr></thead>
+      <thead><tr><th>${t("detail.thIng")}</th><th class="num">${unitLabel()}</th><th class="num">${t("detail.thAbv")}</th>
+          <th class="num">${t("detail.thCost")}</th><th style="width:120px;">${t("detail.thShare")}</th><th></th></tr></thead>
       <tbody id="ingBody"></tbody>
     </table>
-    <div class="edit-note">Bottle prices live in Stock — edit once, every spec updates. Ice dilution not included. Amounts show in ${unitLabel()} (ml stays canonical).</div>`;
+    <div class="edit-note" data-i18n="detail.foot">Bottle prices live in Stock — edit once, every spec updates.</div>`;
 
   $("#servings").addEventListener("input", (e) => {
     servings = Math.max(1, parseInt(e.target.value) || 1);
@@ -257,7 +391,7 @@ async function openSpec(id) {
   $("#editBtn").addEventListener("click", () => editSpecForm(s));
   $("#ingBtn").addEventListener("click", () => editIngredientsForm(s));
   $("#delBtn").addEventListener("click", async () => {
-    if (!confirm("Delete " + s.name + "?")) return;
+    if (!confirm(t("del.specQ").replace("{n}", s.name))) return;
     await api("/api/specs/" + s.id, "DELETE");
     currentSpec = null; renderEmpty(); loadSpecs();
   });
@@ -294,7 +428,7 @@ function renderDetail(s) {
   const body = $("#ingBody");
   body.innerHTML = "";
   if (!s.lines.length) {
-    body.innerHTML = '<tr><td colspan="6" class="edit-note">No ingredients yet — add some.</td></tr>';
+    body.innerHTML = `<tr><td colspan="6" class="edit-note">${t("detail.noLines")}</td></tr>`;
     return;
   }
   for (const l of s.lines) {
@@ -389,17 +523,17 @@ function renderPricing(s) {
 function editSpecForm(s) {
   const d = $("#detail");
   d.innerHTML = `
-    <h2 style="margin-top:0">${s ? "Edit" : "New"} spec</h2>
-    <label>Name</label><input id="fName" value="${esc(s ? s.name : "")}" placeholder="Negroni">
-    <label>Glass</label><input id="fGlass" value="${esc(s ? s.glass : "")}" placeholder="Rocks glass, big ice cube">
-    <label>Method</label><input id="fMethod" value="${esc(s ? s.method : "")}" placeholder="Stirred">
-    <label>Garnish</label><input id="fGarnish" value="${esc(s ? s.garnish : "")}" placeholder="Orange peel">
-    <label>Category</label><input id="fCat" list="catNames" value="${esc(s && s.category ? s.category : "")}" placeholder="Old Fashioneds · Martinis · Starters…">
-    <label>Dilution %</label><input id="fDil" type="number" min="0" max="60" step="1" value="${s && s.dilution_pct ? s.dilution_pct : 0}"
+    <h2 style="margin-top:0">${s ? t("spec.editTitle") : t("spec.newTitle")}</h2>
+    <label>${t("f.name")}</label><input id="fName" value="${esc(s ? s.name : "")}" placeholder="Negroni">
+    <label>${t("spec.glass")}</label><input id="fGlass" value="${esc(s ? s.glass : "")}" placeholder="Rocks glass, big ice cube">
+    <label>${t("spec.method")}</label><input id="fMethod" value="${esc(s ? s.method : "")}" placeholder="Stirred">
+    <label>${t("spec.garnish")}</label><input id="fGarnish" value="${esc(s ? s.garnish : "")}" placeholder="Orange peel">
+    <label>${t("spec.category")}</label><input id="fCat" list="catNames" value="${esc(s && s.category ? s.category : "")}" placeholder="Old Fashioneds · Martinis · Starters…">
+    <label>${t("spec.dilution")}</label><input id="fDil" type="number" min="0" max="60" step="1" value="${s && s.dilution_pct ? s.dilution_pct : 0}"
            title="Ice melt adds water: hard shake ≈ 20–25%, stir ≈ 10–15%. 0 = served straight (default).">
     <div style="display:flex; gap:8px; margin-top:16px;">
-      <button id="saveSpec">Save</button>
-      <button class="ghost" id="cancelEdit">Cancel</button>
+      <button id="saveSpec">${t("f.save")}</button>
+      <button class="ghost" id="cancelEdit">${t("f.cancel")}</button>
     </div>`;
   $("#saveSpec").addEventListener("click", async () => {
     const data = {
@@ -430,18 +564,17 @@ function editIngredientsForm(s) {
   const d = $("#detail");
   const rows = s.lines.map((l) => ({ ...l }));
   d.innerHTML = `
-    <h2 style="margin-top:0">Ingredients — ${esc(s.name)}</h2>
-    <div class="edit-note">Bottles live in Stock. Type a known name and it links to the existing
-      bottle; a new name creates one (set its price later in Stock).</div>
+    <h2 style="margin-top:0">${t("spec.ing")} — ${esc(s.name)}</h2>
+    <div class="edit-note">${t("ing.hintKnown")}</div>
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">Amount</th><th class="num">Bottle</th><th></th></tr></thead>
+      <thead><tr><th>${t("detail.thIng")}</th><th class="num">${t("detail.thAmt")}</th><th class="num">${t("detail.thBottle")}</th><th></th></tr></thead>
       <tbody id="editBody"></tbody>
     </table>
     <div class="edit-note" id="newHint" style="margin-top:10px;">Amount is in the unit you pick per row — a Margarita lime is "1 piece", bitters are "2 dash". New bottles (weight/count stock) are created in Stock first.</div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:6px;">
-      <div style="flex:2; min-width:150px;"><label>Name</label>
-        <input id="addName" list="stockNames" placeholder="Type or pick…"></div>
-      <div style="flex:1; min-width:170px;"><label>Amount + unit</label>
+      <div style="flex:2; min-width:150px;"><label>${t("f.name")}</label>
+        <input id="addName" list="stockNames" data-i18n-ph="ing.namePh" placeholder="Type or pick…"></div>
+      <div style="flex:1; min-width:170px;"><label>${t("ing.amountUnit")}</label>
         <div style="display:flex; gap:4px;">
           <input id="addMl" type="number" value="3" min="0" step="0.5" style="flex:1.4; min-width:80px;">
           <select id="addUnit" style="width:100px;"></select>
@@ -452,20 +585,20 @@ function editIngredientsForm(s) {
         <div style="width:90px;"><label>Bottle €</label><input id="addPrice" type="number" value="0" min="0" step="0.1"></div>
         <div style="width:90px;"><label>Size ${unitLabel()}</label><input id="addVol" type="number" value="${dispAmt(700)}" min="0" step="1"></div>
       </div>
-      <button id="addLine">+ Add</button>
+      <button id="addLine">${t("ing.addIng")}</button>
     </div>
     <div id="addBatchRow" class="hidden" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line2);">
-      <div style="flex:2; min-width:170px;"><label>House batch</label>
+      <div style="flex:2; min-width:170px;"><label>${t("ing.houseBatch")}</label>
         <select id="addBatchSel" style="width:100%;"></select></div>
-      <div style="flex:1; min-width:110px;"><label>Amount</label>
+      <div style="flex:1; min-width:110px;"><label>${t("detail.thAmt")}</label>
         <div style="display:flex; gap:4px;"><input id="addBAmt" type="number" value="20" min="0" step="0.5" style="flex:1;">
         <select id="addBUnit" style="width:80px;"><option>ml</option><option>cl</option><option>oz</option></select></div>
       </div>
-      <button id="addBatchBtn">+ Add syrup</button>
+      <button id="addBatchBtn">${t("ing.addBatch")}</button>
     </div>
     <div style="display:flex; gap:8px; margin-top:16px;">
-      <button id="saveIngs">Save changes</button>
-      <button class="ghost" id="doneIng">Done</button>
+      <button id="saveIngs">${t("ing.save")}</button>
+      <button class="ghost" id="doneIng">${t("ing.done")}</button>
     </div>`;
 
   const unitOptions = (dim) => UNITS_FOR_DIM[dim] || ["ml"];
@@ -1311,6 +1444,7 @@ async function renderMenu() {
 $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
 $("#navBatches").addEventListener("click", () => showView("batches"));
+$("#langBtn").addEventListener("click", () => setLang(lang === "pt" ? "en" : "pt"));
 $("#navStock").addEventListener("click", () => showView("stock"));
 $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
@@ -1331,6 +1465,8 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 window.addEventListener("load", async () => {
+  applyI18n();
+  updateChrome();
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));
   applyUnitLabels();
