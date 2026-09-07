@@ -358,6 +358,26 @@ select.unitmini {
 .size-ctl { display: inline-flex; align-items: center; gap: 4px; }
 .size-ctl .edit-note { font-size: 12px; }
 
+/* ---------- accessibility (012): skip link, focus, text scale ---------- */
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 8px 14px;
+             background: var(--panel2); color: var(--ink); border: 1px solid var(--steel-hi);
+             border-radius: 8px; font-weight: 600;
+             transform: translateY(-200%); transition: transform .15s; }
+.skip-link:focus { transform: none; }
+:focus-visible { outline: 2px solid var(--steel-hi); outline-offset: 2px; border-radius: 3px; }
+/* text scale: zoom on the content region (nav/toast stay compact). Values are
+   moderate so the layout breathes instead of breaking. */
+.fontctl { display: inline-flex; gap: 2px; margin-left: 6px; }
+.fontbtn { border: 1px solid var(--line2); background: var(--panel); color: var(--muted);
+           font-family: var(--mono); font-size: 11px; font-weight: 700; line-height: 1;
+           padding: 4px 7px; cursor: pointer; }
+.fontbtn:first-child { border-radius: 999px 0 0 999px; }
+.fontbtn:last-child { border-radius: 0 999px 999px 0; }
+.fontbtn.active { background: var(--panel2); color: var(--steel-hi); border-color: var(--steel-hi); }
+html[data-fs="s"] main { zoom: 0.94; }
+html[data-fs="l"] main { zoom: 1.18; line-height: 1.5; }
+html[data-fs="l"] main, html[data-fs="s"] main { min-height: auto; }
+
 /* ---------- toast ---------- */
 .toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);

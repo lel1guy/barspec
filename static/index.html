@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
+<a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
 <aside class="side">
   <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v0.6</span></div>
   <div class="grp" data-i18n="side.workspace">Workspace</div>
@@ -23,7 +23,7 @@
   </nav>
 </aside>
 
-<main>
+<main id="maincontent">
   <div class="mhead">
     <div>
       <div class="crumb" id="crumbLabel">BARSPEC / SPECS</div>
@@ -35,6 +35,11 @@
       <button class="unitbtn" data-unit="oz">oz</button>
     </div>
     <button class="langbtn no-print" id="langBtn" title="EN / PT">PT</button>
+    <div class="fontctl no-print" id="fontBox" role="group" aria-label="Text size">
+      <button class="fontbtn" data-fs="s" data-i18n-title="a11y.fsS" title="Text size: small" aria-pressed="false">A−</button>
+      <button class="fontbtn" data-fs="m" data-i18n-title="a11y.fsM" title="Text size: medium" aria-pressed="false">A</button>
+      <button class="fontbtn" data-fs="l" data-i18n-title="a11y.fsL" title="Text size: large" aria-pressed="false">A+</button>
+    </div>
     <div class="search no-print" id="searchBox">
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>

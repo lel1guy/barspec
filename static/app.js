@@ -73,6 +73,7 @@ const I18N = {
     "ing.ingredient": "Ingredient", "ing.bottle": "Bottle", "ing.addIng": "+ Add", "ing.addBatch": "+ Add syrup",
     "ing.houseBatch": "House batch", "ing.save": "Save changes", "ing.done": "Done",
     "ing.namePh": "Type or pick…", "ing.amountUnit": "Amount + unit",
+    "ing.remove": "Remove",
     "ing.hintKnown": "Bottles live in Stock. Type a known name and it links to the existing bottle; a new name creates one (set its price later in Stock).",
     "specs.none": "No specs yet.", "detail.capServe": "cost / serve",
     "detail.capBatch1": "1 serve", "detail.capBatchN": "{n} serves",
@@ -92,6 +93,9 @@ const I18N = {
     "export.qr": "◈ Share / QR", "export.qrTitle": "Menu link",
     "export.qrHint": "Point a phone at it — opens this bar's menu.",
     "f.close": "Close",
+    "a11y.skip": "Skip to content",
+    "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
+    "a11y.fsL": "Text size: large",
   },
   pt: {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
@@ -131,6 +135,7 @@ const I18N = {
     "ing.ingredient": "Ingrediente", "ing.bottle": "Garrafa", "ing.addIng": "+ Adicionar", "ing.addBatch": "+ Adicionar xarope",
     "ing.houseBatch": "Xarope caseiro", "ing.save": "Guardar alterações", "ing.done": "Concluir",
     "ing.namePh": "Escreva ou escolha…", "ing.amountUnit": "Quantidade + unidade",
+    "ing.remove": "Remover",
     "ing.hintKnown": "As garrafas vivem no Stock. Escreva um nome conhecido e liga à garrafa existente; um nome novo cria uma (defina o preço depois no Stock).",
     "specs.none": "Ainda sem receitas.", "detail.capServe": "custo / dose",
     "detail.capBatch1": "1 dose", "detail.capBatchN": "{n} doses",
@@ -150,6 +155,9 @@ const I18N = {
     "export.qr": "◈ Partilhar / QR", "export.qrTitle": "Link do menu",
     "export.qrHint": "Aponte um telemóvel — abre o menu deste bar.",
     "f.close": "Fechar",
+    "a11y.skip": "Saltar para o conteúdo",
+    "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
+    "a11y.fsL": "Tamanho do texto: grande",
   },
 };
 let lang = localStorage.getItem("barspec.lang") || "en";
@@ -172,6 +180,21 @@ function setLang(l) {
   else if (currentView === "stock") renderStock();
   else if (currentView === "stocktake") loadStocktake();
   else if (currentView === "menu") renderMenu();
+}
+// text scale S/M/L (persisted); zoom on content, nav stays compact
+let fs = localStorage.getItem("barspec.fontsize") || "m";
+function applyFont() {
+  document.documentElement.dataset.fs = fs;
+  document.querySelectorAll(".fontbtn").forEach((b) => {
+    const on = b.dataset.fs === fs;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", on);
+  });
+}
+function setFont(f) {
+  fs = f;
+  localStorage.setItem("barspec.fontsize", f);
+  applyFont();
 }
 // The server stores canonical amounts (ml for volume, g for weight, pieces for
 // count); spec lines store amount-in-unit + unit. These helpers convert for
@@ -331,7 +354,7 @@ async function loadSpecs(keepOpen) {
           ${s.category ? `<span class="dim-tag">${esc(s.category)}</span>` : ""}</div>
         <div class="spec-meta">${esc(meta || "—")}</div>
       </div>
-      <button class="ghost small" data-del="${s.id}">✕</button>`;
+      <button class="ghost small" data-del="${s.id}" aria-label="${t("del.spec")} ${esc(s.name)}">✕</button>`;
     el.addEventListener("click", () => openSpec(s.id));
     el.querySelector("[data-del]").addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -639,7 +662,7 @@ function editIngredientsForm(s) {
             `<option value="${u}" ${u === l.unit ? "selected" : ""}>${u}</option>`).join("")}</select>
         </span></td>
         <td class="edit-note">${esc(bottleTxt)}</td>
-        <td><button class="danger small" data-rm="${i}">✕</button></td>`;
+        <td><button class="danger small" data-rm="${i}" aria-label="${t("ing.remove")} ${esc(l.name || rows[i]?.name || "")}">✕</button></td>`;
       tr.querySelectorAll("input[data-k]").forEach((inp) => {
         inp.addEventListener("input", () => {
           const k = inp.dataset.k;
@@ -816,7 +839,7 @@ async function renderStock() {
       <td><input type="number" data-par="${it.id}" value="${it.par_level ?? ""}" min="0" step="0.5"
                  placeholder="—" class="par-input" title="Par level — how many to keep on hand. Empty = not counted."></td>
       <td class="num"><span class="spec-badge" title="specs using this bottle">${it.spec_count}×</span></td>
-      <td><button class="danger small" data-del="${it.id}" ${it.spec_count ? "disabled title='Used by specs'" : ""}>✕</button></td>`;
+      <td><button class="danger small" data-del="${it.id}" aria-label="${t("del.spec")} ${esc(it.name)}" ${it.spec_count ? "disabled title='Used by specs'" : ""}>✕</button></td>`;
     const commit = async () => {
       const payload = { name: "", abv: 0, bottle_price_eur: 0, bottle_volume_ml: 700 };
       tr.querySelectorAll("input[data-k]").forEach((inp) => {
@@ -979,8 +1002,8 @@ async function loadBatches() {
       </div>
       ${batchExpiryHtml(b)}
       <div style="display:flex; gap:4px; margin-left:10px;">
-        <button class="ghost small" data-edit="${b.id}">✎</button>
-        <button class="danger small" data-del="${b.id}">✕</button>
+        <button class="ghost small" data-edit="${b.id}" aria-label="${t("spec.edit")}">✎</button>
+        <button class="danger small" data-del="${b.id}" aria-label="${t("del.spec")} ${esc(b.name)}">✕</button>
       </div>`;
     el.addEventListener("click", (e) => {
       if (e.target.closest("[data-del]") || e.target.closest("[data-edit]")) return;
@@ -1032,7 +1055,7 @@ async function renderBatchDetail() {
           <td class="num">${fmtAmt(l.amount_ml)} ${esc(l.unit)}</td>
           <td class="num">${l.stock_item_id ? eur((l.amount_ml || 0) * (l.bottle_price_eur || 0) / (l.bottle_volume_ml || 1)) : eur(l.cost_eur || 0)}
             ${l.stock_item_id ? '<span class="edit-note">derived</span>' : ""}</td>
-          <td><button class="danger small" data-bline="${l.id}">✕</button></td>
+          <td><button class="danger small" data-bline="${l.id}" aria-label="${t("ing.remove")} ${esc(l.name)}">✕</button></td>
         </tr>`).join("")}
       </tbody>
     </table>
@@ -1456,6 +1479,8 @@ $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
 $("#navBatches").addEventListener("click", () => showView("batches"));
 $("#langBtn").addEventListener("click", () => setLang(lang === "pt" ? "en" : "pt"));
+document.querySelectorAll("#fontBox .fontbtn").forEach((b) =>
+  b.addEventListener("click", () => setFont(b.dataset.fs)));
 $("#navStock").addEventListener("click", () => showView("stock"));
 $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
@@ -1542,6 +1567,7 @@ window.addEventListener("beforeunload", (e) => {
 
 window.addEventListener("load", async () => {
   applyI18n();
+  applyFont();
   updateChrome();
   const qv = new URLSearchParams(location.search).get("view");
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
