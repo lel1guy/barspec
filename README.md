@@ -51,6 +51,10 @@ in `pricing.py` (pure functions, unit-tested).
 - **Section P&L**: under the menu, margin % per category (green ≥60 /
   amber ≥40 / red below) plus **dead stock** — the purchase value of items
   no recipe touches, cash sitting on the shelf.
+- **Allergens & diet (K3)**: every spec carries EU-14 allergen codes and
+  V/VE/GF tags — picked as chips in the editor, shown as colour badges on
+  the recipe, printed on the training cards, carried in the Excel export.
+  Codes stay language-neutral; full names resolve EN/PT.
 - **Settings**: one ⚙ dialog holds language (EN/PT), text size (A−/A/A+)
   and display unit (ml/cl/oz) — the header stays clean on every screen.
 - **Accessibility**: text scale A−/A/A+ (persisted, content-only zoom), skip
@@ -129,6 +133,8 @@ A fresh install runs the same path as an upgrade — self-checking.
 - `009_kitchen.sql` — kitchen prep truth: `servings` on batches (portion
   count → cost per portion on the prep sheet) + `stock_adjustments` loss log
   (signed canonical delta + reason: spills, waste, spoilage, corrections).
+- `010_allergens.sql` — `allergens` + `dietary` code lists on specs (EU 14
+  allergens, V/VE/GF); labels resolve per language at display/export.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 

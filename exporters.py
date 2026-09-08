@@ -39,7 +39,7 @@ def specs_workbook(specs_full: list[dict]) -> io.BytesIO:
     ws.title = "Specs"
     ws.append(["Name", "Category", "Glass", "Method", "Garnish",
                "Dilution %", "Served ml", "ABV %", "Cost €", "Sell €",
-               "Margin %", "Target %"])
+               "Margin %", "Target %", "Dietary", "Allergens"])
     for s in specs_full:
         sm = s["summary"]
         ws.append([
@@ -49,6 +49,7 @@ def specs_workbook(specs_full: list[dict]) -> io.BytesIO:
             sm.get("served_abv", sm.get("abv", 0)), sm.get("cost_eur"),
             s.get("price_eur") if s.get("price_eur") else "",
             sm.get("margin"), s.get("target_gp"),
+            s.get("dietary") or "", s.get("allergens") or "",
         ])
     _style_header(ws, ws.max_column)
 

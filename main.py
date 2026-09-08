@@ -11,7 +11,7 @@ import io
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import db
 import exporters
@@ -27,6 +27,11 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 # ---------- Pydantic models (validates what the browser sends) ----------
 
+ALLERGEN_CODES = {"cel", "glu", "cru", "egg", "fis", "lup", "mil", "mol",
+                  "mus", "nut", "pea", "ses", "soy", "sul"}
+DIETARY_CODES = {"V", "VE", "GF"}
+
+
 class SpecIn(BaseModel):
     name: str
     glass: str = ""
@@ -34,8 +39,26 @@ class SpecIn(BaseModel):
     garnish: str = ""
     category: str | None = None          # menu section (free-form, datalist)
     dilution_pct: float = 0.0            # ice melt: shaken ~20-25, stirred ~10-15
+    allergens: str = ""                  # K3: comma codes from ALLERGEN_CODES
+    dietary: str = ""                    # K3: comma codes from DIETARY_CODES
     price_eur: float | None = None
     target_gp: float = 70.0
+
+    @field_validator("allergens")
+    @classmethod
+    def _chk_allergens(cls, v: str) -> str:
+        bad = {c.strip() for c in v.split(",") if c.strip()} - ALLERGEN_CODES
+        if bad:
+            raise ValueError(f"Unknown allergen codes: {sorted(bad)}")
+        return ",".join(c.strip() for c in v.split(",") if c.strip())
+
+    @field_validator("dietary")
+    @classmethod
+    def _chk_dietary(cls, v: str) -> str:
+        bad = {c.strip() for c in v.split(",") if c.strip()} - DIETARY_CODES
+        if bad:
+            raise ValueError(f"Unknown dietary codes: {sorted(bad)}")
+        return ",".join(c.strip() for c in v.split(",") if c.strip())
 
 
 class LineIn(BaseModel):

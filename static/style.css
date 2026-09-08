@@ -397,6 +397,18 @@ html[data-fs="l"] main, html[data-fs="s"] main { min-height: auto; }
 .pnl-chip.ok { background: rgba(245, 190, 84, .16); color: #f5be54; }
 .pnl-chip.lo { background: rgba(231, 111, 81, .16); color: #e76f51; }
 
+.spec-badges { margin: 2px 0 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+.spec-badges .dim-tag.diet { border-color: #2ecc71; color: #2ecc71; }
+.spec-badges .dim-tag.alg { border-color: #f5be54; color: #f5be54; }
+.chipset { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.chipset-label { font-size: 11.5px; color: var(--muted); padding-top: 3px; width: 96px; }
+.chip-check { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--line2);
+              border-radius: 999px; padding: 2px 8px; font-family: var(--mono); font-size: 11px;
+              cursor: pointer; color: var(--muted); user-select: none; }
+.chip-check:hover { border-color: var(--steel-hi); }
+.chip-check:has(input:checked) { background: var(--panel2); color: var(--steel-hi); border-color: var(--steel-hi); }
+.chip-check em { display: none; }
+
 /* ---------- toast ---------- */
 .toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);

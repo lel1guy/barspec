@@ -291,6 +291,25 @@ const jsMargin = (price, cost) => price > 0 ? (cost > 0 ? (price - cost) / price
 const jsBand = (margin, gpPct) => margin <= 0 ? "unpriced"
   : margin >= gpPct ? "good" : margin >= gpPct - 10 ? "ok" : "low";
 
+// K3 labels (EU 14 allergens + dietary tags)
+const ALLERGEN_LABELS = {
+  en: { cel: "celery", glu: "gluten (cereal)", cru: "crustaceans", egg: "eggs", fis: "fish",
+        lup: "lupin", mil: "milk", mol: "molluscs", mus: "mustard", nut: "tree nuts",
+        pea: "peanuts", ses: "sesame", soy: "soy", sul: "sulphites" },
+  pt: { cel: "aipo", glu: "glúten (cereais)", cru: "crustáceos", egg: "ovos", fis: "peixe",
+        lup: "tremoço", mil: "leite", mol: "moluscos", mus: "mostarda", nut: "frutos secos",
+        pea: "amendoins", ses: "sésamo", soy: "soja", sul: "sulfitos" },
+};
+const DIET_LABELS = { en: { V: "Vegetarian", VE: "Vegan", GF: "Gluten-free" },
+                      pt: { V: "Vegetariano", VE: "Vegan", GF: "Sem glúten" } };
+function badgesHtml(s) {
+  const diet = (s.dietary || "").split(",").filter(Boolean).map((c) =>
+    `<span class="dim-tag diet">${esc(c)}</span>`).join("");
+  const alg = (s.allergens || "").split(",").filter(Boolean).map((c) =>
+    `<span class="dim-tag alg" title="${esc(ALLERGEN_LABELS[lang][c] || c)}">${esc(c.toUpperCase())}</span>`).join("");
+  return diet || alg ? `<div class="spec-badges">${diet}${alg}</div>` : "";
+}
+
 // ---------- views ----------
 let currentCat = "__all__";   // filter state: __all__ | '' (uncategorized) | lower(category)
 function renderChips(specs) {
@@ -415,6 +434,7 @@ async function openSpec(id) {
       <div>
         <h2>${esc(s.name)}</h2>
         <div class="spec-facts">${esc(s.glass || "")}${s.garnish ? " · " + esc(s.garnish) : ""}</div>
+        ${badgesHtml(s)}
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button class="ghost small" id="editBtn">${t("spec.edit")}</button>
@@ -593,6 +613,19 @@ function editSpecForm(s) {
     <label>${t("spec.category")}</label><input id="fCat" list="catNames" value="${esc(s && s.category ? s.category : "")}" placeholder="Old Fashioneds · Martinis · Starters…">
     <label>${t("spec.dilution")}</label><input id="fDil" type="number" min="0" max="60" step="1" value="${s && s.dilution_pct ? s.dilution_pct : 0}"
            title="Ice melt adds water: hard shake ≈ 20–25%, stir ≈ 10–15%. 0 = served straight (default).">
+    <div class="chipset">
+      <div class="chipset-label">Diet</div>
+      ${["V", "VE", "GF"].map((c) => `
+        <label class="chip-check"><input type="checkbox" data-diet="${c}" ${(s && (s.dietary || "").split(",").includes(c)) ? "checked" : ""}> ${c}
+          <em title="${esc(DIET_LABELS[lang][c])}"></em></label>`).join("")}
+    </div>
+    <div class="chipset">
+      <div class="chipset-label">Allergens <span class="edit-note">(EU 14 — codes shown; full names on cards/export)</span></div>
+      ${Object.keys(ALLERGEN_LABELS[lang]).map((c) => `
+        <label class="chip-check" title="${esc(ALLERGEN_LABELS[lang][c])}">
+          <input type="checkbox" data-alg="${c}" ${(s && (s.allergens || "").split(",").includes(c)) ? "checked" : ""}> ${c.toUpperCase()}
+        </label>`).join("")}
+    </div>
     <div style="display:flex; gap:8px; margin-top:16px;">
       <button id="saveSpec">${t("f.save")}</button>
       <button class="ghost" id="cancelEdit">${t("f.cancel")}</button>
@@ -605,6 +638,8 @@ function editSpecForm(s) {
       garnish: $("#fGarnish").value.trim(),
       category: $("#fCat").value.trim() || null,
       dilution_pct: parseFloat($("#fDil").value) || 0,
+      allergens: [...document.querySelectorAll("[data-alg]:checked")].map((b) => b.dataset.alg).join(","),
+      dietary: [...document.querySelectorAll("[data-diet]:checked")].map((b) => b.dataset.diet).join(","),
       price_eur: s ? s.price_eur : null,
       target_gp: s ? (s.target_gp || 70) : 70,
     };
@@ -1649,6 +1684,7 @@ function cardHtml(d) {
     <div class="tcard-head"><b>${esc(d.name)}</b>
       ${d.category ? `<span class="tcard-cat">${esc(d.category)}</span>` : ""}</div>
     <div class="tcard-facts">${esc(facts)}${esc(dil)}</div>
+    ${badgesHtml(d)}
     <ol class="tcard-lines">${lines}</ol>
   </div>`;
 }
