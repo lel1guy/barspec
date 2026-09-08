@@ -118,6 +118,7 @@
         <div class="hint" style="margin-top:14px;" data-i18n="stock.newHint">New item — name first; price and size can wait until you have the receipt.</div>
         <div class="formrow">
           <div style="flex:2; min-width:150px;"><label data-i18n="f.name">Name</label><input id="stName" placeholder="Campari"></div>
+          <div style="flex:1; min-width:110px;"><label data-i18n="stock.sup">Supplier</label><input id="stSup" list="supNames" placeholder="AGR · Makro…"></div>
           <div style="flex:1; min-width:110px;"><label data-i18n="stock.kind">Kind</label>
             <select id="stDim">
               <option value="volume" data-i18n="stock.kindVol">Bottle / keg</option>
@@ -224,6 +225,7 @@
 </main>
 
 <datalist id="stockNames"></datalist>
+<datalist id="supNames"></datalist>
 <datalist id="catNames"></datalist>
 <div class="overlay hidden no-print" id="setOverlay" role="dialog" aria-modal="true" aria-label="Settings">
   <div class="overlay-card set-card">

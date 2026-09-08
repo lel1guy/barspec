@@ -57,6 +57,10 @@ in `pricing.py` (pure functions, unit-tested).
   Codes stay language-neutral; full names resolve EN/PT.
 - **Settings**: one ⚙ dialog holds language (EN/PT), text size (A−/A/A+)
   and display unit (ml/cl/oz) — the header stays clean on every screen.
+- **Suppliers (K4)**: each stock item names its supplier (free-form,
+  suggested from what you already typed). The order list groups *To order*
+  and *Over par* by supplier — one glance per supplier, one call per
+  supplier.
 - **Accessibility**: text scale A−/A/A+ (persisted, content-only zoom), skip
   link to content, visible focus rings, and aria-labels on every icon-only
   button (✕/✎ read their target name).
@@ -135,6 +139,8 @@ A fresh install runs the same path as an upgrade — self-checking.
   (signed canonical delta + reason: spills, waste, spoilage, corrections).
 - `010_allergens.sql` — `allergens` + `dietary` code lists on specs (EU 14
   allergens, V/VE/GF); labels resolve per language at display/export.
+- `011_supplier.sql` — `supplier` on stock items (free-form, datalist); the
+  order list groups by supplier for one-tap-per-supplier ordering.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 
