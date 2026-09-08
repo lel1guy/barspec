@@ -21,7 +21,9 @@ async function api(url, method = "GET", body = null) {
   if (!r.ok) {
     let msg = r.status;
     try { msg = (await r.json()).detail || msg; } catch (_) {}
-    throw new Error(msg);
+    const e = new Error(msg);
+    e.status = r.status;
+    throw e;
   }
   return r.status === 204 ? null : r.json();
 }
@@ -108,6 +110,12 @@ const I18N = {
     "pnl.title": "Sections P&L", "pnl.thCat": "Section", "pnl.thSpecs": "Specs",
     "pnl.thCost": "Avg cost", "pnl.thPrice": "Avg price", "pnl.thMargin": "Margin",
     "pnl.dead": "Dead stock on the shelf: {n} items worth {e}", "pnl.empty": "Unpriced — no P&L yet.",
+    "auth.generic": "Something failed — try again.",
+    "auth.wrong": "Wrong PIN.", "auth.pinPh": "PIN",
+    "auth.setTitle": "Set your PIN",
+    "auth.setSub": "First run — choose a 4+ digit PIN. The app stays locked until someone enters it.",
+    "auth.loginTitle": "BarSpec is locked", "auth.loginSub": "Enter the owner PIN to open the bar.",
+    "auth.go": "Unlock", "auth.goSetup": "Set PIN", "auth.lock": "🔒 Lock",
     "a11y.skip": "Skip to content",
     "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
@@ -185,6 +193,11 @@ const I18N = {
     "pnl.title": "P&L por secção", "pnl.thCat": "Secção", "pnl.thSpecs": "Receitas",
     "pnl.thCost": "Custo médio", "pnl.thPrice": "Preço médio", "pnl.thMargin": "Margem",
     "pnl.dead": "Stock parado na prateleira: {n} artigos no valor de {e}", "pnl.empty": "Sem preços — ainda sem P&L.",
+    "auth.generic": "Algo falhou — tente outra vez.", "auth.wrong": "PIN errado.",
+    "auth.pinPh": "PIN", "auth.setTitle": "Defina o seu PIN",
+    "auth.setSub": "Primeira vez — escolha um PIN com 4+ dígitos. A app fica bloqueada até alguém o inserir.",
+    "auth.loginTitle": "BarSpec bloqueado", "auth.loginSub": "Introduza o PIN do dono para abrir o bar.",
+    "auth.go": "Desbloquear", "auth.goSetup": "Definir PIN", "auth.lock": "🔒 Bloquear",
     "a11y.skip": "Saltar para o conteúdo",
     "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
@@ -311,6 +324,35 @@ function badgesHtml(s) {
     `<span class="dim-tag alg" title="${esc(ALLERGEN_LABELS[lang][c] || c)}">${esc(c.toUpperCase())}</span>`).join("");
   return diet || alg ? `<div class="spec-badges">${diet}${alg}</div>` : "";
 }
+
+// ---------- S1: owner PIN gate ----------
+let authMode = "setup";
+function showAuth(mode) {
+  authMode = mode;
+  const set = mode === "setup";
+  const dl = $("#authTitle"), sb = $("#authSub"), go = $("#authGo"), err = $("#authErr");
+  dl.dataset.i18n = set ? "auth.setTitle" : "auth.loginTitle";
+  dl.textContent = t(set ? "auth.setTitle" : "auth.loginTitle");
+  sb.dataset.i18n = set ? "auth.setSub" : "auth.loginSub";
+  sb.textContent = t(set ? "auth.setSub" : "auth.loginSub");
+  go.textContent = t(set ? "auth.goSetup" : "auth.go");
+  err.style.display = "none";
+  $("#authOverlay").classList.remove("hidden");
+  $("#authPin").focus();
+}
+async function submitAuth() {
+  const pin = $("#authPin").value;
+  const err = $("#authErr");
+  try {
+    await api("/api/auth/" + (authMode === "setup" ? "setup" : "login"), "POST", { pin });
+    location.reload();
+  } catch (e) {
+    err.textContent = t(e.status === 401 ? "auth.wrong" : "auth.generic");
+    err.style.display = "block";
+  }
+}
+$("#authForm").addEventListener("submit", (e) => { e.preventDefault(); submitAuth(); });
+$("#authGo").addEventListener("click", submitAuth);
 
 // ---------- views ----------
 let currentCat = "__all__";   // filter state: __all__ | '' (uncategorized) | lower(category)
@@ -1755,6 +1797,10 @@ $("#setBtn").addEventListener("click", () => {
   $("#setOverlay").classList.remove("hidden");
 });
 $("#setClose").addEventListener("click", () => $("#setOverlay").classList.add("hidden"));
+$("#lockBtn").addEventListener("click", async () => {
+  await api("/api/auth/logout", "POST").catch(() => {});
+  location.reload();
+});
 $("#setOverlay").addEventListener("click", (e) => {
   if (e.target.id === "setOverlay") $("#setOverlay").classList.add("hidden");
 });
@@ -1770,6 +1816,14 @@ window.addEventListener("load", async () => {
   applyI18n();
   applyFont();
   updateChrome();
+  const st = await api("/api/auth/status").catch(() => ({ set: false }));
+  if (!st.set) { showAuth("setup"); return; }
+  try {
+    await refreshStockMap();
+    $("#authOverlay").classList.add("hidden");
+  } catch (err) {
+    if ((err.status || 0) === 401) { showAuth("login"); return; }
+  }
   const qv = new URLSearchParams(location.search).get("view");
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));

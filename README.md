@@ -57,6 +57,11 @@ in `pricing.py` (pure functions, unit-tested).
   Codes stay language-neutral; full names resolve EN/PT.
 - **Settings**: one ⚙ dialog holds language (EN/PT), text size (A−/A/A+)
   and display unit (ml/cl/oz) — the header stays clean on every screen.
+- **Owner PIN (S1)**: first run asks you to set a PIN (hashed with pbkdf2 —
+  never stored plaintext). After that the app stays **locked** until the PIN
+  is entered (signed cookie session, 14 days). A 🔒 Lock button in Settings
+  locks it again. Security headers (CSP, frame-deny, nosniff) ride along on
+  every response.
 - **Suppliers (K4)**: each stock item names its supplier (free-form,
   suggested from what you already typed). The order list groups *To order*
   and *Over par* by supplier — one glance per supplier, one call per

@@ -468,3 +468,78 @@ def list_adjustments(limit: int = 25):
 @app.get("/api/report/pnl")
 def report_pnl():
     return db.report_pnl()
+
+
+# ---------- S1: owner PIN gate + security headers ----------
+
+import auth as authmod
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+class PinIn(BaseModel):
+    pin: str
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "same-origin"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data:; frame-ancestors 'none'; "
+        "connect-src 'self'"
+    )
+    return resp
+
+
+@app.middleware("http")
+async def pin_gate(request: Request, call_next):
+    path = request.url.path
+    public = (path.startswith("/static")
+              or path.startswith("/api/auth/")
+              or path in ("/", "/favicon.ico"))
+    if public or not authmod.pin_is_set():
+        return await call_next(request)
+    if authmod.cookie_valid(request.cookies.get(authmod._COOKIE)):
+        return await call_next(request)
+    return JSONResponse({"detail": "PIN required"}, status_code=401)
+
+
+@app.get("/api/auth/status")
+def auth_status():
+    return {"set": authmod.pin_is_set()}
+
+
+@app.post("/api/auth/setup")
+def auth_setup(pin: PinIn):
+    if authmod.pin_is_set():
+        raise HTTPException(409, "PIN already set")
+    if len(pin.pin) < 4:
+        raise HTTPException(400, "PIN must be at least 4 characters")
+    db.set_setting_value(authmod.PIN_KEY, authmod.hash_pin(pin.pin))
+    resp = JSONResponse({"ok": True})
+    resp.headers.append("Set-Cookie", authmod.make_cookie())
+    return resp
+
+
+@app.post("/api/auth/login")
+def auth_login(pin: PinIn):
+    if not authmod.pin_is_set():
+        raise HTTPException(409, "No PIN set yet")
+    if not authmod.verify_pin(pin.pin, db.get_setting(authmod.PIN_KEY) or ""):
+        raise HTTPException(401, "Wrong PIN")
+    resp = JSONResponse({"ok": True})
+    resp.headers.append("Set-Cookie", authmod.make_cookie())
+    return resp
+
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    resp = JSONResponse({"ok": True})
+    resp.headers.append("Set-Cookie", authmod.clear_cookie())
+    return resp
