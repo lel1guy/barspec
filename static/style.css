@@ -395,6 +395,8 @@ html[data-fs="l"] main, html[data-fs="s"] main { min-height: auto; }
 #setBtn { margin-left: auto; }
 #setOverlay .unitctl { margin-left: 0; }
 #setOverlay .langbtn { padding: 4px 12px; }
+.audit-list { max-height: 150px; overflow-y: auto; font-family: var(--mono); font-size: 11px; }
+.audit-line { padding: 2px 0; border-bottom: 1px dashed var(--line); }
 /* section P&L chips */
 .pnl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .pnl th, .pnl td { padding: 4px 8px; border-bottom: 1px solid var(--line2); text-align: left; }

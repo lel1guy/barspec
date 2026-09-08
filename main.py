@@ -543,3 +543,10 @@ def auth_logout():
     resp = JSONResponse({"ok": True})
     resp.headers.append("Set-Cookie", authmod.clear_cookie())
     return resp
+
+
+# ---------- Audit (S2): receipts book ----------
+
+@app.get("/api/audit")
+def audit_list(limit: int = 25):
+    return db.get_audit(limit=max(1, min(limit, 200)))
