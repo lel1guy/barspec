@@ -7,3 +7,5 @@ data/
 
 # local snapshots (ops/backup.py)
 backups/
+
+node_modules/

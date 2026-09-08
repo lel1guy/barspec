@@ -117,12 +117,16 @@ preço demonstrarem logo.
 
 ```bash
 pytest            # 158 testes: matemática de preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação
+npm run e2e       # smoke de browser real (Playwright): PIN, receitas, PT-PT, filtro de stock, carta
 ```
 
 O teste de migrações constrói uma base v0 real e atualiza-a — se passar,
 todos os ficheiros de espaço futuros atualizam em segurança. Os testes de
 dinheiro cobrem arredondamento ao cêntimo, garrafas sem preço, propagação de
-atualizações de preço e a matemática FBE/par/encomenda.
+atualizações de preço e a matemática FBE/par/encomenda. O `npm run e2e`
+arranca a app real numa base temporária e percorre os fluxos do dono num
+Chromium headless (precisa de `npm install` + o cache do Playwright em
+`~/.cache/ms-playwright`).
 
 ## Esquema / migrações
 

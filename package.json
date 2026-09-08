@@ -1,0 +1,11 @@
+{
+  "name": "barspec-e2e",
+  "private": true,
+  "description": "Playwright smoke suite for BarSpec (drives a real headless browser against a temp-DB server).",
+  "scripts": {
+    "e2e": "node e2e/smoke.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.60.0"
+  }
+}
