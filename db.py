@@ -1300,3 +1300,21 @@ def report_pnl() -> dict:
     return {"sections": out,
             "dead_stock_eur": round(sum(d["value_eur"] for d in dead_items), 2),
             "dead_items": dead_items}
+
+
+# ---------- generic settings accessors (used by auth) ----------
+
+def get_setting(key: str) -> str | None:
+    conn = _conn()
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else None
+
+
+def set_setting_value(key: str, value: str) -> None:
+    conn = _conn()
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT (key) DO UPDATE SET value=excluded.value", (key, value))
+    conn.commit()
+    conn.close()
