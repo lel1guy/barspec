@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260908d">
+<link rel="stylesheet" href="/static/style.css?v=20260908e">
 </head>
 <body>
 <a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
@@ -15,6 +15,7 @@
   <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v1.1</span></div>
   <div class="grp" data-i18n="side.workspace">Workspace</div>
   <nav class="sidenav">
+    <button id="navResumo" class="navitem desktop-only"><span class="ic">◫</span><span data-i18n="nav.resumo">Summary</span></button>
     <button id="navSpecs" class="navitem active"><span class="ic">▤</span><span data-i18n="nav.specs">Specs</span><span class="navbadge" id="countSpecs">0</span></button>
     <button id="navBatches" class="navitem"><span class="ic">≋</span><span data-i18n="nav.batches">Batches</span><span class="navbadge" id="countBatches">0</span></button>
     <button id="navStock" class="navitem"><span class="ic">◫</span><span data-i18n="nav.stock">Stock</span><span class="navbadge" id="countStock">0</span></button>
@@ -22,7 +23,6 @@
     <button id="navMenu" class="navitem"><span class="ic">▤</span><span data-i18n="nav.menu">Menu</span></button>
     <button id="navSales" class="navitem"><span class="ic">€</span><span data-i18n="nav.sales">Vendas</span></button>
   </nav>
-  <span id="navResumo" style="display:none" aria-hidden="true"></span>
 </aside>
 
 <main id="maincontent">
@@ -390,6 +390,6 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260908d" defer></script>
+<script src="/static/app.js?v=20260908e" defer></script>
 </body>
 </html>

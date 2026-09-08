@@ -66,10 +66,11 @@ const eur = (v) => {
 // ---------- i18n (008): EN / PT-PT ----------
 const I18N = {
   en: {
-    "side.workspace": "Workspace", "nav.specs": "Specs", "nav.batches": "Batches",
+    "side.workspace": "Workspace", "nav.resumo": "⌂ Summary", "nav.specs": "Specs", "nav.batches": "Batches",
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Summary", "res.btn": "◫ Summary",
+ "res.firstCount": "No counts yet — set pars and do your first",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "res.title": "What needs you", "res.allGood": "Nothing below par.", "res.lowTitle": "Below par",
     "res.expTitle": "Expiring", "res.lossTitle": "Losses this month", "res.entries": "entr(ies)",
@@ -201,10 +202,11 @@ const I18N = {
     "staff.enabled": "Staff PIN enabled — staff log in with it.", "staff.cleared": "Staff PIN cleared.",
   },
   pt: {
-    "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
+    "side.workspace": "Área de trabalho", "nav.resumo": "⌂ Resumo", "nav.specs": "Receitas", "nav.batches": "Xaropes",
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Resumo", "res.btn": "◫ Resumo",
+ "res.firstCount": "Ainda sem contagens — defina pars e faça a primeira",
     "res.title": "O que precisa de si", "res.allGood": "Nada abaixo do par.", "res.lowTitle": "Abaixo do par",
     "res.expTitle": "A expirar", "res.lossTitle": "Perdas este mês", "res.entries": "registo(s)",
     "res.countOk": "Última contagem há {n} dia(s)", "res.countOld": "Última contagem há {n} dia(s) — faça uma contagem",
@@ -2015,6 +2017,7 @@ window.addEventListener("load", async () => {
   await refreshStockMap();
   takeBadge();
   if (qv && VIEWS[qv]) { showView(qv); return; }
+  showView("resumo");   // Summary is the homepage: attention first
   loadSpecs(false);
   try {
     const m = await api("/api/menu");
@@ -2270,7 +2273,7 @@ async function loadDashboard() {
         ? `<span class="res-stamp warn">${t("res.countOld").replace("{n}", d.needs_count_days)}</span>
            <button class="btn small" id="resCountBtn">${t("res.countBtn")}</button>`
         : `<span class="res-stamp ok">${t("res.countOk").replace("{n}", d.needs_count_days)}</span>`)
-      : `<span class="res-stamp warn">${t("res.countBtn")}</span><button class="btn small" id="resCountBtn">${t("res.countBtn")}</button>`}
+      : `<span class="res-stamp warn">${t("res.firstCount")}</span><button class="btn small" id="resCountBtn">${t("res.countBtn")}</button>`}
     </div>`;
   html += `<div class="res-card">
       <h3>${t("res.lowTitle")}${d.low.length ? ` <span class="order-chip">${d.low.length}</span>` : ""}</h3>
@@ -2303,7 +2306,17 @@ function bindDash() {
   const s = $("#resStockBtn"); if (s) s.onclick = () => showView("stock");
   const bt = $("#resBatchBtn"); if (bt) bt.onclick = () => showView("batches");
   document.querySelectorAll("#resumoBox .res-row").forEach((r) => {
-    r.onclick = () => showView(r.dataset.goto);
+    r.onclick = () => {
+      const view = r.dataset.goto;
+      const name = r.dataset.name;
+      if (view === "stock" && name) {          // jump pre-filtered to the item
+        showView("stock");
+        setTimeout(() => {
+          const q = $("#stockSearch");
+          if (q) { q.value = name; q.dispatchEvent(new Event("input")); }
+        }, 500);
+      } else { showView(view); }
+    };
   });
 }
 $("#resBtn").addEventListener("click", () => showView("resumo"));

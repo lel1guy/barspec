@@ -62,9 +62,13 @@ const flows = [
       await page.waitForFunction(() =>
         document.querySelectorAll("#specList .spec-item").length === 5,
         { timeout: 15000 });
-      ok("unlocks to the spec list", await page.$("#specList .spec-item") !== null);
+      ok("unlocks to the app", await page.$("#specList .spec-item") !== null);
       const specCount = await page.$$eval("#specList .spec-item", (x) => x.length);
       ok("seed: 5 specs", specCount === 5, `(got ${specCount})`);
+      // Summary is the homepage now — go to Specs to work with the list
+      ok("homepage is the Summary view", (await page.$eval("body", (b) => b.dataset.view)) === "resumo");
+      await page.click("#navSpecs");
+      await page.waitForSelector("#specList .spec-item", { state: "visible", timeout: 6000 });
     },
   },
   {
