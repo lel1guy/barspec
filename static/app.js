@@ -143,6 +143,8 @@ const I18N = {
     "sales.calc": "Calculate", "sales.needCounts": "Post two stock-takes to get shrinkage.",
     "sales.shrWin": "Count window: {a} → {b}", "sales.used": "Used ml", "sales.expected": "Expected ml",
     "sales.diff": "Diff ml", "sales.leak": "Leak: {e} more stock used than sales explain.", "sales.noLeak": "No unexplained usage. Clean.",
+    "sales.noPrice": " — no price", "sales.noPriceHint": "Set a price on your specs first — sales GP needs a menu price.",
+    "sales.pickFirst": "Pick a spec first.",
     "pricing.target": "Target margin", "pricing.suggest": "Suggested for target:",
     "pricing.use": "use", "pricing.savePrice": "Save price",
     "pricing.unpriced": "unpriced",
@@ -259,6 +261,8 @@ const I18N = {
     "sales.calc": "Calcular", "sales.needCounts": "Registe duas contagens para ter o encolhimento.",
     "sales.shrWin": "Janela de contagens: {a} → {b}", "sales.used": "Usado ml", "sales.expected": "Esperado ml",
     "sales.diff": "Dif ml", "sales.leak": "Fuga: {e} de stock usado sem explicação nas vendas.", "sales.noLeak": "Sem uso inexplicado. Limpo.",
+    "sales.noPrice": " — sem preço", "sales.noPriceHint": "Defina primeiro o preço das receitas — o GP precisa do preço de carta.",
+    "sales.pickFirst": "Escolha primeiro uma receita.",
     "pricing.target": "Margem alvo", "pricing.suggest": "Sugerido para a margem:",
     "pricing.use": "usar", "pricing.savePrice": "Guardar preço",
     "pricing.unpriced": "sem preço",
@@ -1970,12 +1974,14 @@ const isoMonthStart = () => {
 };
 
 async function ensureSalesSpecs() {
-  if (salesSpecs.length) return;
   const specs = await api("/api/specs");
-  salesSpecs = specs.filter((s) => s.price_eur).sort((a, b) => a.name.localeCompare(b.name));
+  // show ALL specs; unpriced ones are labelled and blocked with a clear hint
+  salesSpecs = specs.sort((a, b) => a.name.localeCompare(b.name));
   const sel = $("#sSpec");
   sel.innerHTML = salesSpecs.map((s) =>
-    `<option value="${s.id}">${esc(s.name)} — ${eur(s.price_eur)}</option>`).join("");
+    `<option value="${s.id}">${esc(s.name)}${s.price_eur ? " — " + eur(s.price_eur) : t("sales.noPrice")}</option>`).join("");
+  const priced = salesSpecs.filter((s) => s.price_eur).length;
+  $("#sSaveNote").textContent = priced === 0 ? t("sales.noPriceHint") : "";
 }
 
 function renderPending() {
@@ -1995,9 +2001,10 @@ $("#sPending").addEventListener("click", (e) => {
 });
 $("#sAdd").addEventListener("click", () => {
   const sel = $("#sSpec");
-  if (!sel.value) { toast("Pick a spec"); return; }
+  if (!sel.value) { toast(t("sales.pickFirst")); return; }
   const qty = Math.max(1, parseInt($("#sQty").value, 10) || 1);
   const spec = salesSpecs.find((s) => s.id === +sel.value);
+  if (!spec.price_eur) { toast(t("sales.noPriceHint")); return; }
   const prev = salesPending.find((p) => p.id === spec.id);
   if (prev) prev.qty += qty; else salesPending.push({ id: spec.id, name: spec.name, qty });
   renderPending();
