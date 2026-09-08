@@ -227,6 +227,18 @@
 <datalist id="stockNames"></datalist>
 <datalist id="supNames"></datalist>
 <datalist id="catNames"></datalist>
+<div class="overlay" id="authOverlay" role="dialog" aria-modal="true" aria-label="PIN">
+  <div class="overlay-card">
+    <h3 id="authTitle" data-i18n="auth.setTitle">Set your PIN</h3>
+    <div class="edit-note" id="authSub" data-i18n="auth.setSub">First run — choose a 4+ digit PIN. The app stays locked until someone enters it.</div>
+    <form id="authForm" style="display:flex; gap:8px; margin:12px 0;">
+      <input id="authPin" type="password" inputmode="numeric" maxlength="64" autocomplete="current-password"
+             data-i18n-ph="auth.pinPh" placeholder="PIN" style="flex:1; text-align:center; font-size:18px; letter-spacing:.3em;">
+      <button class="btn" id="authGo" data-i18n="auth.go">Unlock</button>
+    </form>
+    <div class="edit-note" id="authErr" style="color:#e76f51; display:none;">Wrong PIN.</div>
+  </div>
+</div>
 <div class="overlay hidden no-print" id="setOverlay" role="dialog" aria-modal="true" aria-label="Settings">
   <div class="overlay-card set-card">
     <h3 data-i18n="settings.title">Settings</h3>
@@ -253,6 +265,7 @@
         <button class="unitbtn" data-unit="oz">oz</button>
       </div>
     </div>
+    <button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button>
     <button class="btn" id="setClose" data-i18n="f.close">Close</button>
   </div>
 </div>
