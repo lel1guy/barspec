@@ -22,8 +22,8 @@ services:
       - BARSPEC_DB=/app/data/barspec.db
     healthcheck:
       test: ["CMD", "python", "-c",
-             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/specs', timeout=3)"]
+             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/auth/status', timeout=3)"]
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 8s
+      start_period: 10s
