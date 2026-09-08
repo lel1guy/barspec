@@ -1,205 +1,230 @@
-# BarSpec — User Guide
+# BarSpec — Guia do utilizador
 
-Recipe and cost manager for **bars, pubs, cafés and restaurants**: store your
-recipes (drinks *and* dishes) once, link them to what you actually buy — by
-the bottle, the kilo or the piece — and let BarSpec do the costing, pricing
-and stock-counting math. No spreadsheets, no hand-repricing when a supplier
-puts a price up.
+Gestor de receitas e custos para **bares, pubs, cafés e restaurantes**: guarde
+as suas receitas (bebidas *e* pratos) uma vez, ligue-as ao que compra
+realmente — à garrafa, ao quilo ou à peça — e deixe o BarSpec fazer a
+matemática do custo, do preço e da contagem de stock. Nada de folhas de
+cálculo, nada de re-precificar à mão quando um fornecedor sobe um preço.
 
-**Read this if you run a venue.** It explains what the app does, how to use
-each screen, and what the numbers mean. If you're a developer, the
-[Developer Guide](DEV_GUIDE.md) explains how it's built and why.
-
----
-
-## What BarSpec solves
-
-| Job | Without BarSpec | With BarSpec |
-|-----|-----------------|--------------|
-| Cost of one drink | Guess, or Excel per recipe | Auto: bottle price ÷ bottle size × amount poured |
-| Menu reprice when a bottle price changes | Recalculate every recipe by hand | Edit the bottle once — a ripple report lists every spec affected |
-| What to charge | Gut feel | Target-margin slider → suggested price |
-| Stock ordering | Count bottles on paper, guess what to buy | Count vs par → order list + cash-asleep total |
-| What's selling vs sitting | Shelf memory | Movement between counts + dead-stock list |
-| Kitchen prep (mayo, soup, sauce batches) | Guess per tray | Batch says "makes 20" → real €/portion |
-| Food waste & spills | A mystery at month end | Loss log: item, amount, reason, when |
-| Supplier orders | Phone around blind | Order list grouped per supplier |
+**Leia isto se gere um espaço.** Explica o que a app faz, como usar cada ecrã
+e o que significam os números. Se for programador, o
+[Guia do programador](DEV_GUIDE.md) explica como está construída e porquê.
 
 ---
 
-## Core ideas (5 minutes)
+## O que o BarSpec resolve
 
-**Spec** — one drink recipe: name, glass, method, garnish + ingredient lines.
-Each line is an ingredient amount (e.g. 30 ml Campari).
-
-**Stock** — one row per *real bottle you buy* (e.g. "Campari, 25% ABV,
-€19 / 700 ml"). This is the single source of truth for price. Every spec line
-*points at* a stock bottle instead of copying its price — so when Campari's
-price changes, you edit it in exactly one place and every drink that uses it
-updates automatically.
-
-**Cost** — for each spec, BarSpec computes:
-- **cost / serve** — what one drink costs you in ingredients
-- **ABV** — the drink's real strength, volume-weighted across ingredients
-- **volume** — total liquid per serve
-
-**Gross-profit margin (GP %)** — the percentage of the *selling price* that is
-profit: `(price − cost) ÷ price`. If a drink costs you €1.50 and sells for
-€6.00, margin is 75%.
-
-**Par level** — how many bottles of a spirit you want on the shelf (your
-target). Bottles without a par are not part of the stock-count.
-
-**Stock-take** — walking the shelf, counting what you actually have, and
-comparing it against par. BarSpec turns each count into an **order list**:
-what to buy, and how much cash is sitting *over* par ("cash asleep").
+| Tarefa | Sem o BarSpec | Com o BarSpec |
+|--------|---------------|---------------|
+| Custo de uma bebida | Palpite, ou Excel por receita | Automático: preço da garrafa ÷ tamanho × quantidade servida |
+| Re-precificar quando um preço muda | Recalcular cada receita à mão | Editar a garrafa uma vez — um relatório de impacto lista cada receita afetada |
+| Quanto cobrar | Instinto | Cursor de margem alvo → preço sugerido |
+| Encomendar stock | Contar garrafas em papel, adivinhar o que comprar | Contagem vs par → lista de encomendas + total de dinheiro parado |
+| O que vende vs o que fica parado | Memória de balcão | Movimento entre contagens + lista de stock morto |
+| Preparações de cozinha (maionese, sopa, molhos) | Palpite por tabuleiro | O lote diz "rende 20" → €/dose real |
+| Desperdício e derrames | Um mistério no fim do mês | Registo de perdas: artigo, quantidade, motivo, quando |
+| Encomendas a fornecedores | Telefonar às cegas | Lista de encomendas agrupada por fornecedor |
 
 ---
 
-## The five screens
+## Ideias-chave (5 minutos)
 
-### Specs — your recipe book
+**Receita** — uma bebida: nome, copo, método, decoração + linhas de
+ingredientes. Cada linha é uma quantidade de ingrediente (ex.: 30 ml de
+Campari).
 
-Left column: every spec, searchable. Click one to open it. Each spec shows:
+**Stock** — uma linha por *garrafa real que compra* (ex.: "Campari, 25% ABV,
+€19 / 700 ml"). É a fonte única de verdade do preço. Cada linha de receita
+*aponta para* a garrafa de stock em vez de copiar o preço — quando o preço do
+Campari muda, edita num único sítio e todas as bebidas que o usam atualizam
+sozinhas.
 
-- **Cost / serve** and **batch cost** (type N servings to scale — handy for
-  event batches)
-- **ABV** and **volume**
-- **Pricing panel** (see "Pricing a drink" below)
-- **Ingredient table** — amount, ABV, cost of each line, plus a **cost-share
-  bar** showing what % of the drink's cost each ingredient eats (that
-  Negroni's vermouth is 21% of cost is the kind of thing this shows you)
+**Custo** — para cada receita, o BarSpec calcula:
+- **custo / dose** — quanto lhe custa uma dose em ingredientes
+- **ABV** — a força real da bebida, ponderada pelo volume dos ingredientes
+- **volume** — líquido total por dose
 
-Buttons: **Edit** (name/glass/method/garnish), **Ingredients** (add/remove
-lines), **Duplicate** (copy as "(copy)"), **Delete**.
+**Margem bruta (GP %)** — a percentagem do *preço de venda* que é lucro:
+`(preço − custo) ÷ preço`. Se uma bebida lhe custa €1,50 e vende por €6,00, a
+margem é 75%.
 
-**Adding ingredients:** type the bottle name. If it's already in Stock it
-links to the existing bottle (ABV/price/size fields hide — the bottle owns
-them). If it's a name BarSpec doesn't know, it creates the bottle for you —
-fill ABV/price/size now or later in Stock.
+**Nível de par** — quantas garrafas de um destilado quer na prateleira (o seu
+objetivo). Garrafas sem par não entram na contagem.
 
-### Stock — the shared list (bottles, bags, pieces)
-
-One row per item: name, ABV, price €, size, par. Everything edits inline —
-click a field, change it, click away (or press Enter).
-
-- **Kind matters** (top of the + Add form): **Bottle/keg** (volume, ABV),
-  **Weight** (coffee, sugar — no ABV, size in g/kg) or **Per piece** (limes).
-  Size is stored canonically (ml / g / pieces); you type it in whatever unit
-  suits (700 ml or 0.7 l; 1 kg or 1000 g).
-- **Used in** shows how many specs use that item.
-- Items **no spec uses** are dimmed and can be deleted. Items in use can't be
-  deleted (remove them from specs first).
-- **Par** column: set how many you want on hand. Empty = not counted in
-  stock-takes. Weight items sit out of the count walk — you count bottles and
-  pieces, you *weigh* stock.
-- **+ Add** for a new one. Name first — "price and size can wait until you
-  have the receipt."
-
-**The ripple report:** change an item's *price* and a panel appears listing
-every spec whose cost moved, old → new per serve — **including specs that use
-a house batch containing that item**. That's your "Campari went up €2 — what
-does that do to my menu?" answer, instantly, through every layer.
-
-### Batches — house-made syrups & infusions
-
-Costing a homemade syrup as a vague "€1 guess" is how margins lie. A **batch**
-is a mini-recipe: its cost is **derived from ingredients, never typed**.
-
-- **+ New batch**: name, finished size (1 litre is the norm), shelf life in
-  days, made date, method note.
-- **Add ingredients** by name: if it's in Stock it **links live** (sugar by
-  kg, Campari by ml — a price change flows into the batch automatically). If
-  it isn't stock, type a **€ cost for that amount** (water = €0).
-- The batch shows **total €**, **€ per litre**, and an **expiry chip** — days
-  left, red past expiry, "keeps" with no shelf life.
-- In a spec, pour it like any ingredient: pick the batch, type the amount.
-  Cost = your pour × (batch total ÷ batch size).
-
-A classic first batch: **1:1 simple syrup** — 500 g sugar (linked or €0.45)
-+ 500 ml water (€0) → €0.45 per litre instead of €3+ for bought-in.
-
-### Stock-take — count, order, trend
-
-Three tabs:
-
-**Count** — the walk. Every bottle *with a par* is listed, pre-filled with
-your **last** count so you only correct what changed. For each bottle:
-
-- Full bottles: type, or use − / + steppers
-- Open bottles: fraction picker **0 / ¼ / ½ / ¾ / 1** (visual estimate of the
-  open bottle — half a bottle of gin left counts as 0.5)
-- Par editable inline on the row (change it mid-count if reality says so)
-- FBE column: **full-bottle equivalents** = full + fraction (2 full + one at
-  half = 2.5)
-
-Hit **Save count** and BarSpec jumps to the order list.
-
-**Order list** — from your latest count vs par:
-- **To order**: bottles under par, with how many whole bottles to buy
-  (a half-bottle gap still orders 1 — you buy bottles, not halves)
-- **Over par — cash asleep**: what's above target, and the **€ tied up** in it
-- **At par**: bottles exactly on target
-
-**Trends & dead stock** — appears as history accrues:
-- **Movement** between your last two counts: per bottle, what was used
-  (before → now, in bottles, ml and €). Needs 2+ snapshots.
-- **Dead stock**: bottles in your list that no spec uses — money on the
-  shelf. Build a spec for them or stop buying them.
-
-### Menu — price everything, then print
-
-Every spec with cost, sell price and margin chip. Type a price right in the
-row, or set it per-spec in Specs. **Only priced** checkbox filters. Then
-**Print menu**:
-
-- Prints **drink names + prices only**. Costs never appear on the sheet.
-- Currency symbols are omitted on purpose — price cues suppress spending
-  (menu psychology).
-- Sidebar, buttons and search are hidden automatically in print.
+**Contagem (stock-take)** — percorrer a prateleira, contar o que tem mesmo e
+comparar com o par. O BarSpec transforma cada contagem numa **lista de
+encomendas**: o que comprar e quanto dinheiro está *acima* do par ("dinheiro
+parado").
 
 ---
 
-## Pricing a drink (the buying moment)
+## Os cinco ecrãs
 
-Open a spec → the pricing panel has a **target margin slider** (40–95%).
-BarSpec shows a **suggested price** for that margin — rounded **up** to the
-nearest €0.50 so your real margin never dips below target.
+### Receitas — o seu livro de receitas
 
-1. Drag the slider to your target (cocktail bars typically run 70–80% GP).
-2. Click **use** next to the suggested price, or type your own.
-3. **Save price.** The margin chip colors the result:
-   - 🟢 green = at/above target · 🟡 amber = within 10 pts below ·
-   - 🔴 red = well under · grey = unpriced
+Coluna esquerda: todas as receitas, pesquisáveis. Clique para abrir. Cada
+receita mostra:
 
-The server is the authority: prices, costs and margins you see are computed
-server-side, not by your browser.
+- **Custo / dose** e **custo de lote** (escreva N doses para dimensionar —
+  útil para lotes de eventos)
+- **ABV** e **volume**
+- **Painel de preço** (ver "Precificar uma bebida" abaixo)
+- **Tabela de ingredientes** — quantidade, ABV, custo de cada linha, mais uma
+  **barra de partilha de custo** que mostra que % do custo da bebida cada
+  ingrediente consome (saber que o vermute daquele Negroni é 21% do custo é o
+  tipo de coisa que isto mostra)
+
+Botões: **Editar** (nome/copo/método/decoração), **Ingredientes** (adicionar/
+remover linhas), **Duplicar** (copia como "(cópia)"), **Apagar**.
+
+**Adicionar ingredientes:** escreva o nome da garrafa. Se já existir no Stock
+liga à garrafa existente (os campos ABV/preço/tamanho escondem-se — a
+garrafa é que os possui). Se for um nome que o BarSpec não conhece, ele cria
+a garrafa por si — preencha ABV/preço/tamanho agora ou depois no Stock.
+
+### Stock — a lista partilhada (garrafas, sacos, peças)
+
+Uma linha por artigo: nome, ABV, preço €, tamanho, par. Tudo se edita no
+próprio sítio — clique no campo, altere, clique fora (ou Enter).
+
+- **O tipo importa** (topo do formulário + Adicionar): **Garrafa/keg**
+  (volume, ABV), **Peso** (café, açúcar — sem ABV, tamanho em g/kg) ou
+  **À peça** (limas). O tamanho é guardado de forma canónica (ml / g / peças);
+  escreve-o na unidade que lhe der jeito (700 ml ou 0,7 l; 1 kg ou 1000 g).
+- **Usado em** mostra quantas receitas usam o artigo.
+- Artigos que **nenhuma receita usa** ficam esbatidos e podem ser apagados.
+  Artigos em uso não podem ser apagados (remova-os primeiro das receitas).
+- **Coluna Par**: defina quantos quer ter à mão. Vazio = não entra nas
+  contagens. Artigos de peso ficam fora do percurso de contagem — contam-se
+  garrafas e peças, *pesa-se* o stock.
+- **+ Adicionar** para um novo. Primeiro o nome — "o preço e o tamanho podem
+  esperar até ter a fatura."
+
+**O relatório de impacto:** altere o *preço* de um artigo e aparece um painel
+a listar cada receita cujo custo mexeu, antigo → novo por dose — **incluindo
+receitas que usam um xarope caseiro que contém esse artigo**. É a resposta
+instantânea a "o Campari subiu €2 — o que é que isso faz à minha carta?",
+através de todas as camadas.
+
+### Xaropes — xaropes e infusões caseiros
+
+Precificar um xarope caseiro com um palpite vago de "€1" é como as margens
+mentem. Um **xarope** é uma mini-receita: o custo é **derivado dos
+ingredientes, nunca escrito à mão**.
+
+- **+ Novo xarope**: nome, tamanho final (1 litro é o normal), validade em
+  dias, data de produção, nota de método.
+- **Adicionar ingredientes** por nome: se estiver no Stock **liga ao vivo**
+  (açúcar por kg, Campari por ml — uma alteração de preço entra no xarope
+  sozinha). Se não for stock, escreva o **custo € para essa quantidade**
+  (água = €0).
+- O xarope mostra **total €**, **€ por litro** e um **chip de validade** —
+  dias restantes, vermelho depois do prazo, "conserva-se" sem validade.
+- Numa receita, despeje-o como qualquer ingrediente: escolha o xarope,
+  escreva a quantidade. Custo = o seu despejo × (total do xarope ÷ tamanho).
+
+Um primeiro lote clássico: **xarope simples 1:1** — 500 g de açúcar (ligado
+ou €0,45) + 500 ml de água (€0) → €0,45 por litro em vez de €3+ de comprado.
+
+### Contagens — contar, encomendar, tendências
+
+Três separadores:
+
+**Contar** — o percurso. Todas as garrafas *com par* aparecem, pré-preenchidas
+com a sua **última** contagem para só corrigir o que mudou. Para cada garrafa:
+
+- Garrafas cheias: escreva, ou use os passos − / +
+- Garrafas abertas: seletor de fração **0 / ¼ / ½ / ¾ / 1** (estimativa visual
+  da garrafa aberta — meia garrafa de gin que resta conta como 0,5)
+- Par editável na própria linha (mude-o a meio da contagem se a realidade o
+  pedir)
+- Coluna FBE: **equivalentes de garrafa cheia** = cheias + fração (2 cheias +
+  meia = 2,5)
+
+Carregue em **Guardar contagem** e o BarSpec salta para a lista de encomendas.
+
+**Lista de encomendas** — da sua última contagem vs par:
+- **A encomendar**: garrafas abaixo do par, com quantas garrafas cheias
+  comprar (uma falha de meia garrafa encomenda na mesma 1 — compram-se
+  garrafas, não metades)
+- **Acima do par — dinheiro parado**: o que está acima do objetivo e o **€
+  parado** aí
+- **No par**: garrafas exatamente no objetivo
+
+**Tendências e stock morto** — aparece à medida que o histórico cresce:
+- **Movimento** entre as suas duas últimas contagens: por garrafa, o que foi
+  usado (antes → agora, em garrafas, ml e €). Precisa de 2+ instantâneos.
+- **Stock morto**: garrafas da sua lista que nenhuma receita usa — dinheiro
+  na prateleira. Crie uma receita para elas ou deixe de as comprar.
+
+### Carta — precifique tudo e depois imprima
+
+Cada receita com custo, preço de venda e chip de margem. Escreva um preço
+direto na linha, ou defina-o por receita nas Receitas. A caixa **Só com
+preço** filtra. Depois **Imprimir carta**:
+
+- Imprime **nomes das bebidas + preços apenas**. Os custos nunca aparecem na
+  folha.
+- Os símbolos de moeda são omitidos de propósito — pistas de preço suprimem o
+  consumo (psicologia de carta).
+- A barra lateral, os botões e a pesquisa escondem-se automaticamente na
+  impressão.
+
+Sob a carta, a **P&L por secção** mostra a margem média de cada categoria
+(verde ≥60, âmbar ≥40, vermelho abaixo) e o **stock morto** em € — dinheiro
+sentado na prateleira que nenhuma receita toca.
 
 ---
 
-## Units: display and entry
+## Precificar uma bebida (o momento da compra)
 
-Top-right toggle: **ml / cl / oz** — converts display *and* volume entry
-(material is always stored canonically, so flipping never changes your data).
-On top of that, every spec line has its **own unit**: volumes take
-ml/cl/oz, weight ingredients take **g/kg** (9 g of coffee is 9 g, not
-"0 ml"), pieces take **piece**. Amounts convert in place when you flip a
-line's unit — 30 ml becomes 3 cl, same pour, same cost. Weight and piece
-amounts show their own unit inline in the table, because a single header
-can't honestly cover a mixed-unit drink.
+Abra uma receita → o painel de preço tem um **cursor de margem alvo**
+(40–95%). O BarSpec mostra um **preço sugerido** para essa margem —
+arredondado **para cima** aos €0,50 mais próximos para a margem real nunca
+descer abaixo do alvo.
+
+1. Arraste o cursor até ao seu alvo (os bares de cocktails costumam usar
+   70–80% de GP).
+2. Clique em **usar** ao lado do preço sugerido, ou escreva o seu.
+3. **Guardar preço.** O chip de margem pinta o resultado:
+   - 🟢 verde = no alvo/acima · 🟡 âmbar = até 10 pontos abaixo ·
+   - 🔴 vermelho = bem abaixo · cinzento = sem preço
+
+O servidor é a autoridade: os preços, custos e margens que vê são calculados
+no servidor, não pelo seu browser.
 
 ---
 
-## First run & data
+## Unidades: apresentação e escrita
 
-- First launch seeds **5 classic specs** (Negroni, Margarita, Old Fashioned,
-  Espresso Martini, Aperol Spritz) with real bottle prices and sensible
-  PT prices so costing *and* pricing demo immediately. Delete them whenever.
-- Data lives in one SQLite file: `barspec.db` next to the app (override with
-  the `BARSPEC_DB` environment variable). **Back up by copying that one file**
-  — use SQLite's online backup or stop the app first; never `cp` a live DB.
+No topo à direita: **ml / cl / oz** — converte a apresentação *e* a escrita de
+volumes (o material é sempre guardado de forma canónica, por isso mudar nunca
+altera os seus dados). Além disso, cada linha de receita tem a **sua**
+unidade: volumes usam ml/cl/oz, ingredientes de peso usam **g/kg** (9 g de
+café são 9 g, não "0 ml"), peças usam **peça**. As quantidades convertem-se
+no sítio quando muda a unidade de uma linha — 30 ml passa a 3 cl, mesma dose,
+mesmo custo. Quantidades de peso e de peça mostram a sua unidade na própria
+linha da tabela, porque um cabeçalho único não consegue cobrir com honestidade
+uma bebida de unidades mistas.
 
-### Run it
+---
+
+## Primeira execução e dados
+
+- Na primeira execução são semeadas **5 receitas clássicas** (Negroni,
+  Margarita, Old Fashioned, Espresso Martini, Aperol Spritz) com preços reais
+  de garrafa e preços PT sensatos para o custo *e* o preço demonstrarem logo.
+  Apague-as quando quiser.
+- **Na primeira execução define também o seu PIN** (ecrã "Defina o seu PIN").
+  A partir daí a app fica bloqueada até o PIN ser inserido — o 🔒 Bloquear
+  nas Definições fecha a sessão na hora.
+- Os dados vivem num único ficheiro SQLite: `barspec.db` ao lado da app
+  (substitua com a variável de ambiente `BARSPEC_DB`). **Faça cópias de
+  segurança copiando esse ficheiro** — use a cópia de segurança online do
+  SQLite ou pare a app primeiro; nunca faça `cp` a uma base viva. Todas as
+  noites às 03:17 há uma cópia automática para `backups/` (14 mantidas).
+
+### Correr
 
 ```bash
 cd barspec
@@ -208,62 +233,71 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Open http://127.0.0.1:8000
+Abra http://127.0.0.1:8000
 
-Docker (portable, data in `./data/`):
+Docker (portátil, dados em `./data/`):
 
 ```bash
-docker compose up -d --build   # serves on http://localhost:8780
+docker compose up -d --build   # serve em http://localhost:8780
 ```
 
 ---
 
-## Good first workflows
+## Boas primeiras rotinas
 
-**1. Cost a new drink** → Specs → + New spec → name it → Ingredients →
-add each bottle (known names link, unknown names create bottles) → Save →
-read cost/serve, ABV, and the cost-share bars.
+**1. Precificar uma bebida nova** → Receitas → + Nova receita → nome →
+Ingredientes → adicione cada garrafa (nomes conhecidos ligam, nomes
+desconhecidos criam garrafas) → Guardar → leia o custo/dose, o ABV e as
+barras de partilha de custo.
 
-**2. Make a house syrup and pour it** → Batches → + New batch (1 litre,
-shelf 14–30 days) → add ingredients (stock names link; water is €0) → then
-Specs → open any drink → Ingredients → pick your batch → 20 ml → the spec
-costs the real syrup, not a guess.
+**2. Fazer um xarope caseiro e despejá-lo** → Xaropes → + Novo xarope
+(1 litro, validade 14–30 dias) → adicione ingredientes (nomes de stock ligam;
+água é €0) → depois Receitas → abra qualquer bebida → Ingredientes → escolha
+o seu xarope → 20 ml → a receita custa o xarope real, não um palpite.
 
-**3. Reprice the menu after a price hike** → Stock → edit the bottle's price
-→ read the ripple report → for each affected spec, drag the margin slider →
-use suggested → Save.
+**3. Re-precificar a carta depois de uma subida** → Stock → edite o preço da
+garrafa → leia o relatório de impacto → para cada receita afetada, arraste o
+cursor de margem → use o sugerido → Guardar.
 
-**4. Set up ordering discipline** → Stock → set a par on every bottle you
-count → Stock-take → Count (correct what changed) → Save count → Order list
-gives you this week's shopping list and the cash-asleep figure.
+**4. Criar disciplina de encomenda** → Stock → defina um par em cada garrafa
+que conta → Contagens → Contar (corrija o que mudou) → Guardar contagem → a
+lista de encomendas dá-lhe as compras da semana e o valor de dinheiro parado.
 
-**4. Find dead stock** → Stock-take → Trends (or read the dimmed rows in
-Stock) → decide: spec it or stop buying it.
+**5. Encontrar stock morto** → Contagens → Tendências (ou leia as linhas
+esbatidas no Stock) → decida: crie uma receita ou deixe de o comprar.
 
 ---
 
-## FAQ
+## Perguntas frequentes
 
-**"Ice dilution not included"?** ABV/cost assume the pour as spec'd. Ice melt
-and wastage are real but variable — BarSpec deliberately doesn't guess them.
-Known limitation, documented, not hidden.
+**"Diluição por gelo não incluída"?** O ABV/custo assumem o despejo como está
+na receita. O derretimento do gelo e o desperdício são reais mas variáveis —
+o BarSpec não os adivinha, de propósito. Limitação conhecida, documentada,
+não escondida.
 
-**Can I undo a delete?** No. Deletes are immediate. Duplicate before you
-experiment on a spec you love.
+**Consigo desfazer uma eliminação?** Não. As eliminações são imediatas.
+Duplique antes de experimentar numa receita de que gosta.
 
-**Why can't I delete a bottle?** Because specs use it. Removing it would
-silently break every drink it's in. Remove it from the specs first.
+**Porque é que não consigo apagar uma garrafa?** Porque as receitas a usam.
+Removê-la partiria silenciosamente todas as bebidas onde entra. Remova-a
+primeiro das receitas.
 
-**Is my data safe if I upgrade?** Yes — schema changes are applied as ordered
-migrations on startup. A fresh install runs the exact same upgrade path as an
-old database (self-checking). Test suite covers replay from the original v0
-schema.
+**Os meus dados estão seguros se atualizar?** Sim — as alterações de esquema
+aplicam-se como migrações ordenadas no arranque. Uma instalação nova percorre
+exatamente o mesmo caminho de atualização que uma base antiga
+(auto-verificável). Os testes cobrem a repetição do esquema v0 original.
 
-**Multi-user? Cloud?** No — this is a local, single-user app today. One venue,
-one file. That's a feature for the target market (offline, no subscription,
-data you own), and the plan for multi-venue lives in the dev plan.
+**Quem vê os meus preços e margens?** A app exige o PIN do dono desde a
+primeira configuração — sem o PIN, tudo devolve 401. E o histórico de
+alterações de preço e eliminações fica registado (Definições → Alterações
+recentes), antigo → novo, com data/hora.
 
-**What's next?** The units engine is in (costing handles weight/piece — g of
-coffee, limes by the piece), but the on-screen entry for those is still
-building; house syrups as costed batches, categories/search, PT-PT UI. See
-the dev plan for the roadmap.
+**Multi-utilizador? Cloud?** Não — hoje é uma app local, de um único
+utilizador. Um espaço, um ficheiro. Isso é uma vantagem para o mercado-alvo
+(offline, sem subscrição, dados seus), e o plano para multi-espaço vive no
+plano de desenvolvimento.
+
+**O que vem a seguir?** A cozinha está fechada (doses por lote, registo de
+perdas, P&L por secção, alergénios, fornecedores) e a segurança começou (PIN
++ auditoria). Em fila: cópia de segurança offsite encriptada e, depois do
+demo, o plano fase B. Veja o plano de desenvolvimento para o roadmap.
