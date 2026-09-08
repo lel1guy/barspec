@@ -28,8 +28,33 @@ async function api(url, method = "GET", body = null) {
   return r.status === 204 ? null : r.json();
 }
 function toast(msg) {
-  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  const t = $("#toast"); t.textContent = toastPT(msg); t.classList.add("show");
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600);
+}
+// PT sweep: every toast literal above is translated centrally — the callsites
+// stay language-neutral, this map carries the PT voice.
+const TOAST_PT = {
+  "Duplicated": "Receita duplicada", "Price saved": "Preço guardado",
+  "Name needed": "Falta o nome", "Saved": "Guardado",
+  "Pick a batch": "Escolha um xarope", "Amount needed": "Falta a quantidade",
+  "Name + amount needed": "Faltam o nome e a quantidade",
+  "Name can't be empty": "O nome não pode ficar vazio",
+  "Par must be a positive number — or empty to clear": "O par tem de ser positivo — ou vazio para limpar",
+  "Deleted": "Apagado",
+  "Size needed": "Falta o tamanho", "Item added": "Artigo adicionado",
+  "Ingredient name needed": "Falta o nome do ingrediente",
+  "Name + size needed": "Faltam o nome e o tamanho",
+  "Par: positive number, or empty to clear": "Par: número positivo, ou vazio para limpar",
+  "Par cleared — removed from the count": "Par limpo — removido da contagem",
+  "Nothing to save": "Nada para guardar", "Logged": "Registado",
+  "Failed: ": "Falhou: ", "Save failed: ": "Falha ao guardar: ",
+  "Can't delete: ": "Não é possível apagar: ", "QR failed: ": "QR falhou: ",
+};
+function toastPT(msg) {
+  if (lang !== "pt") return msg;
+  for (const [en, pt] of Object.entries(TOAST_PT))
+    if (msg.startsWith(en)) return pt + msg.slice(en.length);
+  return msg;
 }
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -90,6 +115,17 @@ const I18N = {
     "stock.none": "No stock items yet.",
     "take.unsaved": "You have an unsaved count. Leave and lose it?",
     "del.spec": "Delete", "del.specQ": "Delete {n}?",
+    "del.stockQ": "Delete {n}? (only possible when no spec uses it)",
+    "del.batchQ": "Delete the batch \"{n}\"?",
+    "batch.thIng": "Ingredient", "batch.thAmt": "Amount",
+    "batch.addIng": "Add ingredient", "batch.ingPh": "Type a stock name… or free text",
+    "batch.unitLbl": "Unit",
+    "order.to": "To order", "order.over": "Over par — cash asleep",
+    "order.par": "Par", "order.have": "Have", "order.order": "Order",
+    "order.tied": "€ tied up", "order.overCol": "Over",
+    "order.none": "Nothing to order — you're at or above par everywhere. Nice.",
+    "order.noOver": "Nothing over par.",
+    "order.atParB": "bottle", "order.atParBs": "bottles", "order.atPar": "exactly at par.",
     "pricing.target": "Target margin", "pricing.suggest": "Suggested for target:",
     "pricing.use": "use", "pricing.savePrice": "Save price",
     "pricing.unpriced": "unpriced",
@@ -174,6 +210,17 @@ const I18N = {
     "stock.none": "Ainda sem artigos no stock.",
     "take.unsaved": "Tem uma contagem por guardar. Sair e perdê-la?",
     "del.spec": "Apagar", "del.specQ": "Apagar {n}?",
+    "del.stockQ": "Apagar {n}? (só é possível quando nenhuma receita o usa)",
+    "del.batchQ": "Apagar o xarope \"{n}\"?",
+    "batch.thIng": "Ingrediente", "batch.thAmt": "Quantidade",
+    "batch.addIng": "Adicionar ingrediente", "batch.ingPh": "Escreva um nome de stock… ou texto livre",
+    "batch.unitLbl": "Unidade",
+    "order.to": "A encomendar", "order.over": "Acima do par — dinheiro parado",
+    "order.par": "Par", "order.have": "Tem", "order.order": "Encomendar",
+    "order.tied": "€ parado", "order.overCol": "Acima",
+    "order.none": "Nada a encomendar — está tudo no par ou acima. Boa.",
+    "order.noOver": "Nada acima do par.",
+    "order.atParB": "garrafa", "order.atParBs": "garrafas", "order.atPar": "exatamente no par.",
     "pricing.target": "Margem alvo", "pricing.suggest": "Sugerido para a margem:",
     "pricing.use": "usar", "pricing.savePrice": "Guardar preço",
     "pricing.unpriced": "sem preço",
@@ -1011,7 +1058,7 @@ async function renderStock() {
       } catch (err) { toast("Failed: " + err.message); renderStock(); }
     });
     tr.querySelector("[data-del]").addEventListener("click", async () => {
-      if (!confirm("Delete " + it.name + "? (only possible when no spec uses it)")) return;
+      if (!confirm(t("del.stockQ").replace("{n}", it.name))) return;
       try { await api("/api/stock/" + it.id, "DELETE"); toast("Deleted"); renderStock(); }
       catch (err) { toast("Can't delete: " + err.message); }
     });
@@ -1177,7 +1224,7 @@ async function loadBatches() {
     });
     el.querySelector("[data-del]").addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (!confirm(`Delete batch "${b.name}"?`)) return;
+      if (!confirm(t("del.batchQ").replace("{n}", b.name))) return;
       const res = await api("/api/batches/" + b.id, "DELETE");
       if (res && res.detail) { toast(res.detail); return; }
       if (openBatch === b.id) { openBatch = null; $("#batchDetail").innerHTML = ""; }
@@ -1203,7 +1250,7 @@ async function renderBatchDetail() {
         ${b.cost_per_serve ? ` · ${eur(b.cost_per_serve)}/portion` : ""} · ${eur(b.cost_per_ml * 1000)}/litre</span>
     </div>
     <table>
-      <thead><tr><th>Ingredient</th><th class="num">Amount</th><th class="num">Cost</th><th></th></tr></thead>
+      <thead><tr><th>${t("batch.thIng")}</th><th class="num">${t("batch.thAmt")}</th><th class="num">${t("detail.thCost")}</th><th></th></tr></thead>
       <tbody>${b.lines.map((l) => `
         <tr>
           <td>${esc(l.name)}</td>
@@ -1215,10 +1262,10 @@ async function renderBatchDetail() {
       </tbody>
     </table>
     <div class="formrow no-print" style="margin-top:10px;">
-      <div style="flex:2; min-width:140px;"><label>Add ingredient</label>
-        <input id="blName" list="stockNames" placeholder="Type a stock name… or free text"></div>
-      <div style="flex:1; min-width:80px;"><label>Amount</label><input id="blAmt" type="number" value="100" min="0" step="0.5"></div>
-      <div style="flex:1; min-width:70px;"><label>Unit</label><select id="blUnit">
+      <div style="flex:2; min-width:140px;"><label>${t("batch.addIng")}</label>
+        <input id="blName" list="stockNames" data-i18n-ph="batch.ingPh" placeholder="Type a stock name… or free text"></div>
+      <div style="flex:1; min-width:80px;"><label>${t("batch.thAmt")}</label><input id="blAmt" type="number" value="100" min="0" step="0.5"></div>
+      <div style="flex:1; min-width:70px;"><label>${t("batch.unitLbl")}</label><select id="blUnit">
         <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option>
         <option value="l">l</option><option value="cl">cl</option><option value="piece">piece</option></select></div>
       <div style="flex:1; min-width:90px;"><label>€ cost if not stock</label><input id="blCost" type="number" step="0.01" placeholder="blank = from stock"></div>
@@ -1505,29 +1552,30 @@ function renderOrder(payload) {
       return out;
     };
 
-    box.appendChild(section("To order", short,
-      (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Order</th></tr></thead>
+    box.appendChild(section(t("order.to"), short,
+      (rows) => `<thead><tr><th>${t("detail.thBottle")}</th><th class="num">${t("order.par")}</th><th class="num">${t("order.have")}</th><th class="num">${t("order.order")}</th></tr></thead>
         <tbody>${orderRowsHtml(rows, (r) => `<tr>
           <td>${esc(r.name)}</td>
           <td class="num">${fmtFbe(r.par_level)}</td>
           <td class="num">${fmtFbe(r.fbe)}</td>
           <td class="num"><span class="order-chip">+${r.to_order}</span></td></tr>`)}</tbody>`,
-      "Nothing to order — you're at or above par everywhere. Nice."));
+      t("order.none")));
 
-  box.appendChild(section("Over par — cash asleep", over,
-    (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Over</th><th class="num">€ tied up</th></tr></thead>
+  box.appendChild(section(t("order.over"), over,
+    (rows) => `<thead><tr><th>${t("detail.thBottle")}</th><th class="num">${t("order.par")}</th><th class="num">${t("order.have")}</th><th class="num">${t("order.overCol")}</th><th class="num">${t("order.tied")}</th></tr></thead>
       <tbody>${orderRowsHtml(rows, (r) => `<tr>
         <td>${esc(r.name)}</td>
         <td class="num">${fmtFbe(r.par_level)}</td>
         <td class="num">${fmtFbe(r.fbe)}</td>
         <td class="num">${fmtFbe(r.excess_fbe)}</td>
         <td class="num over-amt">${eur(r.cash_asleep_eur)}</td></tr>`)}</tbody>`,
-    "Nothing over par."));
+    t("order.noOver")));
 
   if (atPar.length) {
     const note = document.createElement("p");
     note.className = "edit-note";
-    note.textContent = `${atPar.length} bottle${atPar.length === 1 ? "" : "s"} exactly at par.`;
+    const w = atPar.length === 1 ? t("order.atParB") : t("order.atParBs");
+    note.textContent = `${atPar.length} ${w} ${t("order.atPar")}`;
     box.appendChild(note);
   }
 }

@@ -1,91 +1,104 @@
 # BarSpec
 
-Cocktail spec manager for bartenders — store recipes, scale any drink to N
-servings, see cost-per-drink and ABV, then **price the menu** and print it.
+Gestor de receitas e custos para **bares, pubs, cafés e restaurantes** —
+guarde as receitas (bebidas *e* pratos), dimensione qualquer dose para N
+serviços, veja o custo por dose e o ABV, e depois **precifique a carta** e
+imprima-a. Também faz inventário, perdas e encomendas.
 
-Built by Vitor Vareiro. Python +
-FastAPI + SQLite + vanilla JS.
-No build step, no ORM — every query is visible in `db.py`, every € is computed
-in `pricing.py` (pure functions, unit-tested).
+Construído por Vitor Vareiro. Python +
+FastAPI + SQLite + JavaScript puro. Sem passo de build, sem ORM — cada query
+está visível no `db.py`, cada € é calculado no `pricing.py` (funções puras,
+testadas).
 
-## Docs
+## Documentação
 
-- **[User Guide](docs/USER_GUIDE.md)** — what the app does, how to use each
-  screen, what the numbers mean. For bar staff and owners.
-- **[Developer Guide](docs/DEV_GUIDE.md)** — architecture, design decisions
-  and the *why* behind them; a teaching walkthrough for developers and
-  learners.
+- **[Guia do utilizador](docs/USER_GUIDE.md)** — o que a app faz, como usar
+  cada ecrã, o que significam os números. Para equipa e donos de espaços.
+- **[Guia do programador](docs/DEV_GUIDE.md)** — arquitetura, decisões de
+  desenho e o *porquê*; uma visita guiada para programadores e quem está a
+  aprender.
 
-## What it does
+## O que faz
 
-- **Specs**: name, glass, method, garnish. Add / edit / duplicate / delete.
-- **Stock**: one row per real item — `Campari €19 / 700 ml`, coffee `€18 /
-  1 kg`, limes `€3.60 / 12 pc`. Change a price **once**, and every spec using
-  it updates — the ripple report tells you which specs moved and by how much,
-  even through a house batch.
-- **Spec lines** reference stock (name + amount per line; amounts are
-  unit-aware: 30 ml, 2 dash, 9 g, 1 piece) OR a house batch. Unknown names
-  create the stock item automatically; price/ABV/size live on the item only.
-- **Batches**: house-made syrups & infusions costed as mini-recipes — total €
-  derived from ingredients (stock-linked lines price live; water is €0),
-  €/litre, expiry days, and you pour them into specs like any bottle.
-- **Categories**: free-form menu sections on specs — filter chips over the
-  spec list and grouped sections on the printable menu (60+ specs stay
-  findable).
-- **Dilution**: optional ice-melt % per spec (shake ≈ 20–25, stir ≈ 10–15).
-  Served volume and served ABV tell the truth about what reaches the glass;
-  cost stays the measured pour — water is free.
-- **EN / PT-PT**: one-click language toggle (top bar, remembered per browser).
-  All navigation, forms, buttons, hints and menus translate; numbers and €
-  never do.
-- **Export & share**: the whole spec book + stock to .xlsx or .csv (owner /
-  accountant files, costs included), plus a menu QR — point a phone at it and
-  the menu opens (`?view=menu` deep link).
-- **Training cards**: print a spec-card deck (⤢ Cards) — one recipe per card,
-  amounts + method + garnish, grouped by category, honoring the current
-  filter/search. **Costs never appear** — these cards live on the floor.
-- **Kitchen (K1)**: batches declare portions — a mayo batch that makes 20
-  shows **€/portion** on the prep sheet (volume math still works). The loss
-  log (+ Log loss) turns spills/waste/spoilage into visible lines with a
-  reason — never a mystery at the next count.
-- **Section P&L**: under the menu, margin % per category (green ≥60 /
-  amber ≥40 / red below) plus **dead stock** — the purchase value of items
-  no recipe touches, cash sitting on the shelf.
-- **Allergens & diet (K3)**: every spec carries EU-14 allergen codes and
-  V/VE/GF tags — picked as chips in the editor, shown as colour badges on
-  the recipe, printed on the training cards, carried in the Excel export.
-  Codes stay language-neutral; full names resolve EN/PT.
-- **Settings**: one ⚙ dialog holds language (EN/PT), text size (A−/A/A+)
-  and display unit (ml/cl/oz) — the header stays clean on every screen.
-- **Owner PIN (S1)**: first run asks you to set a PIN (hashed with pbkdf2 —
-  never stored plaintext). After that the app stays **locked** until the PIN
-  is entered (signed cookie session, 14 days). A 🔒 Lock button in Settings
-  locks it again. Security headers (CSP, frame-deny, nosniff) ride along on
-  every response.
-- **Audit trail (S2)**: the receipts book. Every price edit and delete is
-  logged old → new with a timestamp; Settings → Recent changes shows the
-  trail. History is append-only — nothing edits the past.
-- **Suppliers (K4)**: each stock item names its supplier (free-form,
-  suggested from what you already typed). The order list groups *To order*
-  and *Over par* by supplier — one glance per supplier, one call per
-  supplier.
-- **Accessibility**: text scale A−/A/A+ (persisted, content-only zoom), skip
-  link to content, visible focus rings, and aria-labels on every icon-only
-  button (✕/✎ read their target name).
-- **Stock-take**: set a par per bottle, count the shelf (full + ¼/½/¾/open),
-  get the order list (what to buy, cash asleep) and week-to-week trends.
-- **Cost & ABV**: cost = amount × (price ÷ purchase size) across ml/g/pieces;
-  drink cost = Σ lines; ABV = volume-weighted. Cost math lives in
-  `pricing.py`, mirrored in JS only for live preview. Ice dilution NOT included.
-- **Pricing** (the buying moment): target margin slider → suggested price
-  (ceil to €0.50, so margin never dips below target) → save the sell price.
-  Margin color-coded: green ≥ target, amber within 10 pts, red below.
-- **Menu print**: price every spec (right in the menu view or per spec), print.
-  The printed sheet shows names + prices only — costs stay off the paper.
-  Currency symbols are omitted on purpose (menu psychology: price cues
-  suppress spend).
+- **Receitas**: nome, copo, método, decoração. Criar / editar / duplicar /
+  apagar.
+- **Stock**: uma linha por artigo real — `Campari €19 / 700 ml`, café `€18 /
+  1 kg`, limas `€3,60 / 12 pc`. Mude um preço **uma vez** e todas as receitas
+  que o usam atualizam — o relatório de impacto diz quais e quanto, mesmo
+  através de um xarope caseiro.
+- **Linhas de receita** referenciam stock (nome + quantidade por linha;
+  quantidades com unidade: 30 ml, 2 dash, 9 g, 1 pc) OU um xarope caseiro.
+  Nomes desconhecidos criam o artigo de stock automaticamente; preço/ABV/
+  tamanho vivem só no artigo.
+- **Xaropes**: xaropes caseiros e infusões com custo de mini-receita — total €
+  derivado dos ingredientes (linhas ligadas a stock precificam ao vivo; água
+  é €0), €/litro, dias de validade, e despeja-se em receitas como qualquer
+  garrafa.
+- **Categorias**: secções de carta livres nas receitas — filtros em chips
+  sobre a lista e secções agrupadas na carta imprimível (60+ receitas
+  continuam fáceis de encontrar).
+- **Diluição**: % de gelo opcional por receita (shake ≈ 20–25, stir ≈
+  10–15). O volume servido e o ABV servido dizem a verdade sobre o que chega
+  ao copo; o custo continua a ser a dose medida — a água é grátis.
+- **EN / PT-PT**: alternância de idioma num clique (barra superior, lembrada
+  por browser). Navegação, formulários, botões, dicas e cartas traduzem;
+  números e € nunca traduzem.
+- **Exportação e partilha**: a receita completa + stock para .xlsx ou .csv
+  (ficheiros do dono/contabilista, com custos), e um QR da carta — aponte um
+  telemóvel e a carta abre (link profundo `?view=menu`).
+- **Fichas de treino**: imprima um baralho de fichas por receita (⤢ Fichas)
+  — uma receita por cartão, quantidades + método + decoração, agrupadas por
+  categoria, respeitando o filtro/pesquisa atual. **Os custos nunca
+  aparecem** — estas fichas vivem no balcão.
+- **Cozinha (K1)**: os xaropes declaram doses — um lote de maionese que rende
+  20 mostra **€/dose** na folha de preparação (a matemática de volume
+  continua). O registo de perdas (+ Registar perda) transforma derrames/
+  desperdícios/estragos em linhas visíveis com motivo — nunca um mistério na
+  contagem seguinte.
+- **P&L por secção**: sob a carta, margem % por categoria (verde ≥60 /
+  âmbar ≥40 / vermelho abaixo) mais **stock parado** — o valor de compra dos
+  artigos que nenhuma receita usa, dinheiro sentado na prateleira.
+- **Alergénios e dieta (K3)**: cada receita leva os códigos de alergénios
+  (14 UE) e etiquetas V/VE/GF — escolhidos em chips no editor, mostrados em
+  badges coloridas na receita, impressos nas fichas de treino e incluídos na
+  exportação Excel. Os códigos são neutros ao idioma; os nomes resolvem-se
+  EN/PT.
+- **Definições**: uma janela ⚙ reúne idioma (EN/PT), tamanho do texto
+  (A−/A/A+) e unidade de apresentação (ml/cl/oz) — o cabeçalho fica limpo em
+  todos os ecrãs.
+- **PIN do dono (S1)**: na primeira execução pede para definir um PIN
+  (hash pbkdf2 — nunca armazenado em claro). A partir daí a app fica
+  **bloqueada** até alguém inserir o PIN (sessão por cookie assinado, 14
+  dias). Um botão 🔒 Bloquear nas Definições volta a fechá-la. Cabeçalhos de
+  segurança (CSP, frame-deny, nosniff) acompanham todas as respostas.
+- **Registo de auditoria (S2)**: o livro de recibos. Cada alteração de preço
+  e cada eliminação fica registada antigo → novo com data/hora; Definições →
+  Alterações recentes mostra o rasto. O histórico é só-adição — nada edita o
+  passado.
+- **Fornecedores (K4)**: cada artigo de stock indica o seu fornecedor (texto
+  livre, sugerido do que já escreveu). A lista de encomendas agrupa *A
+  encomendar* e *Acima do par* por fornecedor — um relance por fornecedor,
+  uma chamada por fornecedor.
+- **Acessibilidade**: escala de texto A−/A/A+ (persistida, zoom só de
+  conteúdo), link de salto para o conteúdo, anéis de foco visíveis e
+  aria-labels em todos os botões de ícone (✕/✎ dizem o nome do alvo).
+- **Contagens**: defina um par por garrafa, conte a prateleira (cheia +
+  ¼/½/¾/aberta), receba a lista de encomendas (o que comprar, dinheiro
+  parado) e tendências semana a semana.
+- **Custo e ABV**: custo = quantidade × (preço ÷ tamanho de compra) em
+  ml/g/pc; custo da bebida = Σ linhas; ABV = ponderado por volume. A
+  matemática vive no `pricing.py`, espelhada em JS só para pré-visualização
+  ao vivo. Diluição por gelo NÃO incluída.
+- **Precificação** (o momento da compra): cursor de margem alvo → preço
+  sugerido (arredondado a €0,50, para a margem nunca descer abaixo do alvo)
+  → guardar o preço de venda. Margem com cor: verde ≥ alvo, âmbar até 10
+  pontos abaixo, vermelho abaixo.
+- **Impressão da carta**: precifique cada receita (na própria vista da carta
+  ou por receita), imprima. A folha impressa mostra nomes + preços apenas —
+  os custos ficam fora do papel. Os símbolos de moeda são omitidos de
+  propósito (psicologia de carta: pistas de preço suprimem o consumo).
 
-## Run it (dev)
+## Correr (dev)
 
 ```bash
 cd barspec
@@ -94,115 +107,121 @@ pip install -r requirements.txt -r requirements-dev.txt
 uvicorn main:app --reload
 ```
 
-Open http://127.0.0.1:8000
+Abra http://127.0.0.1:8000
 
-First run seeds 5 classic specs with real bottle prices + sensible PT prices
-(Negroni €9, Margarita €10…) so costing AND pricing demo immediately.
+Na primeira execução são semeadas 5 receitas clássicas com preços reais de
+garrafa + preços PT sensatos (Negroni €9, Margarita €10…) para o custo E o
+preço demonstrarem logo.
 
-## Tests
+## Testes
 
 ```bash
-pytest            # 121 tests: pricing math, migrations, API, stock-take, units, batches, yield, categories, dilution
+pytest            # 158 testes: matemática de preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação
 ```
 
-The migration test builds a real v0 database and upgrades it — if that passes,
-every future venue file upgrades safely. Money tests cover cent-rounding,
-unpriced bottles, price-update propagation, FBE/par order math.
+O teste de migrações constrói uma base v0 real e atualiza-a — se passar,
+todos os ficheiros de espaço futuros atualizam em segurança. Os testes de
+dinheiro cobrem arredondamento ao cêntimo, garrafas sem preço, propagação de
+atualizações de preço e a matemática FBE/par/encomenda.
 
-## Schema / migrations
+## Esquema / migrações
 
-Base schema + `migrations/*.sql`, tracked by `PRAGMA user_version`. On startup
-`db.migrate()` applies pending files in order, each inside one transaction.
-A fresh install runs the same path as an upgrade — self-checking.
+Esquema base + `migrations/*.sql`, controlado pelo `PRAGMA user_version`. No
+arranque o `db.migrate()` aplica os ficheiros pendentes por ordem, cada um
+dentro de uma transação. Uma instalação nova percorre o mesmo caminho que uma
+atualização — auto-verificável.
 
-- `001_normalize_stock.sql` — `ingredients` (per-spec duplicated prices) →
-  `stock_items` + `spec_lines`. Idempotent, data-preserving.
-- `002_stock_take.sql` — `par_level` on stock_items (NULL = not counted) +
-  `stock_takes`/`stock_take_lines` dated snapshots (full bottles + open
-  fraction 0/¼/½/¾/1). Count history, not throwaway UI state.
-- `003_units.sql` — `dimension` on stock_items (volume|weight|count) +
-  `unit` on spec_lines (default ml, legacy byte-identical). Canonical units:
-  volume→ml, weight→g, count→piece. dash = 1 ml, barspoon = 5 ml. Allowed
-  units + conversion factors live in `pricing.py` (single source of truth).
-- `004_batches.sql` — house-made batches: `batches` (name, method,
-  batch_size_ml, made_date, shelf_life_days) + `batch_lines` (stock-linked
-  rows derive through the engine, free-text rows carry a typed € cost);
-  `spec_lines` gains nullable `batch_id` + a CHECK enforcing exactly one of
-  bottle/batch per line. Spec pour = amount × (batch total ÷ size); two-level
-  price ripple walks bottle → batches → specs.
-- `005_yield.sql` — `yield_frac` on stock_items (default 1.0, byte-identical
-  legacy): usable/bought for trim & cook loss. €6 ÷ (1000 g × 0.80) prices
-  trimmed meat honestly; flows through specs AND batches; ripple inherits.
-- `006_categories.sql` — `category` on specs (free-form menu section) + an
-  index. Chips in the spec list + grouped sections on the printable menu.
-  Partial spec PUTs (menu price edits) never wipe it (exclude_unset);
-  duplicates keep category and batch-pour lines.
-- `007_dilution.sql` — `dilution_pct` on specs (default 0, byte-identical):
-  ice melt during shake/stir. Served volume = recipe × (1 + pct/100), served
-  ABV = recipe ABV ÷ (1 + pct/100); cost unchanged (water is free).
-- `008_settings.sql` — venue profile key/value (name, IVA %) for the printed
-  menu title + footer.
-- `009_kitchen.sql` — kitchen prep truth: `servings` on batches (portion
-  count → cost per portion on the prep sheet) + `stock_adjustments` loss log
-  (signed canonical delta + reason: spills, waste, spoilage, corrections).
-- `010_allergens.sql` — `allergens` + `dietary` code lists on specs (EU 14
-  allergens, V/VE/GF); labels resolve per language at display/export.
-- `011_supplier.sql` — `supplier` on stock items (free-form, datalist); the
-  order list groups by supplier for one-tap-per-supplier ordering.
-- `012_audit.sql` — append-only audit trail: every price change (stock +
-  spec) and every delete, recorded old → new with a timestamp. Read-only;
-  history is never edited.
+- `001_normalize_stock.sql` — `ingredients` (preços duplicados por receita) →
+  `stock_items` + `spec_lines`. Idempotente, preserva dados.
+- `002_stock_take.sql` — `par_level` nos stock_items (NULL = não contado) +
+  instantâneos datados `stock_takes`/`stock_take_lines` (garrafas cheias +
+  fração aberta 0/¼/½/¾/1). Conta-se histórico, não estado de UI volátil.
+- `003_units.sql` — `dimension` nos stock_items (volume|weight|count) +
+  `unit` nas spec_lines (padrão ml, legado byte-idêntico). Unidades
+  canónicas: volume→ml, peso→g, contagem→peça. dash = 1 ml, barspoon = 5 ml.
+  Unidades permitidas + fatores de conversão no `pricing.py` (fonte única).
+- `004_batches.sql` — lotes caseiros: `batches` (nome, método, tamanho_ml,
+  data, validade_dias) + `batch_lines` (linhas ligadas a stock derivam pelo
+  motor; texto livre leva € digitado); `spec_lines` ganha `batch_id`
+  anulável + CHECK que obriga exatamente uma de garrafa/lote por linha. Dose
+  = quantidade × (total do lote ÷ tamanho); impacto de preço de dois níveis
+  percorre garrafa → lotes → receitas.
+- `005_yield.sql` — `yield_frac` nos stock_items (padrão 1.0, legado
+  byte-idêntico): aproveitamento do comprado para quebras de corte/confeção.
+  €6 ÷ (1000 g × 0.80) precifica carne limpa com honestidade; flui por
+  receitas E lotes; o impacto herda.
+- `006_categories.sql` — `category` nas receitas (secção de carta livre) +
+  índice. Chips na lista + secções agrupadas na carta imprimível. PUTs
+  parciais (edições de preço na carta) nunca a apagam (exclude_unset);
+  duplicados mantêm categoria e linhas de despejo de lote.
+- `007_dilution.sql` — `dilution_pct` nas receitas (padrão 0, byte-idêntico):
+  derretimento no shake/stir. Volume servido = receita × (1 + pct/100), ABV
+  servido = ABV ÷ (1 + pct/100); custo inalterado (água é grátis).
+- `008_settings.sql` — perfil do espaço chave/valor (nome, IVA %) para o
+  título e rodapé da carta impressa.
+- `009_kitchen.sql` — verdade da cozinha: `servings` nos lotes (nº de doses
+  → custo por dose na folha de preparação) + registo de perdas
+  `stock_adjustments` (delta canónico assinado + motivo: derrames,
+  desperdícios, estragos, correções).
+- `010_allergens.sql` — listas de códigos `allergens` + `dietary` nas
+  receitas (14 alergénios UE, V/VE/GF); os nomes resolvem-se por idioma na
+  exibição/exportação.
+- `011_supplier.sql` — `supplier` nos artigos de stock (texto livre,
+  datalist); a lista de encomendas agrupa por fornecedor para encomendar
+  fornecedor a fornecedor.
+- `012_audit.sql` — rasto de auditoria só-adição: cada alteração de preço
+  (stock + receita) e cada eliminação, registada antigo → novo com data/hora.
+  Só leitura; o histórico nunca é editado.
 
-DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
+Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 
 ## API
 
-| Method | Path | What |
-|--------|------|------|
-| GET | `/api/specs` | list (+ cost, price, margin) |
-| POST | `/api/specs` | create |
-| GET | `/api/specs/{id}` | detail + joined lines + summary + suggested price |
-| PUT | `/api/specs/{id}` | update (incl. `price_eur`, `target_gp`) |
-| DELETE | `/api/specs/{id}` | delete (cascades lines) |
-| POST | `/api/specs/{id}/duplicate` | copy spec + lines |
-| POST | `/api/specs/{id}/lines` | add line (`name` resolves/creates stock, or `batch_id` for a house batch; `unit` optional) |
-| PUT | `/api/lines/{id}` | change amount (and unit) |
-| DELETE | `/api/lines/{id}` | remove line |
-| GET | `/api/stock` | items + usage count |
-| POST | `/api/stock` | add item (`dimension`: volume\|weight\|count; 409 if duplicate) |
-| PUT | `/api/stock/{id}` | edit item — **price ripple in response** (through batches too) |
-| DELETE | `/api/stock/{id}` | delete (409 if any spec or batch uses it) |
-| PATCH | `/api/stock/{id}/par` | set/clear par level |
-| GET | `/api/batches` | batches + derived cost, €/ml, ABV, expiry |
-| POST | `/api/batches` | create batch |
-| GET/PUT/DELETE | `/api/batches/{id}` | detail / edit meta / delete (400 if used by specs) |
-| POST | `/api/batches/{id}/lines` | add ingredient (stock name links live; free-text needs `cost_eur`) |
-| DELETE | `/api/batches/lines/{id}` | remove batch line |
-| GET | `/api/stock-takes/sheet` | count list: par'd items prefilled from last snapshot |
-| POST | `/api/stock-takes` | save a count snapshot → returns the order-list review |
-| GET | `/api/stock-takes/last` | latest snapshot's order review (to-order + cash asleep) |
-| GET | `/api/stock-takes/trends` | movement between last two counts + dead-stock list |
-| GET | `/api/menu` | priced menu view |
-| GET | `/api/settings` · PUT `/api/settings` | venue profile (name, IVA %) |
-| GET | `/api/report/pnl` | section P&L: margins per category + dead-stock € |
-| GET | `/api/stock-adjustments` | recent loss-log lines |
-| POST | `/api/stock/{id}/adjust` | log spillage/waste (signed delta + reason) |
-| GET | `/api/batches` · POST `/api/batches` | list / create (with `servings`) |
-| GET/PUT/DELETE | `/api/batches/{id}` | detail (cost, €/portion, expiry) / update / delete |
-| POST/DELETE | `/api/batches/{id}/lines` | add / remove a batch ingredient |
-| PUT | `/api/batches/lines/{id}` | edit a batch line |
-| GET | `/api/export/specs.xlsx` · `/api/export/specs.csv` | spec book (owner file: costs, dietary, allergens) |
-| GET | `/api/export/stock.xlsx` · `/api/export/stock.csv` | stock sheet (incl. supplier) |
-| GET | `/api/export/menu-qr.svg?url=…` | SVG QR pointing at a menu deep link |
+| Método | Caminho | O quê |
+|--------|---------|-------|
+| GET | `/api/specs` | lista (+ custo, preço, margem) |
+| POST | `/api/specs` | criar |
+| GET | `/api/specs/{id}` | detalhe + linhas + resumo + preço sugerido |
+| PUT | `/api/specs/{id}` | atualizar (incl. `price_eur`, `target_gp`) |
+| DELETE | `/api/specs/{id}` | apagar (cascata nas linhas) |
+| POST | `/api/specs/{id}/duplicate` | copiar receita + linhas |
+| POST | `/api/specs/{id}/lines` | adicionar linha (`name` resolve/cria stock, ou `batch_id` para lote; `unit` opcional) |
+| PUT | `/api/lines/{id}` | mudar quantidade (e unidade) |
+| DELETE | `/api/lines/{id}` | remover linha |
+| GET | `/api/stock` | artigos + contagem de uso |
+| POST | `/api/stock` | adicionar artigo (`dimension`: volume\|weight\|count; 409 se duplicado) |
+| PUT | `/api/stock/{id}` | editar artigo — **impacto de preço na resposta** (mesmo via lotes) |
+| DELETE | `/api/stock/{id}` | apagar (409 se alguma receita ou lote o usa) |
+| PATCH | `/api/stock/{id}/par` | definir/limpar par |
+| GET | `/api/batches` | lotes + custo derivado, €/ml, ABV, validade |
+| POST | `/api/batches` | criar lote |
+| GET/PUT/DELETE | `/api/batches/{id}` | detalhe / editar meta / apagar (400 se usado por receitas) |
+| POST | `/api/batches/{id}/lines` | adicionar ingrediente (nome de stock liga ao vivo; texto livre precisa `cost_eur`) |
+| DELETE | `/api/batches/lines/{id}` | remover linha do lote |
+| GET | `/api/stock-takes/sheet` | lista de contagem: itens com par pré-preenchidos do último instantâneo |
+| POST | `/api/stock-takes` | guardar instantâneo → devolve a revisão de encomenda |
+| GET | `/api/stock-takes/last` | revisão de encomenda do último instantâneo (encomendar + dinheiro parado) |
+| GET | `/api/stock-takes/trends` | movimento entre as duas últimas contagens + lista de stock parado |
+| GET | `/api/menu` | vista da carta com preços |
+| GET | `/api/settings` · PUT `/api/settings` | perfil do espaço (nome, IVA %) |
+| GET | `/api/report/pnl` | P&L por secção: margens por categoria + € de stock parado |
+| GET | `/api/stock-adjustments` | últimas linhas do registo de perdas |
+| POST | `/api/stock/{id}/adjust` | registar derrame/desperdício (delta assinado + motivo) |
+| GET | `/api/export/specs.xlsx` · `/api/export/specs.csv` | livro de receitas (ficheiro do dono: custos, dieta, alergénios) |
+| GET | `/api/export/stock.xlsx` · `/api/export/stock.csv` | folha de stock (incl. fornecedor) |
+| GET | `/api/export/menu-qr.svg?url=…` | QR SVG para um link profundo da carta |
+| GET | `/api/audit` | últimas linhas do rasto de auditoria |
+| GET/POST | `/api/auth/status` · `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | gate do PIN do dono (as rotas protegidas devolvem 401 sem cookie) |
 
-## Ops
+## Operações
 
-- **Backups** — nightly at 03:17 via `barspec-backup.timer` (systemd): sqlite
-  online snapshot to `backups/`, integrity-checked, 14 kept, log in
-  `backups/backup.log`. Restore: `sudo ops/restore.sh backups/barspec-XXXX.db`
-  (stops the service, keeps the current db aside, verifies on restart).
-  Manual run: `python3 ops/backup.py`.
+- **Cópias de segurança** — todas as noites às 03:17 via `barspec-backup.timer`
+  (systemd): instantâneo sqlite online para `backups/`, verificação de
+  integridade, 14 mantidas, registo em `backups/backup.log`. Restauro:
+  `sudo ops/restore.sh backups/barspec-XXXX.db` (para o serviço, guarda a base
+  atual, verifica no arranque). Execução manual: `python3 ops/backup.py`.
 
-## Roadmap (not started)
+## Próximos passos (não iniciados)
 
-- PWA offline read cache (service worker — needs HTTPS)
+- Cache de leitura offline PWA (service worker — precisa de HTTPS)
+- Cópia de segurança offsite encriptada (S3 — segundo destino, noturno)
