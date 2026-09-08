@@ -126,8 +126,8 @@ preço demonstrarem logo.
 ## Testes
 
 ```bash
-pytest            # 163 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação, vendas
-npm run e2e       # smoke de browser real (Playwright): PIN, receitas, PT-PT, filtro de stock, carta
+pytest            # 169 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas
+npm run e2e       # smoke de browser real (Playwright, 11 percursos): PIN, receitas, PT-PT, filtro de stock, vendas, carta
 ```
 
 O teste de migrações constrói uma base v0 real e atualiza-a — se passar,

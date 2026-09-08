@@ -72,8 +72,8 @@ you do, by design.
 ## Tests
 
 ```bash
-pytest            # 168 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth, staff, sales
-npm run e2e       # real-browser smoke (Playwright): PIN, recipes, PT-PT, stock filter, menu
+pytest            # 169 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales
+npm run e2e       # real-browser smoke (Playwright, 11 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
 ```
 
 The migration tests build a real v0 database and upgrade it — if they pass,
@@ -129,13 +129,16 @@ snapshots under `backups/` (nightly 03:17, 14 kept); restore:
 
 Live service runs under systemd as **system Python** (`/usr/bin/python3` —
 SELinux blocks the repo venv, so live deps install via dnf; the venv is for
-tests/dev). Deploys: snapshot the DB, restart, verify `:8777`, push.
+tests/dev). Deploys: snapshot the DB, restart, verify `:8777`, push. A
+**health watchdog** (`ops/healthcheck.sh`, Hermes cron every 10 min) is
+silent while the app answers and alerts if `:8777` goes down. Build history:
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap / status
 
 Phase A complete (counting, units engine, batches, costing precision, PT-PT),
 kitchen K1–K4, security S1/S2, sales & shrinkage, staff roles — all shipped
-(2026-09-08, 168 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
+(2026-09-08, 169 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
 multi-tenant, PWA) are deliberately gated on a real paying venue. The full
 product plan lives in the vault (`Projects/Bar-Tech-Venture/
 BarSpec-Vision-and-Dev-Plan.md`).
