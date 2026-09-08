@@ -8,11 +8,12 @@ scratch.
 Companion docs: [User Guide](USER_GUIDE.md) for how to *use* the app,
 `README.md` for run/test/API quick reference.
 
-> **Status (2026-09-06):** shipped through the S2 units engine — migrations
-> 001–003, S1 display toggle, dimension-aware costing (volume/weight/count),
-> 81 tests green. The live `barspec.db` file applies migration 003 on next app
-> startup (normal migration behavior). Syrups/batches (migration 004) is the
-> next build.
+> **Status (2026-09-08):** migrations 001–011 shipped — S2 units engine,
+> S3 dimension UI, batches/syrups (004), yield % (005), categories (006),
+> dilution (007), venue profile (008), kitchen K1–K4 (009–011: portions +
+> loss log, section P&L, allergens, suppliers), PT-PT, mobile layout,
+> exports/QR, training cards, a11y, automated backups. **148 tests green.**
+> The security lane (PIN gate, audit log, offsite backup) is the next build.
 
 ---
 
@@ -286,16 +287,25 @@ No stored cost was updated anywhere. That's Rule 1 paying rent.
      runs `init_db()`. This is the money test: if migration replay passes
      here, every future venue file upgrades safely.
 
-Suite map (98 tests green on HEAD):
+Suite map (148 tests green on HEAD):
 
 | File | Guards |
 |---|---|
 | `test_pricing.py` | Pure math: cost, ABV weighting, ceil-to-0.50 never below target, margin bands, FBE/order/cash-asleep |
-| `test_migrations.py` | v0→latest replay, dedupe correctness, 1:1 line preservation, idempotence, no-reseed |
+| `test_migrations.py` | v0→latest replay (001→011) byte-identically, dedupe correctness, 1:1 line preservation, idempotence, no-reseed |
 | `test_api.py` | Smoke: seed state, CRUD, resolve-vs-create on lines, ripple impact, cascade rules |
 | `test_stocktake.py` | Par gating, sheet prefill, order-list math, fraction validation, trends/dead-stock |
-| `test_units.py` | Unit tables, canonical conversion, dimension mismatch, café proof (9 g + ml + piece), 422-not-409 |
-| `test_batches.py` | Batch cost derivation, stock-linked vs free-text, spec pours, expiry, delete guards, the two-level ripple to the cent |
+| `test_units.py` | Units engine: canonical conversion, dimension guards (in-use 400, garbage 422), café proof |
+| `test_batches.py` | Batch derived cost, two-level ripple, expiry, guards |
+| `test_yield.py` | Yield % math + API round-trip |
+| `test_categories.py` | Categories: partial PUT preservation, duplicate copies, menu grouping |
+| `test_dilution.py` | Dilution math + summary served values |
+| `test_exports.py` | .xlsx/.csv parity, QR SVG |
+| `test_settings.py` | Venue profile round-trip + IVA bounds |
+| `test_kitchen.py` | Servings → €/portion, loss log guards |
+| `test_report.py` | Section P&L margins + dead stock |
+| `test_allergens.py` | EU-14/diet codes: 422s, preserve, duplicate, export |
+| `test_supplier.py` | Supplier CRUD, order rows carry it, export column |
 
 The three-layer split (pure math / migrations / API) means a failure tells
 you *which* layer is wrong before you start reading.

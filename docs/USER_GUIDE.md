@@ -1,11 +1,13 @@
 # BarSpec — User Guide
 
-Cocktail spec manager for bartenders and bar owners: store your recipes once,
-link them to your real bottles, and let BarSpec do the costing, pricing and
-stock-counting math. No spreadsheets, no hand-repricing when a bottle goes up.
+Recipe and cost manager for **bars, pubs, cafés and restaurants**: store your
+recipes (drinks *and* dishes) once, link them to what you actually buy — by
+the bottle, the kilo or the piece — and let BarSpec do the costing, pricing
+and stock-counting math. No spreadsheets, no hand-repricing when a supplier
+puts a price up.
 
-**Read this if you run a bar.** It explains what the app does, how to use each
-screen, and what the numbers mean. If you're a developer, the
+**Read this if you run a venue.** It explains what the app does, how to use
+each screen, and what the numbers mean. If you're a developer, the
 [Developer Guide](DEV_GUIDE.md) explains how it's built and why.
 
 ---
@@ -19,6 +21,9 @@ screen, and what the numbers mean. If you're a developer, the
 | What to charge | Gut feel | Target-margin slider → suggested price |
 | Stock ordering | Count bottles on paper, guess what to buy | Count vs par → order list + cash-asleep total |
 | What's selling vs sitting | Shelf memory | Movement between counts + dead-stock list |
+| Kitchen prep (mayo, soup, sauce batches) | Guess per tray | Batch says "makes 20" → real €/portion |
+| Food waste & spills | A mystery at month end | Loss log: item, amount, reason, when |
+| Supplier orders | Phone around blind | Order list grouped per supplier |
 
 ---
 

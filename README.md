@@ -172,6 +172,17 @@ DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 | GET | `/api/stock-takes/last` | latest snapshot's order review (to-order + cash asleep) |
 | GET | `/api/stock-takes/trends` | movement between last two counts + dead-stock list |
 | GET | `/api/menu` | priced menu view |
+| GET | `/api/settings` · PUT `/api/settings` | venue profile (name, IVA %) |
+| GET | `/api/report/pnl` | section P&L: margins per category + dead-stock € |
+| GET | `/api/stock-adjustments` | recent loss-log lines |
+| POST | `/api/stock/{id}/adjust` | log spillage/waste (signed delta + reason) |
+| GET | `/api/batches` · POST `/api/batches` | list / create (with `servings`) |
+| GET/PUT/DELETE | `/api/batches/{id}` | detail (cost, €/portion, expiry) / update / delete |
+| POST/DELETE | `/api/batches/{id}/lines` | add / remove a batch ingredient |
+| PUT | `/api/batches/lines/{id}` | edit a batch line |
+| GET | `/api/export/specs.xlsx` · `/api/export/specs.csv` | spec book (owner file: costs, dietary, allergens) |
+| GET | `/api/export/stock.xlsx` · `/api/export/stock.csv` | stock sheet (incl. supplier) |
+| GET | `/api/export/menu-qr.svg?url=…` | SVG QR pointing at a menu deep link |
 
 ## Ops
 
