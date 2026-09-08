@@ -114,6 +114,19 @@ const flows = [
     },
   },
   {
+    name: "sales view is visible and lists priced specs",
+    run: async () => {
+      await page.click("#navSales");
+      await page.waitForSelector("#view-sales", { state: "visible", timeout: 6000 });
+      await page.waitForSelector("#sSpec", { state: "visible", timeout: 6000 });
+      await page.waitForFunction(() => document.querySelectorAll("#sSpec option").length > 0,
+        null, { timeout: 6000 });
+      const opts = await page.$$eval("#sSpec option", (os) => os.length);
+      ok("sales view visible with spec options", opts >= 5, `(got ${opts})`);
+      await page.click("#navSpecs");
+    },
+  },
+  {
     name: "menu renders grouped categories",
     run: async () => {
       await page.click("#navMenu");

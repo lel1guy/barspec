@@ -331,6 +331,7 @@ function setLang(l) {
   else if (currentView === "stock") renderStock();
   else if (currentView === "stocktake") loadStocktake();
   else if (currentView === "menu") renderMenu();
+  else if (currentView === "sales") loadSalesView();
 }
 // text scale S/M/L (persisted); zoom on content, nav stays compact
 let fs = localStorage.getItem("barspec.fontsize") || "m";
@@ -531,6 +532,7 @@ function showView(v) {
   $("#newSpecBtn").classList.toggle("hidden", !meta.header);
   $("#searchBox").classList.toggle("hidden", !meta.header);
   $("#printCardsBtn").classList.toggle("hidden", !meta.header);
+  if (v === "specs") loadSpecs(!!currentSpec);   // refresh on entry (lang/data drift)
   if (v === "batches") loadBatches();
   if (v === "stock") renderStock();
   if (v === "stocktake") loadStocktake();

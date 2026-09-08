@@ -227,7 +227,7 @@
   </section>
 
   <!-- ============ SALES (A.7): daily entry -> actual GP & shrinkage ============ -->
-  <section id="view-sales" class="view hidden">
+  <section id="view-sales" class="view">
     <div class="panel" style="grid-column:1/-1;">
       <div class="panel-head">
         <h2 data-i18n="sales.title">Daily sales</h2>
@@ -289,7 +289,7 @@
     <form id="authForm" style="display:flex; gap:8px; margin:12px 0;">
       <input id="authPin" type="password" inputmode="numeric" maxlength="64" autocomplete="current-password"
              data-i18n-ph="auth.pinPh" placeholder="PIN" style="flex:1; text-align:center; font-size:18px; letter-spacing:.3em;">
-      <button class="btn" id="authGo" data-i18n="auth.go">Unlock</button>
+      <button type="button" class="btn" id="authGo" data-i18n="auth.go">Unlock</button>
     </form>
     <div class="edit-note" id="authErr" style="color:#e76f51; display:none;">Wrong PIN.</div>
   </div>
