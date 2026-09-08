@@ -224,4 +224,7 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 ## Próximos passos (não iniciados)
 
 - Cache de leitura offline PWA (service worker — precisa de HTTPS)
-- Cópia de segurança offsite encriptada (S3 — segundo destino, noturno)
+
+> Cópia de segurança: apenas local, todas as noites (03:17, 14 mantidas) —
+> decisão de V (2026-09-08): sem destino offsite, a máquina é o espaço do
+> servidor.

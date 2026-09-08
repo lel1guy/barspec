@@ -298,6 +298,6 @@ utilizador. Um espaço, um ficheiro. Isso é uma vantagem para o mercado-alvo
 plano de desenvolvimento.
 
 **O que vem a seguir?** A cozinha está fechada (doses por lote, registo de
-perdas, P&L por secção, alergénios, fornecedores) e a segurança começou (PIN
-+ auditoria). Em fila: cópia de segurança offsite encriptada e, depois do
-demo, o plano fase B. Veja o plano de desenvolvimento para o roadmap.
+perdas, P&L por secção, alergénios, fornecedores) e a segurança enviou o PIN
+e a auditoria. Cópias de segurança: locais, todas as noites (decisão de V —
+sem destino offsite). Veja o plano de desenvolvimento para o roadmap.

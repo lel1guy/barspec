@@ -14,8 +14,8 @@ app; o `README.md` como referência rápida de execução/testes/API.
 > registo de perdas, P&L por secção, alergénios, fornecedores), auditoria
 > (012), PT-PT, layout móvel, exportações/QR, fichas de treino,
 > acessibilidade, cópias de segurança automáticas, **PIN do dono (S1)**.
-> **158 testes verdes.** O registo de auditoria (S2) está enviado; a cópia de
-> segurança offsite encriptada (S3) fica para quando V a pedir.
+> **158 testes verdes.** Cópias de segurança: locais apenas (decisão de V —
+> sem destino offsite).
 
 ---
 
@@ -454,8 +454,8 @@ A direção do produto, o raciocínio de mercado e o plano faseado vivem no
 plano de desenvolvimento do vault
 (`Projects/Bar-Tech-Venture/BarSpec-Vision-and-Dev-Plan.md`): a Fase A está
 fechada (contagens, motor de unidades, lotes, precisão de custo, PT-PT,
-cozinha K1–K4) e a segurança começou (S1 PIN + S2 auditoria enviados; S3
-offsite em espera). As Fases B/C (multi-espaço, VPS+Caddy, autenticação por
-funções, PWA) estão deliberadamente condicionadas a um espaço pagante real.
-Atualize este documento quando isso acontecer — o código terá mudado de
-forma.
+cozinha K1–K4) e a segurança enviou o PIN (S1) e a auditoria (S2) — cópias de
+segurança ficam locais (decisão de V). As Fases B/C (multi-espaço, VPS+Caddy,
+autenticação por funções, PWA) estão deliberadamente condicionadas a um espaço
+pagante real. Atualize este documento quando isso acontecer — o código terá
+mudado de forma.
