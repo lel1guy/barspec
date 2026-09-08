@@ -68,6 +68,7 @@ const I18N = {
   en: {
     "side.workspace": "Workspace", "nav.specs": "Specs", "nav.batches": "Batches",
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
+    "nav.sales": "Vendas", "view.sales": "Vendas",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
     "mhead.settings": "⚙ Settings", "settings.title": "Settings",
@@ -130,6 +131,18 @@ const I18N = {
     "order.none": "Nothing to order — you're at or above par everywhere. Nice.",
     "order.noOver": "Nothing over par.",
     "order.atParB": "bottle", "order.atParBs": "bottles", "order.atPar": "exactly at par.",
+    "sales.title": "Daily sales", "sales.entryHint": "Enter what you sold per spec each day. Re-posting a day replaces it.",
+    "sales.day": "Day", "sales.spec": "Spec", "sales.qty": "Qty sold", "sales.add": "+ Add line",
+    "sales.save": "Save day", "sales.savedDay": "{c} new, {u} updated.",
+    "sales.skipped": "No price, skipped: {n}", "sales.gpTitle": "Actual GP",
+    "sales.gpHint": "Real margin from posted sales — snapshots frozen at posting.",
+    "sales.from": "From", "sales.to": "To", "sales.update": "Update", "sales.noData": "No sales in this window yet.",
+    "sales.thSpec": "Spec", "sales.thQty": "Qty", "sales.thRev": "Revenue", "sales.thCost": "Cost",
+    "sales.thDays": "days", "sales.shrTitle": "Shrinkage",
+    "sales.shrHint": "Stock used between the last two counts vs what your sales explain. Red = more used than sold.",
+    "sales.calc": "Calculate", "sales.needCounts": "Post two stock-takes to get shrinkage.",
+    "sales.shrWin": "Count window: {a} → {b}", "sales.used": "Used ml", "sales.expected": "Expected ml",
+    "sales.diff": "Diff ml", "sales.leak": "Leak: {e} more stock used than sales explain.", "sales.noLeak": "No unexplained usage. Clean.",
     "pricing.target": "Target margin", "pricing.suggest": "Suggested for target:",
     "pricing.use": "use", "pricing.savePrice": "Save price",
     "pricing.unpriced": "unpriced",
@@ -167,6 +180,7 @@ const I18N = {
   pt: {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
+    "nav.sales": "Vendas", "view.sales": "Vendas",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
     "mhead.settings": "⚙ Definições", "settings.title": "Definições",
@@ -229,6 +243,18 @@ const I18N = {
     "order.none": "Nada a encomendar — está tudo no par ou acima. Boa.",
     "order.noOver": "Nada acima do par.",
     "order.atParB": "garrafa", "order.atParBs": "garrafas", "order.atPar": "exatamente no par.",
+    "sales.title": "Vendas diárias", "sales.entryHint": "Registe o que vendeu por receita e dia. Voltar a registar o mesmo dia substitui.",
+    "sales.day": "Dia", "sales.spec": "Receita", "sales.qty": "Qtd vendida", "sales.add": "+ Adicionar linha",
+    "sales.save": "Guardar dia", "sales.savedDay": "{c} novas, {u} atualizadas.",
+    "sales.skipped": "Sem preço, ignoradas: {n}", "sales.gpTitle": "GP real",
+    "sales.gpHint": "Margem real das vendas registadas — valores congelados no registo.",
+    "sales.from": "De", "sales.to": "Até", "sales.update": "Atualizar", "sales.noData": "Ainda sem vendas neste período.",
+    "sales.thSpec": "Receita", "sales.thQty": "Qtd", "sales.thRev": "Receita", "sales.thCost": "Custo",
+    "sales.thDays": "dias", "sales.shrTitle": "Encolhimento",
+    "sales.shrHint": "Stock usado entre as duas últimas contagens vs o que as vendas explicam. Vermelho = usado mais do que vendido.",
+    "sales.calc": "Calcular", "sales.needCounts": "Registe duas contagens para ter o encolhimento.",
+    "sales.shrWin": "Janela de contagens: {a} → {b}", "sales.used": "Usado ml", "sales.expected": "Esperado ml",
+    "sales.diff": "Dif ml", "sales.leak": "Fuga: {e} de stock usado sem explicação nas vendas.", "sales.noLeak": "Sem uso inexplicado. Limpo.",
     "pricing.target": "Margem alvo", "pricing.suggest": "Sugerido para a margem:",
     "pricing.use": "usar", "pricing.savePrice": "Guardar preço",
     "pricing.unpriced": "sem preço",
@@ -459,11 +485,12 @@ const VIEWS = {
   stock: { title: "Stock", crumb: "STOCK", header: false },
   stocktake: { title: "Stock-take", crumb: "STOCK-TAKE", header: false },
   menu:  { title: "Menu",  crumb: "MENU",  header: false },
+  sales: { title: "Sales", crumb: "SALES", header: false },
 };
 const NAV_IDS = { specs: "navSpecs", batches: "navBatches", stock: "navStock",
-                  stocktake: "navTake", menu: "navMenu" };
+                  stocktake: "navTake", menu: "navMenu", sales: "navSales" };
 const VIEW_KEYS = { specs: "view.specs", batches: "view.batches", stock: "view.stock",
-                    stocktake: "view.take", menu: "view.menu" };
+                    stocktake: "view.take", menu: "view.menu", sales: "view.sales" };
 function updateChrome() {
   $("#viewTitle").textContent = t(VIEW_KEYS[currentView]);
   $("#crumbLabel").textContent = "BARSPEC / " + t(VIEW_KEYS[currentView]).toUpperCase();
@@ -486,6 +513,7 @@ function showView(v) {
   if (v === "stock") renderStock();
   if (v === "stocktake") loadStocktake();
   if (v === "menu") renderMenu();
+  if (v === "sales") loadSalesView();
 }
 
 // ---------- spec list ----------
@@ -1766,6 +1794,7 @@ document.querySelectorAll("#fontBox .fontbtn").forEach((b) =>
 $("#navStock").addEventListener("click", () => showView("stock"));
 $("#navTake").addEventListener("click", () => showView("stocktake"));
 $("#navMenu").addEventListener("click", () => showView("menu"));
+$("#navSales").addEventListener("click", () => showView("sales"));
 $("#printMenuBtn").addEventListener("click", () => window.print());
 $("#pricedOnly").addEventListener("change", renderMenu);
 $("#venueBtn").addEventListener("click", async () => {
@@ -1918,6 +1947,137 @@ window.addEventListener("load", async () => {
   loadSpecs(false);
   try {
     const m = await api("/api/menu");
-    $("#countMenu").textContent = m.length;
+    const c = $("#countMenu");
+    if (c) c.textContent = m.length;
   } catch (_) {}
 });
+// ---------- sales view (A.7) ----------
+let salesPending = [];
+let salesSpecs = [];
+const isoToday = () => new Date().toISOString().slice(0, 10);
+const isoMonthStart = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+
+async function ensureSalesSpecs() {
+  if (salesSpecs.length) return;
+  const specs = await api("/api/specs");
+  salesSpecs = specs.filter((s) => s.price_eur).sort((a, b) => a.name.localeCompare(b.name));
+  const sel = $("#sSpec");
+  sel.innerHTML = salesSpecs.map((s) =>
+    `<option value="${s.id}">${esc(s.name)} — ${eur(s.price_eur)}</option>`).join("");
+}
+
+function renderPending() {
+  const box = $("#sPending");
+  if (!salesPending.length) { box.innerHTML = ""; return; }
+  box.innerHTML = salesPending.map((p, i) =>
+    `<div class="batch-item"><div style="flex:1">
+       <span class="ing-name">${esc(p.name)}</span>
+       <span class="edit-note">× ${p.qty}</span></div>
+       <button class="danger small" data-srm="${i}" aria-label="remove">✕</button></div>`).join("");
+}
+$("#sPending").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-srm]");
+  if (!b) return;
+  salesPending.splice(+b.dataset.srm, 1);
+  renderPending();
+});
+$("#sAdd").addEventListener("click", () => {
+  const sel = $("#sSpec");
+  if (!sel.value) { toast("Pick a spec"); return; }
+  const qty = Math.max(1, parseInt($("#sQty").value, 10) || 1);
+  const spec = salesSpecs.find((s) => s.id === +sel.value);
+  const prev = salesPending.find((p) => p.id === spec.id);
+  if (prev) prev.qty += qty; else salesPending.push({ id: spec.id, name: spec.name, qty });
+  renderPending();
+});
+$("#sSave").addEventListener("click", async () => {
+  if (!salesPending.length) { toast("Nothing to save"); return; }
+  const day = $("#sDay").value || isoToday();
+  const res = await api("/api/sales", "POST",
+    { day, lines: salesPending.map((p) => ({ spec_id: p.id, qty: p.qty })) });
+  salesPending = [];
+  renderPending();
+  let note = t("sales.savedDay").replace("{c}", res.created).replace("{u}", res.updated);
+  if (res.skipped.length) note += " " + t("sales.skipped").replace("{n}", res.skipped.join(", "));
+  $("#sSaveNote").textContent = note;
+  renderSalesSummary();
+});
+
+async function loadSalesView() {
+  const d = $("#sDay");
+  if (!d.value) d.value = isoToday();
+  const f = $("#sFrom");
+  if (!f.value) f.value = isoMonthStart();
+  const t = $("#sTo");
+  if (!t.value) t.value = isoToday();
+  await ensureSalesSpecs();
+  renderSalesSummary();
+}
+async function renderSalesSummary() {
+  const box = $("#sSummary");
+  try {
+    const r = await api(`/api/sales/summary?from_day=${$("#sFrom").value}&to_day=${$("#sTo").value}`);
+    if (!r.rows.length) {
+      box.innerHTML = `<div class="edit-note">${t("sales.noData")}</div>`;
+      return;
+    }
+    const rows = r.rows.map((d) => {
+      const tier = d.gp_pct === null ? "" : d.gp_pct >= 60 ? "hi" : d.gp_pct >= 40 ? "ok" : "lo";
+      return `<tr>
+        <td>${esc(d.name)} <span class="edit-note">${esc(d.category)}</span></td>
+        <td class="num">${d.qty}</td>
+        <td class="num">${eur(d.revenue)}</td>
+        <td class="num">${eur(d.cost)}</td>
+        <td class="num">${eur(d.gp_eur)}</td>
+        <td class="num"><span class="pnl-chip ${tier}">${d.gp_pct === null ? "—" : Math.round(d.gp_pct) + "%"}</span></td></tr>`;
+    }).join("");
+    const T = r.totals;
+    const tt = T.gp_pct === null ? "—" : Math.round(T.gp_pct) + "%";
+    box.innerHTML = `<table class="pnl"><thead><tr>
+        <th>${t("sales.thSpec")}</th><th class="num">${t("sales.thQty")}</th>
+        <th class="num">${t("sales.thRev")}</th><th class="num">${t("sales.thCost")}</th>
+        <th class="num">GP €</th><th class="num">GP %</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td><b>${r.days} ${t("sales.thDays")}</b></td>
+        <td class="num">${T.qty}</td><td class="num">${eur(T.revenue)}</td>
+        <td class="num">${eur(T.cost)}</td><td class="num">${eur(T.gp_eur)}</td>
+        <td class="num"><b>${tt}</b></td></tr></tfoot></table>`;
+  } catch (_) { box.innerHTML = `<div class="edit-note">—</div>`; }
+}
+
+$("#sRefresh").addEventListener("click", renderSalesSummary);
+
+async function renderShrinkage() {
+  const box = $("#sShrinkBox");
+  const r = await api("/api/sales/shrinkage");
+  if (!r.window) {
+    box.innerHTML = `<div class="edit-note">${t("sales.needCounts")}</div>`;
+    return;
+  }
+  const rows = r.rows.map((d) => {
+    const cls = d.diff_eur > 0 ? "danger-text" : "";
+    const pct = d.pct === null ? "—" : (d.pct > 0 ? "+" : "") + Math.round(d.pct) + "%";
+    return `<tr class="${cls}">
+        <td>${esc(d.name)}</td>
+        <td class="num">${d.used_ml.toFixed(0)} ml</td>
+        <td class="num">${d.expected_ml.toFixed(0)} ml</td>
+        <td class="num">${d.diff_eur > 0 ? "+" : ""}${d.diff_ml.toFixed(0)} ml</td>
+        <td class="num">${d.diff_eur > 0 ? "+" : ""}${eur(d.diff_eur)}</td>
+        <td class="num">${pct}</td></tr>`;
+  }).join("");
+  const head = `<div class="hint" style="margin:4px 0 8px;">${t("sales.shrWin")
+    .replace("{a}", r.window[0]).replace("{b}", r.window[1])}</div>`;
+  const leakLine = r.leak_eur > 0
+    ? `<div class="danger-text" style="margin-top:8px; font-weight:700;">${t("sales.leak").replace("{e}", eur(r.leak_eur))}</div>`
+    : `<div class="edit-note" style="margin-top:8px;">${t("sales.noLeak")}</div>`;
+  box.innerHTML = head +
+    `<table class="pnl"><thead><tr>
+        <th>${t("detail.thBottle")}</th><th class="num">${t("sales.used")}</th>
+        <th class="num">${t("sales.expected")}</th><th class="num">${t("sales.diff")}</th>
+        <th class="num">€</th><th class="num">%</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" class="edit-note">—</td></tr>`}</tbody></table>` + leakLine;
+}
+$("#sShrink").addEventListener("click", () => renderShrinkage().catch(() => {}));

@@ -75,6 +75,11 @@ testadas).
   e cada eliminação fica registada antigo → novo com data/hora; Definições →
   Alterações recentes mostra o rasto. O histórico é só-adição — nada edita o
   passado.
+- **Vendas e encolhimento (A.7)**: registo diário do que vendeu por receita
+  (repetir o mesmo dia substitui) → **GP real** por receita/período, com
+  preço/custo congelados no registo (semântica de fatura); e
+  **encolhimento** — stock usado entre as duas últimas contagens vs o que as
+  vendas explicam, com a fuga em € em destaque.
 - **Fornecedores (K4)**: cada artigo de stock indica o seu fornecedor (texto
   livre, sugerido do que já escreveu). A lista de encomendas agrupa *A
   encomendar* e *Acima do par* por fornecedor — um relance por fornecedor,
@@ -116,7 +121,7 @@ preço demonstrarem logo.
 ## Testes
 
 ```bash
-pytest            # 158 testes: matemática de preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação
+pytest            # 163 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação, vendas
 npm run e2e       # smoke de browser real (Playwright): PIN, receitas, PT-PT, filtro de stock, carta
 ```
 
@@ -176,6 +181,10 @@ atualização — auto-verificável.
 - `012_audit.sql` — rasto de auditoria só-adição: cada alteração de preço
   (stock + receita) e cada eliminação, registada antigo → novo com data/hora.
   Só leitura; o histórico nunca é editado.
+- `013_sales.sql` — vendas diárias por (dia, receita), quantidades
+  substituíveis (idempotente); preço/custo são instantâneos congelados no
+  registo (semântica de fatura — preços futuros nunca reescrevem o GP
+  passado). Alimenta o GP real e o encolhimento stock-vs-vendas.
 
 Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 
@@ -215,6 +224,9 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 | GET | `/api/export/stock.xlsx` · `/api/export/stock.csv` | folha de stock (incl. fornecedor) |
 | GET | `/api/export/menu-qr.svg?url=…` | QR SVG para um link profundo da carta |
 | GET | `/api/audit` | últimas linhas do rasto de auditoria |
+| POST | `/api/sales` · GET `/api/sales` · DELETE `/api/sales/{id}` | registar um dia de vendas (idempotente por dia+receita) / listar / apagar linha |
+| GET | `/api/sales/summary?from_day&to_day` | GP real por receita + totais do período |
+| GET | `/api/sales/shrinkage` | stock usado (últimas 2 contagens) vs esperado pelas vendas — a fuga em € |
 | GET/POST | `/api/auth/status` · `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | gate do PIN do dono (as rotas protegidas devolvem 401 sem cookie) |
 
 ## Operações

@@ -404,6 +404,7 @@ html[data-fs="l"] main, html[data-fs="s"] main { min-height: auto; }
 .pnl-chip.hi { background: rgba(46, 204, 113, .16); color: #2ecc71; }
 .pnl-chip.ok { background: rgba(245, 190, 84, .16); color: #f5be54; }
 .pnl-chip.lo { background: rgba(231, 111, 81, .16); color: #e76f51; }
+.danger-text { color: #e76f51; }
 
 .spec-badges { margin: 2px 0 6px; display: flex; gap: 4px; flex-wrap: wrap; }
 .spec-badges .dim-tag.diet { border-color: #2ecc71; color: #2ecc71; }

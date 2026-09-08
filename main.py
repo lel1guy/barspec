@@ -550,3 +550,48 @@ def auth_logout():
 @app.get("/api/audit")
 def audit_list(limit: int = 25):
     return db.get_audit(limit=max(1, min(limit, 200)))
+# ---------- A.7: sales (actual GP and shrinkage) ----------
+
+class SalesLineIn(BaseModel):
+    spec_id: int
+    qty: int = Field(ge=1, le=10000)
+
+
+class SalesDayIn(BaseModel):
+    day: str
+    lines: list[SalesLineIn] = Field(min_length=1)
+
+    @field_validator("day")
+    @classmethod
+    def _chk_day(cls, v: str) -> str:
+        import re
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            raise ValueError("day must be YYYY-MM-DD")
+        return v
+
+
+@app.post("/api/sales")
+def post_sales(sd: SalesDayIn):
+    return db.save_sales_day(sd.day, [l.model_dump() for l in sd.lines])
+
+
+@app.get("/api/sales")
+def get_sales(from_day: str = "", to_day: str = ""):
+    return db.list_sales(from_day, to_day)
+
+
+@app.delete("/api/sales/{sales_id}")
+def del_sales(sales_id: int):
+    if not db.delete_sales_line(sales_id):
+        raise HTTPException(404, "Sales line not found")
+    return {"ok": True}
+
+
+@app.get("/api/sales/summary")
+def get_sales_summary(from_day: str = "", to_day: str = ""):
+    return db.sales_summary(from_day, to_day)
+
+
+@app.get("/api/sales/shrinkage")
+def get_sales_shrinkage():
+    return db.sales_shrinkage()

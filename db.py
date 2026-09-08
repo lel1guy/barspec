@@ -1362,3 +1362,219 @@ def get_audit(limit: int = 25) -> list[dict]:
 
 def _fmt(v):
     return "" if v is None else (f"€{v:.2f}" if isinstance(v, (int, float)) else str(v))
+
+
+# ---------- A.7: daily sales -> actual GP + shrinkage ----------
+
+def save_sales_day(day: str, lines: list[dict]) -> dict:
+    """Post one day of sales. (day, spec) is idempotent — re-posting replaces.
+    price/cost are frozen snapshots at posting time (invoice-line semantics)."""
+    conn = _conn()
+    created, updated, skipped = 0, 0, []
+    for ln in lines:
+        spec = get_spec(ln["spec_id"])
+        if not spec:
+            continue
+        price = spec.get("price_eur")
+        if price is None:
+            skipped.append(spec["name"])
+            continue
+        cost = (spec.get("summary") or {}).get("cost_eur") or 0.0
+        qty = int(ln["qty"])
+        cur = conn.execute(
+            """INSERT INTO sales_lines (day, spec_id, qty, price_eur, cost_eur)
+               VALUES (?,?,?,?,?)
+               ON CONFLICT (day, spec_id) DO UPDATE SET
+                 qty=excluded.qty, price_eur=excluded.price_eur,
+                 cost_eur=excluded.cost_eur""",
+            (day, ln["spec_id"], qty, round(price, 2), round(cost, 3)))
+        if cur.rowcount and conn.execute(
+                "SELECT changes()").fetchone()[0] == 1 and not _sales_line_was_new(conn, day, ln["spec_id"], qty):
+            updated += 1
+        else:
+            created += 1
+    conn.commit()
+    conn.close()
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+def _sales_line_was_new(conn, day, spec_id, qty):
+    # rowcount on upsert is not reliable across sqlite versions; count rows
+    row = conn.execute(
+        "SELECT qty FROM sales_lines WHERE day=? AND spec_id=?", (day, spec_id)).fetchone()
+    return row is not None and row["qty"] == qty and _saw_insert(conn, day, spec_id)
+
+
+def _saw_insert(conn, day, spec_id):
+    return False  # replaced below in python? see save fn note
+
+
+# ---------- A.7: daily sales -> actual GP + shrinkage ----------
+
+def save_sales_day(day: str, lines: list[dict]) -> dict:
+    """Post one day of sales. (day, spec) is idempotent — re-posting replaces.
+    price/cost are frozen snapshots at posting time (invoice-line semantics)."""
+    conn = _conn()
+    created, updated, skipped = 0, 0, []
+    for ln in lines:
+        spec = get_spec(ln["spec_id"])
+        if not spec:
+            continue
+        price = spec.get("price_eur")
+        if price is None:
+            skipped.append(spec["name"])
+            continue
+        cost = (spec.get("summary") or {}).get("cost_eur") or 0.0
+        qty = int(ln["qty"])
+        exists = conn.execute(
+            "SELECT 1 FROM sales_lines WHERE day=? AND spec_id=?",
+            (day, ln["spec_id"])).fetchone()
+        conn.execute(
+            """INSERT INTO sales_lines (day, spec_id, qty, price_eur, cost_eur)
+               VALUES (?,?,?,?,?)
+               ON CONFLICT (day, spec_id) DO UPDATE SET
+                 qty=excluded.qty, price_eur=excluded.price_eur,
+                 cost_eur=excluded.cost_eur""",
+            (day, ln["spec_id"], qty, round(price, 2), round(cost, 3)))
+        if exists:
+            updated += 1
+        else:
+            created += 1
+    conn.commit()
+    conn.close()
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+def list_sales(from_day: str = "", to_day: str = "") -> list[dict]:
+    conn = _conn()
+    sql = """SELECT s.id, s.day, s.qty, s.price_eur, s.cost_eur,
+                    s.spec_id, sp.name, sp.category
+             FROM sales_lines s
+             JOIN specs sp ON sp.id = s.spec_id"""
+    params = []
+    if from_day:
+        sql += " WHERE s.day >= ?"
+        params.append(from_day)
+    if to_day:
+        sql += (" AND " if params else " WHERE ") + " s.day <= ?"
+        params.append(to_day)
+    rows = conn.execute(sql + " ORDER BY s.day DESC, sp.name", params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_sales_line(sales_id: int) -> bool:
+    conn = _conn()
+    cur = conn.execute("DELETE FROM sales_lines WHERE id=?", (sales_id,))
+    conn.commit()
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
+
+
+def sales_summary(from_day: str, to_day: str) -> dict:
+    """GP per spec + totals over the window. Snapshot prices/costs frozen at
+    posting; margins are the ACTUAL margin for the days sold."""
+    rows = list_sales(from_day, to_day)
+    per = {}
+    tot = {"qty": 0, "revenue": 0.0, "cost": 0.0, "gp_eur": 0.0}
+    for r in rows:
+        key = (r["spec_id"], r["name"], r["category"] or "")
+        d = per.setdefault(key, {"spec_id": r["spec_id"], "name": r["name"],
+                                 "category": r["category"] or "", "qty": 0,
+                                 "revenue": 0.0, "cost": 0.0})
+        d["qty"] += r["qty"]
+        d["revenue"] += r["qty"] * r["price_eur"]
+        d["cost"] += r["qty"] * r["cost_eur"]
+    out = []
+    for d in per.values():
+        d["gp_eur"] = round(d["revenue"] - d["cost"], 2)
+        d["gp_pct"] = round(d["gp_eur"] / d["revenue"] * 100, 1) if d["revenue"] else None
+        d["revenue"] = round(d["revenue"], 2)
+        d["cost"] = round(d["cost"], 2)
+        tot["qty"] += d["qty"]
+        tot["revenue"] = round(tot["revenue"] + d["revenue"], 2)
+        tot["cost"] = round(tot["cost"] + d["cost"], 2)
+        out.append(d)
+    out.sort(key=lambda d: -d["revenue"])
+    tot["gp_eur"] = round(tot["revenue"] - tot["cost"], 2)
+    tot["gp_pct"] = round(tot["gp_eur"] / tot["revenue"] * 100, 1) if tot["revenue"] else None
+    return {"rows": out, "totals": tot, "days": len({r["day"] for r in rows})}
+
+
+def sales_shrinkage() -> dict:
+    """Actual stock used between the last two counts vs EXPECTED from sales
+    posted inside that window. diff_ml > 0 = more used than sold (the leak);
+    < 0 = less used than sold. Batch pours flow to underlying volume stock."""
+    conn = _conn()
+    takes = conn.execute(
+        "SELECT id, taken_at FROM stock_takes ORDER BY id DESC LIMIT 2").fetchall()
+    if len(takes) < 2:
+        conn.close()
+        return {"window": None, "rows": [], "note": "need 2 counts",
+                "leak_eur": 0.0, "takes": []}
+    newest, older = takes[0], takes[1]
+    win_from = older["taken_at"][:10]
+    win_to = newest["taken_at"][:10]
+
+    expected = {}
+    for sr in conn.execute(
+        "SELECT day, spec_id, qty FROM sales_lines WHERE day >= ? AND day <= ?",
+        (win_from, win_to)):
+        for line in conn.execute(
+            "SELECT stock_item_id, batch_id, amount_ml FROM spec_lines WHERE spec_id=?",
+            (sr["spec_id"],)):
+            if line["stock_item_id"] is not None and line["amount_ml"] is not None:
+                expected[line["stock_item_id"]] = expected.get(line["stock_item_id"], 0.0) \
+                    + sr["qty"] * line["amount_ml"]
+            elif line["batch_id"] is not None:
+                b = conn.execute(
+                    "SELECT batch_size_ml FROM batches WHERE id=?",
+                    (line["batch_id"],)).fetchone()
+                if not b or not b["batch_size_ml"]:
+                    continue
+                for bl in conn.execute(
+                    "SELECT stock_item_id, amount_ml FROM batch_lines WHERE batch_id=?",
+                    (line["batch_id"],)):
+                    if bl["stock_item_id"] is None or bl["amount_ml"] is None:
+                        continue
+                    frac = bl["amount_ml"] / b["batch_size_ml"]
+                    expected[bl["stock_item_id"]] = expected.get(bl["stock_item_id"], 0.0) \
+                        + sr["qty"] * line["amount_ml"] * frac
+
+    def counts_of(take_id):
+        return {r["stock_item_id"]: dict(r) for r in conn.execute(
+            "SELECT stock_item_id, full_bottles, open_fraction "
+            "FROM stock_take_lines WHERE take_id=?", (take_id,))}
+
+    nc, oc = counts_of(newest["id"]), counts_of(older["id"])
+    rows = []
+    for sid in sorted(set(nc) | set(oc)):
+        stock = conn.execute(
+            "SELECT name, bottle_price_eur, bottle_volume_ml FROM stock_items WHERE id=?",
+            (sid,)).fetchone()
+        if not stock or sid not in nc or sid not in oc:
+            continue
+        nf = pricing.fbe(nc[sid]["full_bottles"], nc[sid]["open_fraction"])
+        of = pricing.fbe(oc[sid]["full_bottles"], oc[sid]["open_fraction"])
+        used_ml = (of - nf) * (stock["bottle_volume_ml"] or 0)
+        if used_ml < -1:
+            continue  # restocked mid-window; not comparable
+        used_ml = max(0.0, used_ml)
+        exp = expected.get(sid, 0.0)
+        diff = used_ml - exp
+        ppm = (stock["bottle_price_eur"] or 0) / stock["bottle_volume_ml"] \
+            if stock["bottle_volume_ml"] else 0.0
+        rows.append({
+            "stock_item_id": sid, "name": stock["name"],
+            "used_ml": round(used_ml, 1), "expected_ml": round(exp, 1),
+            "diff_ml": round(diff, 1),
+            "diff_eur": round(diff * ppm, 2),
+            "pct": round(diff / exp * 100, 1) if exp > 1 else None,
+        })
+    conn.close()
+    rows.sort(key=lambda r: -abs(r["diff_eur"]))
+    leak = sum(r["diff_eur"] for r in rows if r["diff_eur"] > 0)
+    return {"window": [win_from, win_to], "rows": rows,
+            "leak_eur": round(leak, 2),
+            "takes": [older["taken_at"], newest["taken_at"]]}

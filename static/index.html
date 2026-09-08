@@ -19,7 +19,8 @@
     <button id="navBatches" class="navitem"><span class="ic">≋</span><span data-i18n="nav.batches">Batches</span><span class="navbadge" id="countBatches">0</span></button>
     <button id="navStock" class="navitem"><span class="ic">◫</span><span data-i18n="nav.stock">Stock</span><span class="navbadge" id="countStock">0</span></button>
     <button id="navTake" class="navitem"><span class="ic">▦</span><span data-i18n="nav.take">Stock-take</span><span class="navbadge" id="countTake">0</span></button>
-    <button id="navMenu" class="navitem"><span class="ic">☰</span><span data-i18n="nav.menu">Menu</span><span class="navbadge" id="countMenu">0</span></button>
+    <button id="navMenu" class="navitem"><span class="ic">▤</span><span data-i18n="nav.menu">Menu</span></button>
+    <button id="navSales" class="navitem"><span class="ic">€</span><span data-i18n="nav.sales">Vendas</span></button>
   </nav>
 </aside>
 
@@ -222,6 +223,49 @@
       <div id="pnlBox" class="hidden no-print"></div>
       <div id="menuFooter" style="display:none;"></div>
       <div id="menuEmpty" class="edit-note hidden" style="padding:20px 0;" data-i18n="menu.empty">No specs yet — create one in Specs.</div>
+    </div>
+  </section>
+
+  <!-- ============ SALES (A.7): daily entry -> actual GP & shrinkage ============ -->
+  <section id="view-sales" class="view hidden">
+    <div class="panel" style="grid-column:1/-1;">
+      <div class="panel-head">
+        <h2 data-i18n="sales.title">Daily sales</h2>
+        <span class="hint" data-i18n="sales.entryHint">Count the spec sold each day — re-posting a day replaces it.</span>
+      </div>
+      <div class="formrow" style="flex-wrap:wrap; gap:8px;">
+        <div><label data-i18n="sales.day">Day</label><input id="sDay" type="date"></div>
+        <div style="flex:2; min-width:180px;"><label data-i18n="sales.spec">Spec</label>
+          <select id="sSpec"></select></div>
+        <div style="width:110px;"><label data-i18n="sales.qty">Qty sold</label>
+          <input id="sQty" type="number" min="1" value="1" step="1"></div>
+        <button id="sAdd" class="btn ghost" data-i18n="sales.add">+ Add line</button>
+      </div>
+      <div id="sPending" style="margin-top:8px;"></div>
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+        <button id="sSave" class="btn primary" data-i18n="sales.save">Save day</button>
+        <span class="edit-note" id="sSaveNote"></span>
+      </div>
+    </div>
+    <div class="panel" style="grid-column:1/-1;">
+      <div class="panel-head">
+        <h2 data-i18n="sales.gpTitle">Actual GP</h2>
+        <span class="hint" data-i18n="sales.gpHint">Real margin from posted sales — snapshots frozen at posting.</span>
+      </div>
+      <div class="formrow" style="gap:8px; align-items:flex-end;">
+        <div><label data-i18n="sales.from">From</label><input id="sFrom" type="date"></div>
+        <div><label data-i18n="sales.to">To</label><input id="sTo" type="date"></div>
+        <button id="sRefresh" class="btn ghost" data-i18n="sales.update">Update</button>
+      </div>
+      <div id="sSummary"></div>
+    </div>
+    <div class="panel" style="grid-column:1/-1;">
+      <div class="panel-head">
+        <h2 data-i18n="sales.shrTitle">Shrinkage</h2>
+        <span class="hint" data-i18n="sales.shrHint">Stock used (last two counts) vs sales expected. Red = more used than sold.</span>
+      </div>
+      <button id="sShrink" class="btn ghost" data-i18n="sales.calc">Calculate</button>
+      <div id="sShrinkBox" style="margin-top:10px;"></div>
     </div>
   </section>
 
