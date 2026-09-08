@@ -84,7 +84,7 @@ const I18N = {
     "onb.skip": "Explore on my own",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
-    "mhead.settings": "⚙ Settings", "settings.title": "Settings",
+    "mhead.settings": "⚙ Settings", "settings.title": "Settings", "help.title": "Help",
     "settings.lang": "Language", "settings.text": "Text size", "settings.unit": "Display unit",
     "spec.cards": "⤢ Cards",
     "stock.sup": "Supplier", "stock.supPh": "Supplier — blank ok",
@@ -219,7 +219,7 @@ const I18N = {
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
-    "mhead.settings": "⚙ Definições", "settings.title": "Definições",
+    "mhead.settings": "⚙ Definições", "settings.title": "Definições", "help.title": "Ajuda",
     "settings.lang": "Idioma", "settings.text": "Tamanho do texto", "settings.unit": "Unidade de apresentação",
     "spec.cards": "⤢ Fichas",
     "stock.sup": "Fornecedor", "stock.supPh": "Fornecedor — pode ficar vazio",
@@ -356,6 +356,7 @@ function setLang(l) {
   else if (currentView === "stocktake") loadStocktake();
   else if (currentView === "menu") renderMenu();
   else if (currentView === "sales") loadSalesView();
+  if (!document.getElementById("setOverlay").classList.contains("hidden")) renderHelp();
 }
 // text scale S/M/L (persisted); zoom on content, nav stays compact
 let fs = localStorage.getItem("barspec.fontsize") || "m";
@@ -1961,6 +1962,7 @@ $("#setBtn").addEventListener("click", async () => {
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));
   renderAudit();
+  renderHelp();
   $("#setOverlay").classList.remove("hidden");
 });
 const AUDIT_VERB = { price: "◈", spec_price: "◈", deleted: "✕", adjusted: "±", added: "+" };
@@ -2322,4 +2324,42 @@ function maybeOnboarding() {
 function dismissOnb() {
   localStorage.setItem("barspec.onboarded", "1");
   document.getElementById("onbOverlay").classList.add("hidden");
+}
+// ---------- Help center (Settings -> Help) ----------
+const HELP = {
+  en: [
+    { q: "How do I price a spec honestly?", a: "Open the spec, set a Target margin (e.g. 75%) and press 'Suggested' — BarSpec rounds UP to the nearest €0.50 so the real margin never dips below your target. Or type a price and read the actual margin chip (green = at/above target, amber = close, red = low)." },
+    { q: "Why does one price change update everything?", a: "Because BarSpec never stores a cost — it derives every recipe cost from the real purchase prices. Change a bottle's price once and every spec (and batch) that uses it recalculates, with an impact report telling you which ones and by how much." },
+    { q: "What is a batch and when should I use one?", a: "A batch is a house-made ingredient: syrup, infusion, mix, or prep. You give it ingredients + size; BarSpec derives cost per litre and per portion. Use a batch in a spec whenever the pour comes from something you make, not a single bottle." },
+    { q: "How does the stock-take work?", a: "Count the shelf: whole bottles plus open fraction (¼/½/¾/1). Each count is a dated snapshot. Set a par (what you want on the shelf) and the Order list tells you what to buy, grouped by supplier; Trends shows movement between counts and dead stock (cash asleep on the shelf)." },
+    { q: "What is the loss log for?", a: "Spills, waste, spoilage, corrections: log them from Stock (+ Log loss). It keeps stock honest between counts and turns repeat losses into a visible story instead of a hunch." },
+    { q: "How do Vendas (daily sales) work?", a: "Each day, enter what you sold per spec. Saving freezes that day's price and cost (a later price change never rewrites the past). The GP panel shows actual revenue/cost/margin per spec and in total. Shrinkage compares stock used between your last two counts vs what your sales explain — more used than sold is the leak, in €." },
+    { q: "When is shrinkage honest?", a: "Count weekly and enter sales daily — the count window is the anchor. Weight/count pours aren't in the ml math and items restocked mid-window are skipped; the page tells you when it has nothing to show." },
+    { q: "How do I let staff look up recipes safely?", a: "Settings → Staff PIN → enable. Staff get their own read-only screen: recipes and the menu with money REMOVED by the server (not hidden in the UI). Every write and every owner area returns 403 to them." },
+    { q: "Can I use it in PT or switch units?", a: "Yes — Settings has the language switch (EN / PT-PT, remembered per browser) and the display unit (ml / cl / oz). Values are stored canonically underneath, so switching never changes a number's truth." },
+    { q: "Where is my data and how do I back it up?", a: "Everything is one SQLite file. BarSpec snapshots it nightly (03:17, 14 kept) and a restore script exists. Copying that file is a full backup — it's 'here is your data file', always." },
+    { q: "What should I print?", a: "Menu prints priced and grouped (venue name + IVA footer), shareable by QR. Training Cards print a spec deck with amounts and method — never a cost, so they're floor-safe. Exports (.xlsx/.csv) include costs on purpose: they're for you and your accountant." },
+    { q: "What is the Summary (◫ Resumo) page?", a: "The attention page: items below par from your latest count, batches expiring within a week, losses this month in €, and a nudge when the last count is over 7 days old. Each card jumps to the view that fixes it." },
+  ],
+  pt: [
+    { q: "Como precifico uma receita com honestidade?", a: "Abra a receita, defina uma Margem alvo (ex.: 75%) e carregue em 'Sugerido' — o BarSpec arredonda para CIMA até ao €0,50 mais próximo, para a margem real nunca ficar abaixo do alvo. Ou escreva o preço e leia a margem real (verde = no alvo ou acima, âmbar = perto, vermelho = baixa)." },
+    { q: "Porque é que uma alteração de preço atualiza tudo?", a: "Porque o BarSpec nunca guarda um custo — deriva o custo de cada receita a partir dos preços reais de compra. Mude o preço de uma garrafa uma vez e todas as receitas (e xaropes) que a usam recalculam, com um relatório de impacto a dizer quais e quanto." },
+    { q: "O que é um xarope/lote e quando devo usar um?", a: "Um lote é um ingrediente feito em casa: xarope, infusão, mistura ou preparado. Dá-lhe os ingredientes + tamanho; o BarSpec deriva o custo por litro e por dose. Use um lote numa receita sempre que o serviço vem de algo que produz, não de uma garrafa única." },
+    { q: "Como funciona a contagem de stock?", a: "Conte a prateleira: garrafas inteiras + fração aberta (¼/½/¾/1). Cada contagem é um instantâneo com data. Defina um par (o que quer ter na prateleira) e a lista de Encomendas diz o que comprar, agrupada por fornecedor; Tendências mostra o movimento entre contagens e o stock parado (dinheiro a dormir na prateleira)." },
+    { q: "Para que serve o registo de perdas?", a: "Derrames, desperdício, estragos, correções: registe-os a partir do Stock (+ Registar perda). Mantém o stock honesto entre contagens e transforma perdas repetidas numa história visível, não num palpite." },
+    { q: "Como funcionam as Vendas diárias?", a: "Em cada dia, registe o que vendeu por receita. Ao guardar, congela o preço e o custo desse dia (uma subida de preço posterior nunca reescreve o passado). O painel GP mostra a receita/custo/margem reais por receita e no total. O encolhimento compara o stock usado entre as suas duas últimas contagens com o que as vendas explicam — mais usado do que vendido é a fuga, em €." },
+    { q: "Quando é que o encolhimento é honesto?", a: "Conte semanalmente e registe vendas diariamente — a janela de contagens é a âncora. Serviços em peso/unidades não entram na matemática de ml e artigos repostos a meio da janela são ignorados; a página avisa quando não tem nada para mostrar." },
+    { q: "Como deixo a equipa consultar receitas em segurança?", a: "Definições → PIN da equipa → ativar. A equipa tem um ecrã próprio só-leitura: receitas e carta com o dinheiro REMOVIDO pelo servidor (não escondido na interface). Qualquer escrita e qualquer área do dono devolve 403." },
+    { q: "Posso usar em PT ou mudar as unidades?", a: "Sim — Definições tem o idioma (EN / PT-PT, lembrado por browser) e a unidade de apresentação (ml / cl / oz). Os valores ficam guardados de forma canónica por baixo, por isso mudar nunca altera a verdade de um número." },
+    { q: "Onde estão os meus dados e como faço backup?", a: "Tudo é um único ficheiro SQLite. O BarSpec faz uma cópia todas as noites (03:17, 14 guardadas) e existe um script de restauro. Copiar esse ficheiro é um backup completo — é 'aqui está o seu ficheiro de dados', sempre." },
+    { q: "O que devo imprimir?", a: "A Carta imprime com preços e agrupada (nome do espaço + rodapé IVA), partilhável por QR. As Fichas imprimem um baralho de receitas com quantidades e método — nunca um custo, por isso são seguras para o balcão. As exportações (.xlsx/.csv) incluem custos de propósito: são para si e para o contabilista." },
+    { q: "O que é a página Resumo (◫)?", a: "A página de atenção: artigos abaixo do par da sua última contagem, xaropes a expirar numa semana, perdas do mês em € e um lembrete quando a última contagem tem mais de 7 dias. Cada cartão salta para a vista que resolve o assunto." },
+  ],
+};
+function renderHelp() {
+  const l = typeof lang !== "undefined" && lang ? lang : "en";
+  const items = (HELP[l] ? HELP[l] : HELP.en).map((h) =>
+    `<details class="help-item"><summary>${esc(h.q)}</summary><div class="help-a">${esc(h.a)}</div></details>`).join("");
+  const box = $("#helpBox");
+  if (box) box.innerHTML = items;
 }

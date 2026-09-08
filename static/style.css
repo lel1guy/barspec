@@ -620,3 +620,18 @@ body[data-role="staff"] main { max-width: 100%; }
   .navitem span[data-i18n] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .res-eur { font-size: 26px; }
 }
+/* help center */
+.help-list { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 4px; }
+.help-item { border: 1px solid var(--line2); border-radius: 8px; background: var(--panel2);
+  overflow: hidden; margin-bottom: 4px; }
+.help-item summary { cursor: pointer; padding: 8px 12px; font-weight: 600; font-size: 13.5px;
+  color: var(--cream); list-style: none; display: flex; justify-content: space-between; gap: 8px; }
+.help-item summary::-webkit-details-marker { display: none; }
+.help-item summary::after { content: "+"; color: var(--steel-hi); font-family: var(--mono); }
+.help-item[open] summary::after { content: "–"; }
+.help-item summary:hover { color: var(--steel-hi); }
+.help-a { padding: 2px 12px 10px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+
+/* tall dialogs (settings w/ help) must scroll, not clip */
+.overlay { overflow-y: auto; align-items: flex-start; }
+.overlay-card { max-height: calc(100vh - 32px); overflow-y: auto; }

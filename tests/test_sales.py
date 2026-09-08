@@ -74,8 +74,10 @@ def test_bad_day_and_bad_qty_rejected():
 
 
 def test_shrinkage_clean_when_sales_match_usage():
-    import datetime
-    day = datetime.date.today().isoformat()
+    import db as dbm
+    # server stamps takes/sales with date('now') (UTC) — use the SAME clock
+    # so a local/UTC date boundary (midnight) can never desync the window
+    day = dbm._conn().execute("SELECT date('now')").fetchone()[0]
     neg = _spec("Negroni")
     client.put(f"/api/specs/{neg['id']}", json={"name": "Negroni", "price_eur": 9.0})
     gin = _gin()
