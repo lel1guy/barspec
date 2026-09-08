@@ -16,7 +16,7 @@ Companion docs: the [User Guide](USER_GUIDE.md) is for *using* the app;
 > loss log, Sections P&L, allergens, suppliers), audit (012), and **A.7 daily
 > sales / actual GP / shrinkage (013)**. Phase A + kitchen K1–K4 + security
 > S1/S2 shipped, plus the **staff read-only role (022)**: recipes and menu
-> without money, money stripped server-side. **169 pytest tests green.**
+> without money, money stripped server-side. **172 pytest tests green.**
 > Backups: local only (V's decision — offsite S3 cancelled).
 
 ---
@@ -339,7 +339,7 @@ No stored cost was updated anywhere. That is Rule 1 paying the rent.
      runs `init_db()`. It is the money test: if the migration replay passes
      here, every future venue file upgrades safely.
 
-Suite map (169 green tests at HEAD, v1.1):
+Suite map (172 green tests at HEAD, v1.1):
 
 | File | Protects |
 |---|---|

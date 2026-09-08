@@ -36,6 +36,12 @@ Built by **Vitor Vareiro.** European Portuguese read this in
   posting** (invoice semantics — future price changes never rewrite past GP).
   Shrinkage compares stock *used* between your last two counts vs what your
   sales *explain* — the leak in € is the headline number.
+- **Summary (attention page)**: one glance on every visit — items below
+  par from the latest count (with suppliers), batches expiring within a
+  week, losses this month in €, and a "count again" nudge when the last
+  count is older than 7 days. Cards jump straight to the relevant view.
+- **First-run onboarding**: an empty venue opens into a 3-step wizard
+  (add stock → create a recipe → set a price) with direct action buttons.
 - **Exports & share**: spec book / stock as .xlsx + .csv, training cards
   (print a spec deck — never a cost), menu QR.
 - **Owner security**: first run asks for a PIN (pbkdf2-hashed, never stored
@@ -72,7 +78,7 @@ you do, by design.
 ## Tests
 
 ```bash
-pytest            # 169 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales
+pytest            # 172 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard
 npm run e2e       # real-browser smoke (Playwright, 11 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
 ```
 
@@ -123,6 +129,7 @@ snapshots under `backups/` (nightly 03:17, 14 kept); restore:
 | POST/GET/DELETE | `/api/sales`, `/api/sales/{id}` | post/list/delete a sales day |
 | GET | `/api/sales/summary?from_day&to_day` | actual GP per spec + totals |
 | GET | `/api/sales/shrinkage` | stock-vs-sales leak in € (last two counts) |
+| GET | `/api/dashboard` | attention summary: below-par, expiring, losses €, count age |
 | GET/POST/PUT | `/api/auth/status\|setup\|login\|logout\|staff-login\|staff-pin` | owner + staff PIN gate (protected routes 401 without a cookie; staff 403 outside read-only) |
 
 ## Operations
@@ -138,7 +145,7 @@ silent while the app answers and alerts if `:8777` goes down. Build history:
 
 Phase A complete (counting, units engine, batches, costing precision, PT-PT),
 kitchen K1–K4, security S1/S2, sales & shrinkage, staff roles — all shipped
-(2026-09-08, 169 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
+(2026-09-08, 172 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
 multi-tenant, PWA) are deliberately gated on a real paying venue. The full
 product plan lives in the vault (`Projects/Bar-Tech-Venture/
 BarSpec-Vision-and-Dev-Plan.md`).

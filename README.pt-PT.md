@@ -43,6 +43,12 @@ testadas).
 - **EN / PT-PT**: alternância de idioma num clique (barra superior, lembrada
   por browser). Navegação, formulários, botões, dicas e cartas traduzem;
   números e € nunca traduzem.
+- **Resumo (página de atenção)**: à primeira vista, em cada visita — abaixo
+  do par (última contagem, com fornecedores), xaropes a expirar numa
+  semana, perdas do mês em € e lembrete de contagem quando a última tem
+  >7 dias. Os cartões saltam para a vista certa.
+- **Primeiros passos (onboarding)**: um espaço vazio abre num assistente de
+  3 passos (stock → receita → preço) com botões de ação diretos.
 - **Exportação e partilha**: a receita completa + stock para .xlsx ou .csv
   (ficheiros do dono/contabilista, com custos), e um QR da carta — aponte um
   telemóvel e a carta abre (link profundo `?view=menu`).
@@ -126,7 +132,7 @@ preço demonstrarem logo.
 ## Testes
 
 ```bash
-pytest            # 169 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas
+pytest            # 172 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas, dashboard
 npm run e2e       # smoke de browser real (Playwright, 11 percursos): PIN, receitas, PT-PT, filtro de stock, vendas, carta
 ```
 
@@ -232,6 +238,7 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 | POST | `/api/sales` · GET `/api/sales` · DELETE `/api/sales/{id}` | registar um dia de vendas (idempotente por dia+receita) / listar / apagar linha |
 | GET | `/api/sales/summary?from_day&to_day` | GP real por receita + totais do período |
 | GET | `/api/sales/shrinkage` | stock usado (últimas 2 contagens) vs esperado pelas vendas — a fuga em € |
+| GET | `/api/dashboard` | resumo de atenção: abaixo do par, a expirar, perdas €, idade da contagem |
 | GET/POST | `/api/auth/status` · `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | gate do PIN do dono (as rotas protegidas devolvem 401 sem cookie) |
 
 ## Operações
