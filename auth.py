@@ -54,11 +54,21 @@ def pin_is_set() -> bool:
     return bool(db.get_setting(PIN_KEY))
 
 
-def sign_token() -> str:
+STAFF_PIN_KEY = "auth.staff_pin"
+
+
+def sign_token(role: str = "owner") -> str:
     exp = int(time.time()) + _MAX_AGE
-    payload = f"owner.{exp}"
+    payload = f"{role}.{exp}"
     sig = hmac.new(_secret().encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}.{sig}"
+
+
+def token_role(value: str | None) -> str | None:
+    """'owner' | 'staff' | None. None also covers expired/forged cookies."""
+    if not cookie_valid(value):
+        return None
+    return value.split(".")[0]
 
 
 def cookie_valid(value: str | None) -> bool:
@@ -68,17 +78,17 @@ def cookie_valid(value: str | None) -> bool:
     if len(parts) != 3:
         return False
     payload, exp, sig = parts[0], parts[1], parts[2]
-    if payload != "owner":
+    if payload not in ("owner", "staff"):
         return False
-    expect = hmac.new(_secret().encode(), f"owner.{exp}".encode(),
+    expect = hmac.new(_secret().encode(), f"{payload}.{exp}".encode(),
                       hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expect):
         return False
     return int(exp) > time.time()
 
 
-def make_cookie(name: str = _COOKIE) -> str:
-    return (f"{name}={sign_token()}; Path=/; HttpOnly; SameSite=Lax; "
+def make_cookie(name: str = _COOKIE, role: str = "owner") -> str:
+    return (f"{name}={sign_token(role)}; Path=/; HttpOnly; SameSite=Lax; "
             f"Max-Age={_MAX_AGE}")
 
 
