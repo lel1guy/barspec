@@ -7,6 +7,7 @@ import main
 
 @pytest.fixture(autouse=True)
 def _fresh(fresh_db):
+    main._attempts.clear()   # brute-force brake is process-wide; isolate per test
     yield
 
 
@@ -61,3 +62,12 @@ def test_headers_present():
     assert r.headers["x-frame-options"] == "DENY"
     assert r.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+
+
+def test_brute_force_brake_locks_after_five_misses():
+    c = _c()
+    c.post("/api/auth/setup", json={"pin": "4321"})
+    codes = [c.post("/api/auth/login", json={"pin": "0000"}).status_code for _ in range(5)]
+    assert codes == [401] * 5
+    # 6th attempt is throttled even with the right PIN
+    assert c.post("/api/auth/login", json={"pin": "4321"}).status_code == 429

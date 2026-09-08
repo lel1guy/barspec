@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 import csv
 import io
+import time
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
@@ -594,8 +595,12 @@ def auth_staff_login(request: Request, pin: PinIn):
     stored = db.get_setting(authmod.STAFF_PIN_KEY)
     if not stored:
         raise HTTPException(409, "No staff PIN set — the owner enables it in Settings")
+    if _throttled(request):
+        raise HTTPException(429, "Too many attempts — wait a minute")
     if not authmod.verify_pin(pin.pin, stored):
+        _note_fail(request)
         raise HTTPException(401, "Wrong PIN")
+    _reset(request)
     resp = JSONResponse({"ok": True, "role": "staff"})
     resp.headers.append("Set-Cookie", authmod.make_cookie(role="staff"))
     return resp
@@ -614,14 +619,48 @@ def auth_setup(pin: PinIn):
 
 
 @app.post("/api/auth/login")
-def auth_login(pin: PinIn):
+def auth_login(request: Request, pin: PinIn):
     if not authmod.pin_is_set():
-        raise HTTPException(409, "No PIN set yet")
-    if not authmod.verify_pin(pin.pin, db.get_setting(authmod.PIN_KEY) or ""):
+        raise HTTPException(409, "No PIN set yet — first visit sets it")
+    if _throttled(request):
+        raise HTTPException(429, "Too many attempts — wait a minute")
+    if not authmod.verify_pin(pin.pin, db.get_setting(authmod.PIN_KEY)):
+        _note_fail(request)
         raise HTTPException(401, "Wrong PIN")
+    _reset(request)
     resp = JSONResponse({"ok": True})
     resp.headers.append("Set-Cookie", authmod.make_cookie())
     return resp
+
+
+# in-memory brute-force brake: 5 misses per IP -> 60 s lockout
+_attempts = {}
+_LOCK = 60
+_MAXFAIL = 5
+
+
+def _client(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
+def _note_fail(request: Request):
+    now = time.time()
+    a = _attempts.setdefault(_client(request), {"n": 0, "until": 0})
+    if now < a["until"]:
+        return
+    a["n"] += 1
+    if a["n"] >= _MAXFAIL:
+        a["until"] = now + _LOCK
+        a["n"] = 0
+
+
+def _throttled(request: Request) -> bool:
+    a = _attempts.get(_client(request))
+    return bool(a and time.time() < a["until"])
+
+
+def _reset(request: Request):
+    _attempts.pop(_client(request), None)
 
 
 @app.post("/api/auth/logout")

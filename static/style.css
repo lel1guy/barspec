@@ -541,3 +541,54 @@ body[data-role="staff"] main { max-width: 100%; }
 @media (min-width: 900px) {
   body.printing-cards #cardsDeck { grid-template-columns: repeat(3, 1fr); }
 }
+/* ---------- audit pass (2026-09-08): polish ---------- */
+:root {
+  --faint: #96a3b6;              /* brighter secondary text */
+  --muted: #aeb7c5;
+  --line2: rgba(165, 186, 220, .38);   /* stronger borders for buttons/fields */
+}
+
+/* header: align the search pill with the buttons */
+.mhead { align-items: center; }
+.mhead h1 { margin: 0; }
+.search { padding: 6px 16px; min-height: 40px; margin-left: auto; }
+#searchBox { margin-left: 0; }
+/* specs header sits in a panel-head, not .mhead — same fix there */
+.panel-head .search { margin-left: auto; }
+
+/* category chips: subtle steel active, not a loud slab */
+.chip.active { background: var(--steel-dim); border-color: var(--steel); color: var(--steel-hi); }
+
+/* empty states teach instead of void */
+.empty-note { text-align: center; padding: 28px 18px; }
+.empty-note strong { display: block; margin-bottom: 10px; font-size: 16px; }
+.empty-steps { margin: 0 auto; padding-left: 20px; text-align: left; max-width: 460px;
+               color: var(--muted); font-size: 14px; line-height: 1.9; }
+.empty-steps li::marker { color: var(--steel-hi); font-weight: 700; }
+#empty.empty-note { border: 1px dashed var(--line2); border-radius: 10px; margin: 0; }
+
+/* touch targets & row rhythm */
+#specList .spec-item { gap: 10px; }
+#specList .spec-item button.small { flex: 0 0 auto; min-width: 42px; min-height: 42px;
+  margin-right: -4px; opacity: .55; }
+#specList .spec-item:hover button.small,
+#specList .spec-item.active button.small { opacity: 1; }
+#specList .spec-item button.small:focus-visible { opacity: 1; }
+#stockBody button.small, #batchList button.small, #sPending button.small,
+.take-table button.small { min-width: 42px; min-height: 42px; }
+
+/* supplier field reads as an input, not a label */
+.sup-in { border: 0; border-bottom: 1px dashed var(--line2); border-radius: 0;
+  background: transparent; min-height: auto; padding: 1px 2px; cursor: text; }
+.sup-in:hover { border-bottom-color: var(--steel-hi); }
+
+/* mobile: badges don't overlap icons, bigger hit area, roomier nav */
+@media (max-width: 700px) {
+  .navitem { position: relative; min-height: 54px; padding: 5px 1px; gap: 2px; }
+  .navitem .navbadge { display: none; }   /* six tabs can't fit badges cleanly */
+  .navitem span[data-i18n] { font-size: 10px; letter-spacing: -.01em; white-space: nowrap; }
+  input, select { min-height: 46px; }
+  #specList .spec-item { padding: 12px 10px; }
+  .sup-in { width: 96%; }
+  .toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
+}

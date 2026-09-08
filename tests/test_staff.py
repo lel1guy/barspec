@@ -7,6 +7,7 @@ import main
 
 @pytest.fixture(autouse=True)
 def _fresh(fresh_db):
+    main._attempts.clear()   # brute-force brake is process-wide; isolate per test
     yield
 
 

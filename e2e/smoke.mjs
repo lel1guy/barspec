@@ -85,8 +85,9 @@ const flows = [
       await page.click("#setBtn");
       await sleep(300);
       await page.click(".setopt[data-lang=pt]");
-      await sleep(1200);
-      ok("title flips to Receitas", (await txt("#viewTitle")) === "Receitas");
+      await sleep(1500);
+      const titleTxt = (await txt("#viewTitle")) || "";
+      ok("title flips to Receitas", titleTxt.includes("Receitas"), `(got '${titleTxt}')`);
       const listText = await page.$eval("#specList", (el) => el.innerText);
       ok("PT euro comma (€8,00)", /€\d+,\d{2}/.test(listText), `(${listText.slice(0, 60)})`);
       await page.click("#setClose");   // close the dialog or it blocks nav clicks

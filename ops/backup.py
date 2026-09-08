@@ -34,6 +34,10 @@ def main() -> int:
         log(f"FAIL  source db missing: {DB}")
         return 1
     OUT.mkdir(exist_ok=True)
+    try:
+        os.chmod(OUT, 0o700)          # backups are money data — owner-only
+    except OSError:
+        pass
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     target = OUT / f"barspec-{stamp}.db"
     try:
@@ -43,6 +47,7 @@ def main() -> int:
             src.backup(dst)
         dst.close()
         src.close()
+        os.chmod(target, 0o600)
     except sqlite3.Error as e:
         log(f"FAIL  {DB.name} -> {target.name}: {e}")
         return 1

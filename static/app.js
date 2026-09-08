@@ -69,6 +69,7 @@ const I18N = {
     "side.workspace": "Workspace", "nav.specs": "Specs", "nav.batches": "Batches",
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
+    "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
     "mhead.settings": "⚙ Settings", "settings.title": "Settings",
@@ -76,8 +77,12 @@ const I18N = {
     "spec.cards": "⤢ Cards",
     "stock.sup": "Supplier", "stock.supPh": "Supplier — blank ok",
     "stock.searchPh": "Filter stock…",
-    "specs.emptyHint": "Pick a spec on the left, or create one.",
-    "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
+    "specs.emptyHint": "Pick a spec to see it here.",
+    "specs.none": "No specs yet.",
+    "empty.stepsTitle": "Set up in 3 steps:",
+    "empty.st1": "Add your real stock — Stock → + Add item",
+    "empty.st2": "Create a recipe and link its ingredients — Specs → + New spec",
+    "empty.st3": "Set a price on it to unlock margins, the menu and Vendas",
     "view.take": "Stock-take", "view.menu": "Menu",
     "batches.title": "House batches", "batches.hint": "Simple syrups, infusions, mixes — cost is derived from ingredients, never typed.",
     "batches.new": "+ New batch", "batches.namePh": "Simple syrup 1:1", "batches.size": "Batch size",
@@ -187,6 +192,7 @@ const I18N = {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
+    "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
     "mhead.settings": "⚙ Definições", "settings.title": "Definições",
@@ -194,8 +200,12 @@ const I18N = {
     "spec.cards": "⤢ Fichas",
     "stock.sup": "Fornecedor", "stock.supPh": "Fornecedor — pode ficar vazio",
     "stock.searchPh": "Filtrar stock…",
-    "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
-    "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
+    "specs.emptyHint": "Escolha uma receita para a ver aqui.",
+    "specs.none": "Ainda sem receitas.",
+    "empty.stepsTitle": "Comece em 3 passos:",
+    "empty.st1": "Adicione o seu stock real — Stock → + Adicionar artigo",
+    "empty.st2": "Crie uma receita e ligue os ingredientes — Receitas → + Nova receita",
+    "empty.st3": "Defina o preço para desbloquear margens, o Menu e as Vendas",
     "view.take": "Contagens", "view.menu": "Menu",
     "batches.title": "Xaropes e preparados", "batches.hint": "Xaropes, infusões, misturas — o custo vem dos ingredientes, nunca é escrito à mão.",
     "batches.new": "+ Nova produção", "batches.namePh": "Xarope simples 1:1", "batches.size": "Tamanho do lote",
@@ -529,12 +539,31 @@ function showView(v) {
 }
 
 // ---------- spec list ----------
+function emptyGuide() {
+  return `<div class="empty-note">
+    <strong>${t("empty.stepsTitle")}</strong>
+    <ol class="empty-steps">${[1, 2, 3].map((n) => `<li>${t("empty.st" + n)}</li>`).join("")}</ol>
+  </div>`;
+}
+function emptyPick() {
+  return `<div class="empty-note">${t("specs.emptyHint")}</div>`;
+}
 async function loadSpecs(keepOpen) {
   const specs = await api("/api/specs");
   $("#countSpecs").textContent = specs.length;
   const box = $("#specList");
   box.innerHTML = "";
-  if (!specs.length) { box.innerHTML = '<div class="edit-note">' + t("specs.none") + "</div>"; return; }
+  if (!specs.length) {
+    box.innerHTML = emptyGuide();
+    if (!currentSpec) {
+      const e = $("#empty");
+      e.innerHTML = emptyGuide();
+      e.classList.remove("hidden");
+      $("#detail").classList.add("hidden");
+    }
+    renderChips(specs);
+    return;
+  }
   for (const s of specs) {
     const el = document.createElement("div");
     el.className = "spec-item" + (s.id === currentSpec ? " active" : "");
@@ -566,8 +595,6 @@ async function loadSpecs(keepOpen) {
 function renderEmpty() {
   if (!currentSpec) { $("#detail").classList.add("hidden"); $("#empty").classList.remove("hidden"); }
 }
-
-// ---------- spec detail ----------
 async function openSpec(id) {
   currentSpec = id;
   const s = await api("/api/specs/" + id);
@@ -2037,7 +2064,7 @@ async function renderSalesSummary() {
   try {
     const r = await api(`/api/sales/summary?from_day=${$("#sFrom").value}&to_day=${$("#sTo").value}`);
     if (!r.rows.length) {
-      box.innerHTML = `<div class="edit-note">${t("sales.noData")}</div>`;
+      box.innerHTML = `<div class="empty-note">${t("sales.noData")}</div>`;
       return;
     }
     const rows = r.rows.map((d) => {
