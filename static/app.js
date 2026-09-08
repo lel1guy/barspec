@@ -58,7 +58,10 @@ function toastPT(msg) {
 }
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const eur = (v) => "€" + (Math.round((v || 0) * 100) / 100).toFixed(2);
+const eur = (v) => {
+  const n = (Math.round((v || 0) * 100) / 100).toFixed(2);
+  return "€" + (lang === "pt" ? n.replace(".", ",") : n);
+};
 
 // ---------- i18n (008): EN / PT-PT ----------
 const I18N = {
@@ -71,6 +74,7 @@ const I18N = {
     "settings.lang": "Language", "settings.text": "Text size", "settings.unit": "Display unit",
     "spec.cards": "⤢ Cards",
     "stock.sup": "Supplier", "stock.supPh": "Supplier — blank ok",
+    "stock.searchPh": "Filter stock…",
     "specs.emptyHint": "Pick a spec on the left, or create one.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "view.take": "Stock-take", "view.menu": "Menu",
@@ -141,6 +145,9 @@ const I18N = {
     "kitchen.adj": "+ Log loss", "kitchen.adjTitle": "Loss log",
     "kitchen.adjHint": "Spills, spoilage, trim waste — a signed amount in the item's canonical unit (ml / g / pc). Loss becomes a visible line.",
     "kitchen.reason": "Reason", "kitchen.note": "Note", "kitchen.log": "Log it",
+    "kitchen.rSpill": "Spillage", "kitchen.rWaste": "Waste", "kitchen.rSpoil": "Spoilage",
+    "kitchen.rCorr": "Correction", "kitchen.rOther": "Other",
+    "trends.deadTitle": "Dead stock — in the list, in no spec", "trends.thSize": "Size ml",
     "kitchen.recent": "Recent adjustments", "kitchen.none": "Nothing logged yet.",
     "kitchen.adjSaved": "Logged", "kitchen.delta": "Amount (ml / g / pc)",
     "pnl.title": "Sections P&L", "pnl.thCat": "Section", "pnl.thSpecs": "Specs",
@@ -166,6 +173,7 @@ const I18N = {
     "settings.lang": "Idioma", "settings.text": "Tamanho do texto", "settings.unit": "Unidade de apresentação",
     "spec.cards": "⤢ Fichas",
     "stock.sup": "Fornecedor", "stock.supPh": "Fornecedor — pode ficar vazio",
+    "stock.searchPh": "Filtrar stock…",
     "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "view.take": "Contagens", "view.menu": "Menu",
@@ -236,6 +244,9 @@ const I18N = {
     "kitchen.adj": "+ Registar perda", "kitchen.adjTitle": "Registo de perdas",
     "kitchen.adjHint": "Derrames, estragos, desperdício — valor assinado na unidade canónica (ml / g / pc). A perda torna-se uma linha visível.",
     "kitchen.reason": "Motivo", "kitchen.note": "Nota", "kitchen.log": "Registar",
+    "kitchen.rSpill": "Derrame", "kitchen.rWaste": "Desperdício", "kitchen.rSpoil": "Estragado",
+    "kitchen.rCorr": "Correção", "kitchen.rOther": "Outro",
+    "trends.deadTitle": "Stock morto — na lista, em nenhuma receita", "trends.thSize": "Tamanho ml",
     "kitchen.recent": "Perdas recentes", "kitchen.none": "Ainda nada registado.",
     "kitchen.adjSaved": "Registado", "kitchen.delta": "Quantidade (ml / g / pc)",
     "pnl.title": "P&L por secção", "pnl.thCat": "Secção", "pnl.thSpecs": "Receitas",
@@ -1084,6 +1095,15 @@ $("#addStockBtn").addEventListener("click", () => {
   const show = $("#addStockForm").classList.toggle("hidden");
   if (!show) { syncStockDimForm(); $("#stName").focus(); }
 });
+$("#stockSearch").addEventListener("input", () => {
+  const q = $("#stockSearch").value.trim().toLowerCase();
+  if (!q) { document.querySelectorAll("#stockBody tr").forEach((t) => t.style.display = ""); return; }
+  document.querySelectorAll("#stockBody tr").forEach((tr) => {
+    const fields = [...tr.querySelectorAll("input,select")].map((i) => i.value.toLowerCase());
+    const text = tr.textContent.toLowerCase();
+    tr.style.display = fields.some((v) => v.includes(q)) || text.includes(q) ? "" : "none";
+  });
+});
 async function renderAdjList() {
   const list = await api("/api/stock-adjustments?limit=6");
   const box = $("#adjList");
@@ -1621,10 +1641,10 @@ async function renderTrends() {
     const wrap = document.createElement("div");
     wrap.className = "order-section";
     const h = document.createElement("h3");
-    h.textContent = "Dead stock — in the list, in no spec";
+    h.textContent = t("trends.deadTitle");
     wrap.appendChild(h);
     const tbl = document.createElement("table");
-    tbl.innerHTML = `<thead><tr><th>Bottle</th><th class="num">Price €</th><th class="num">Size ml</th><th class="num">Par</th></tr></thead>
+    tbl.innerHTML = `<thead><tr><th>${t("detail.thBottle")}</th><th class="num">${t("stock.thPrice")}</th><th class="num">${t("trends.thSize")}</th><th class="num">${t("order.par")}</th></tr></thead>
       <tbody>${dead.map((d) => `<tr>
         <td>${esc(d.name)}</td>
         <td class="num">${d.bottle_price_eur ? eur(d.bottle_price_eur) : "—"}</td>
