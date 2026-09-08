@@ -256,11 +256,11 @@ def create_stock_item(data: dict):
         conn.close()
         raise ValueError(f"Dimension must be volume|weight|count, got {dimension}")
     cur = conn.execute(
-        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension, yield_frac)
-           VALUES (?,?,?,?,?,?)""",
-        (data["name"].strip(), data.get("abv", 0), data.get("bottle_price_eur", 0),
-         data.get("bottle_volume_ml", 700), dimension,
-         float(data.get("yield_frac") or 1.0)),
+        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension, yield_frac, supplier)
+           VALUES (?,?,?,?,?,?,?)""",
+        (data["name"].strip(), data.get("abv", 0.0), data.get("bottle_price_eur", 0.0),
+         data.get("bottle_volume_ml", 700.0), data.get("dimension", "volume"),
+         data.get("yield_frac", 1.0), (data.get("supplier") or "").strip()),
     )
     conn.commit()
     new_id = _lastid(cur)
@@ -308,10 +308,11 @@ def update_stock_item(stock_id: int, data: dict):
 
     conn.execute(
         """UPDATE stock_items SET name=?, abv=?, bottle_price_eur=?, bottle_volume_ml=?,
-           dimension=?, yield_frac=?, updated_at=datetime('now') WHERE id=?""",
+          dimension=?, yield_frac=?, supplier=?, updated_at=datetime('now') WHERE id=?""",
         (data.get("name", row["name"]).strip(), data.get("abv", row["abv"]),
          new_price, data.get("bottle_volume_ml", row["bottle_volume_ml"]),
          new_dim, float(data.get("yield_frac", row["yield_frac"]) or 1.0),
+         (data.get("supplier", row["supplier"]) or "").strip(),
          stock_id),
     )
     conn.commit()
@@ -986,7 +987,7 @@ def _review_rows(conn, lines):
     rows = []
     for ln in lines:
         stock = conn.execute(
-            "SELECT id, name, bottle_price_eur, bottle_volume_ml, par_level "
+            "SELECT id, name, supplier, bottle_price_eur, bottle_volume_ml, par_level "
             "FROM stock_items WHERE id=?",
             (ln["stock_item_id"],),
         ).fetchone()
@@ -1001,6 +1002,7 @@ def _review_rows(conn, lines):
         rows.append({
             "stock_item_id": stock["id"],
             "name": stock["name"],
+            "supplier": stock["supplier"] or "",
             "bottle_price_eur": stock["bottle_price_eur"],
             "bottle_volume_ml": stock["bottle_volume_ml"],
             "par_level": par,

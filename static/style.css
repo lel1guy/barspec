@@ -357,6 +357,12 @@ select.unitmini {
 }
 .size-ctl { display: inline-flex; align-items: center; gap: 4px; }
 .size-ctl .edit-note { font-size: 12px; }
+.sup-in { display: block; margin-top: 3px; font-size: 11px; width: 130px;
+          padding: 1px 6px; color: var(--muted); border-color: transparent; }
+.sup-in:focus { border-color: var(--steel-hi); }
+tr.supplier-g td { font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+                   text-transform: uppercase; color: var(--steel-hi);
+                   background: var(--panel); border-bottom: 1px solid var(--line); padding: 4px 8px; }
 
 /* ---------- accessibility (012): skip link, focus, text scale ---------- */
 .skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 8px 14px;

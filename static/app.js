@@ -43,6 +43,7 @@ const I18N = {
     "mhead.settings": "⚙ Settings", "settings.title": "Settings",
     "settings.lang": "Language", "settings.text": "Text size", "settings.unit": "Display unit",
     "spec.cards": "⤢ Cards",
+    "stock.sup": "Supplier", "stock.supPh": "Supplier — blank ok",
     "specs.emptyHint": "Pick a spec on the left, or create one.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "view.take": "Stock-take", "view.menu": "Menu",
@@ -119,6 +120,7 @@ const I18N = {
     "mhead.settings": "⚙ Definições", "settings.title": "Definições",
     "settings.lang": "Idioma", "settings.text": "Tamanho do texto", "settings.unit": "Unidade de apresentação",
     "spec.cards": "⤢ Fichas",
+    "stock.sup": "Fornecedor", "stock.supPh": "Fornecedor — pode ficar vazio",
     "specs.emptyHint": "Escolha uma receita à esquerda, ou crie uma.",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "view.take": "Contagens", "view.menu": "Menu",
@@ -870,6 +872,11 @@ async function refreshStockMap() {
 async function renderStock() {
   const items = await refreshStockMap();
   applyUnitLabels();
+  const dl = $("#supNames");
+  if (dl) {
+    const sups = [...new Set(items.map((i) => (i.supplier || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    dl.innerHTML = sups.map((s) => `<option value="${esc(s)}">`).join("");
+  }
   const body = $("#stockBody");
   body.innerHTML = "";
   if (!items.length) {
@@ -895,7 +902,10 @@ async function renderStock() {
       ? `<input type="number" data-k="abv" value="${it.abv}" min="0" max="100" step="0.5" style="width:80px;">`
       : `<span class="edit-note">—</span>`;
     tr.innerHTML = `
-      <td><input data-k="name" value="${esc(it.name)}" ${dim === "volume" ? "" : `title="${dim}"`}></td>
+      <td>
+        <input data-k="name" value="${esc(it.name)}" ${dim === "volume" ? "" : `title="${dim}"`}>
+        <input class="sup-in" data-k="supplier" list="supNames" value="${esc(it.supplier || "")}" data-i18n-ph="stock.sup" placeholder="Supplier — blank ok">
+      </td>
       <td>${abvCell}</td>
       <td><input type="number" data-k="bottle_price_eur" value="${it.bottle_price_eur}" min="0" step="0.1" class="stock-price-input"></td>
       <td>${sizeCell}</td>
@@ -1057,6 +1067,7 @@ $("#saveStock").addEventListener("click", async () => {
   try {
     const payload = {
       name,
+      supplier: $("#stSup").value.trim(),
       abv: dim === "volume" ? (parseFloat($("#stAbv").value) || 0) : 0,
       bottle_price_eur: parseFloat($("#stPrice").value) || 0,
       bottle_volume_ml: canonical,
@@ -1065,7 +1076,7 @@ $("#saveStock").addEventListener("click", async () => {
     if (dim === "weight") payload.yield_frac = (parseFloat($("#stYield").value) || 100) / 100;
     await api("/api/stock", "POST", payload);
     toast("Item added");
-    $("#stName").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0;
+    $("#stName").value = ""; $("#stSup").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0;
     $("#stVol").value = dim === "weight" ? 1 : dim === "count" ? 12 : 700;
     $("#addStockForm").classList.add("hidden");
     renderStock();
@@ -1434,25 +1445,39 @@ function renderOrder(payload) {
     t.innerHTML = rowHtml(rows);
     wrap.appendChild(t);
     return wrap;
-  };
+    };
 
-  box.appendChild(section("To order", short,
-    (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Order</th></tr></thead>
-      <tbody>${rows.map((r) => `<tr>
-        <td>${esc(r.name)}</td>
-        <td class="num">${fmtFbe(r.par_level)}</td>
-        <td class="num">${fmtFbe(r.fbe)}</td>
-        <td class="num"><span class="order-chip">+${r.to_order}</span></td></tr>`).join("")}</tbody>`,
-    "Nothing to order — you're at or above par everywhere. Nice."));
+    const orderRowsHtml = (rows, fmt) => {
+      const sorted = [...rows].sort((a, b) => (b.supplier ? 1 : 0) - (a.supplier ? 1 : 0)
+        || (a.supplier || "").localeCompare(b.supplier || "")
+        || a.name.localeCompare(b.name));
+      let out = "", last = "~";
+      for (const r of sorted) {
+        const g = (r.supplier || "").trim().toLowerCase();
+        if (g && g !== last) out += `<tr class="supplier-g"><td colspan="4">${esc(r.supplier)}</td></tr>`;
+        out += fmt(r);
+        last = g || "~";
+      }
+      return out;
+    };
+
+    box.appendChild(section("To order", short,
+      (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Order</th></tr></thead>
+        <tbody>${orderRowsHtml(rows, (r) => `<tr>
+          <td>${esc(r.name)}</td>
+          <td class="num">${fmtFbe(r.par_level)}</td>
+          <td class="num">${fmtFbe(r.fbe)}</td>
+          <td class="num"><span class="order-chip">+${r.to_order}</span></td></tr>`)}</tbody>`,
+      "Nothing to order — you're at or above par everywhere. Nice."));
 
   box.appendChild(section("Over par — cash asleep", over,
     (rows) => `<thead><tr><th>Bottle</th><th class="num">Par</th><th class="num">Have</th><th class="num">Over</th><th class="num">€ tied up</th></tr></thead>
-      <tbody>${rows.map((r) => `<tr>
+      <tbody>${orderRowsHtml(rows, (r) => `<tr>
         <td>${esc(r.name)}</td>
         <td class="num">${fmtFbe(r.par_level)}</td>
         <td class="num">${fmtFbe(r.fbe)}</td>
         <td class="num">${fmtFbe(r.excess_fbe)}</td>
-        <td class="num over-amt">${eur(r.cash_asleep_eur)}</td></tr>`).join("")}</tbody>`,
+        <td class="num over-amt">${eur(r.cash_asleep_eur)}</td></tr>`)}</tbody>`,
     "Nothing over par."));
 
   if (atPar.length) {

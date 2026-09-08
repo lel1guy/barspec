@@ -74,14 +74,14 @@ def stock_workbook(items: list[dict]) -> io.BytesIO:
     ws = wb.active
     ws.title = "Stock"
     ws.append(["Item", "Kind", "ABV %", "Price €", "Size", "Size unit",
-               "Yield %", "Par", "Used in specs"])
+               "Yield %", "Par", "Used in specs", "Supplier"])
     for it in items:
         ws.append([
             it["name"], it.get("dimension", "volume"), it.get("abv", 0),
             it.get("bottle_price_eur"), it.get("bottle_volume_ml"),
             {"volume": "ml", "weight": "g", "count": "pc"}.get(it.get("dimension"), "ml"),
             round((it.get("yield_frac") or 1) * 100), it.get("par_level") or "",
-            it.get("used_in", 0),
+            it.get("used_in", 0), it.get("supplier") or "",
         ])
     _style_header(ws, ws.max_column)
     _autosize(ws)
