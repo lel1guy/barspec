@@ -9,7 +9,7 @@ database — every new venue file self-checks its own upgrade.
 """
 import os
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from pathlib import Path
 
 import pricing
@@ -1578,3 +1578,58 @@ def sales_shrinkage() -> dict:
     return {"window": [win_from, win_to], "rows": rows,
             "leak_eur": round(leak, 2),
             "takes": [older["taken_at"], newest["taken_at"]]}
+
+
+# ---------- Dashboard / attention (progress-audit gap #1) ----------
+
+def dashboard() -> dict:
+    c = _conn()
+    out: dict = {"last_count": None, "low": [], "expiring": [], "losses_month": 0.0,
+                 "loss_entries_month": 0, "needs_count_days": None}
+    # last count + per-item FBE from the newest take
+    take = c.execute("SELECT id, taken_at FROM stock_takes ORDER BY taken_at DESC LIMIT 1").fetchone()
+    if take:
+        out["last_count"] = take["taken_at"]
+        taken = datetime.fromisoformat(take["taken_at"])
+        out["needs_count_days"] = max(0, (datetime.now() - taken).days)
+        rows = c.execute(
+            """SELECT si.id, si.name, si.supplier, si.par_level,
+                      tl.full_bottles + tl.open_fraction AS fbe
+                 FROM stock_take_lines tl JOIN stock_items si ON si.id = tl.stock_item_id
+                WHERE tl.take_id = ? AND si.par_level > 0""",
+            (take["id"],)).fetchall()
+        for r in rows:
+            need = round(r["par_level"] - r["fbe"], 2)
+            if need > 0:
+                out["low"].append({"id": r["id"], "name": r["name"],
+                                   "supplier": r["supplier"] or "",
+                                   "par": r["par_level"], "fbe": round(r["fbe"], 2),
+                                   "need": need})
+        out["low"].sort(key=lambda x: x["need"], reverse=True)
+        out["low"] = out["low"][:8]
+    else:
+        out["needs_count_days"] = None
+    # batches expiring within 7 days (made + shelf life)
+    now_dt = datetime.now()
+    for b in c.execute(
+            """SELECT id, name, made_date, shelf_life_days FROM batches
+                WHERE made_date IS NOT NULL AND shelf_life_days IS NOT NULL""").fetchall():
+        made = datetime.fromisoformat(b["made_date"])
+        days = (made + timedelta(days=b["shelf_life_days"]) - now_dt).days
+        if 0 <= days <= 7:
+            out["expiring"].append({"id": b["id"], "name": b["name"], "days": days})
+    out["expiring"].sort(key=lambda x: x["days"])
+    out["expiring"] = out["expiring"][:5]
+    # losses this calendar month, in € (current unit price per canonical unit)
+    month = datetime.now().strftime("%Y-%m")
+    adj = c.execute(
+        """SELECT a.delta, a.stock_item_id, si.bottle_price_eur, si.bottle_volume_ml
+             FROM stock_adjustments a JOIN stock_items si ON si.id = a.stock_item_id
+            WHERE a.delta < 0 AND substr(a.created_at, 1, 7) = ?""", (month,)).fetchall()
+    euros = 0.0
+    for a in adj:
+        per_unit = a["bottle_price_eur"] / a["bottle_volume_ml"] if a["bottle_volume_ml"] else 0.0
+        euros += -a["delta"] * per_unit
+    out["losses_month"] = round(euros, 2)
+    out["loss_entries_month"] = len(adj)
+    return out

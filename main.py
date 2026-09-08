@@ -720,3 +720,8 @@ def get_sales_summary(from_day: str = "", to_day: str = ""):
 @app.get("/api/sales/shrinkage")
 def get_sales_shrinkage():
     return db.sales_shrinkage()
+
+
+@app.get("/api/dashboard")
+def dashboard():
+    return db.dashboard()

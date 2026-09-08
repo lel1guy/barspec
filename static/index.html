@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260908b">
+<link rel="stylesheet" href="/static/style.css?v=20260908c">
 </head>
 <body>
 <a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
@@ -22,6 +22,7 @@
     <button id="navMenu" class="navitem"><span class="ic">▤</span><span data-i18n="nav.menu">Menu</span></button>
     <button id="navSales" class="navitem"><span class="ic">€</span><span data-i18n="nav.sales">Vendas</span></button>
   </nav>
+  <span id="navResumo" style="display:none" aria-hidden="true"></span>
 </aside>
 
 <main id="maincontent">
@@ -33,6 +34,7 @@
     <div class="search no-print" id="searchBox">
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
+    <button class="btn ghost no-print" id="resBtn" data-i18n="res.btn">◫ Summary</button>
     <button class="btn ghost no-print" id="setBtn" data-i18n="mhead.settings">⚙ Settings</button>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
     <button class="btn ghost no-print" id="printCardsBtn" data-i18n="spec.cards">⤢ Cards</button>
@@ -269,6 +271,11 @@
     </div>
   </section>
 
+  <!-- ============ SUMMARY (dashboard/attention) ============ -->
+  <section id="view-resumo" class="view">
+    <div id="resumoBox" style="grid-column:1/-1;"></div>
+  </section>
+
   <!-- ============ TRAINING CARDS (print-only deck) ============ -->
   <section id="view-cards" class="view">
     <div id="cardsDeck"></div>
@@ -362,6 +369,25 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="/static/app.js?v=20260908b" defer></script>
+<!-- first-run onboarding wizard -->
+<div class="overlay hidden" id="onbOverlay" style="z-index:120;">
+  <div class="overlay-card" style="max-width:440px;">
+    <h3 data-i18n="onb.title">Welcome to BarSpec</h3>
+    <div class="edit-note" style="margin-bottom:14px;" data-i18n="onb.sub">Your venue in 3 steps:</div>
+    <div class="onb-steps">
+      <div data-i18n="onb.s1">1. Add what you buy (bottles, coffee, limes)</div>
+      <div data-i18n="onb.s2">2. Create a recipe and link its ingredients</div>
+      <div data-i18n="onb.s3">3. Set the price — margins, Menu and Sales unlock</div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+      <button type="button" class="btn primary" id="onbGoStock" data-i18n="onb.goStock">+ Add stock</button>
+      <button type="button" class="btn" id="onbGoSpec" data-i18n="onb.goSpec">+ Create recipe</button>
+    </div>
+    <button type="button" class="ghost btn small" id="onbSkip" style="margin-top:10px;"
+            data-i18n="onb.skip">Explore on my own</button>
+  </div>
+</div>
+
+<script src="/static/app.js?v=20260908c" defer></script>
 </body>
 </html>

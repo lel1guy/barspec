@@ -69,7 +69,19 @@ const I18N = {
     "side.workspace": "Workspace", "nav.specs": "Specs", "nav.batches": "Batches",
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
+    "view.resumo": "Summary", "res.btn": "◫ Summary",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
+    "res.title": "What needs you", "res.allGood": "Nothing below par.", "res.lowTitle": "Below par",
+    "res.expTitle": "Expiring", "res.lossTitle": "Losses this month", "res.entries": "entr(ies)",
+    "res.countOk": "Last count {n} day(s) ago", "res.countOld": "Last count {n} day(s) ago — count again",
+    "res.countBtn": "Count now", "res.need": "need {n}", "res.batchDays": "{n} d left", "res.today": "today",
+    "res.noExp": "No batches expiring.", "res.gotoStock": "View stock", "res.gotoBatches": "View batches",
+    "onb.title": "Welcome to BarSpec", "onb.sub": "Your venue in 3 steps:",
+    "onb.s1": "1. Add what you buy (bottles, coffee, limes)",
+    "onb.s2": "2. Create a recipe and link its ingredients",
+    "onb.s3": "3. Set the price — margins, Menu and Sales unlock",
+    "onb.goStock": "+ Add stock", "onb.goSpec": "+ Create recipe",
+    "onb.skip": "Explore on my own",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
     "mhead.settings": "⚙ Settings", "settings.title": "Settings",
@@ -192,6 +204,18 @@ const I18N = {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
+    "view.resumo": "Resumo", "res.btn": "◫ Resumo",
+    "res.title": "O que precisa de si", "res.allGood": "Nada abaixo do par.", "res.lowTitle": "Abaixo do par",
+    "res.expTitle": "A expirar", "res.lossTitle": "Perdas este mês", "res.entries": "registo(s)",
+    "res.countOk": "Última contagem há {n} dia(s)", "res.countOld": "Última contagem há {n} dia(s) — faça uma contagem",
+    "res.countBtn": "Contar agora", "res.need": "faltam {n}", "res.batchDays": "faltam {n} d", "res.today": "hoje",
+    "res.noExp": "Sem xaropes a expirar.", "res.gotoStock": "Ver stock", "res.gotoBatches": "Ver xaropes",
+    "onb.title": "Bem-vindo ao BarSpec", "onb.sub": "O seu espaço em 3 passos:",
+    "onb.s1": "1. Adicione o que compra (garrafas, café, limões)",
+    "onb.s2": "2. Crie uma receita e ligue os ingredientes",
+    "onb.s3": "3. Defina o preço — margens, Menu e Vendas desbloqueiam",
+    "onb.goStock": "+ Adicionar stock", "onb.goSpec": "+ Criar receita",
+    "onb.skip": "Explorar sozinho",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
@@ -503,6 +527,7 @@ function applySearch() {
   });
 }
 const VIEWS = {
+  resumo: { title: "Summary", crumb: "SUMMARY", header: false },
   specs: { title: "Specs", crumb: "SPECS", header: true },
   batches: { title: "Batches", crumb: "BATCHES", header: false },
   stock: { title: "Stock", crumb: "STOCK", header: false },
@@ -510,9 +535,9 @@ const VIEWS = {
   menu:  { title: "Menu",  crumb: "MENU",  header: false },
   sales: { title: "Sales", crumb: "SALES", header: false },
 };
-const NAV_IDS = { specs: "navSpecs", batches: "navBatches", stock: "navStock",
+const NAV_IDS = { resumo: "navResumo", specs: "navSpecs", batches: "navBatches", stock: "navStock",
                   stocktake: "navTake", menu: "navMenu", sales: "navSales" };
-const VIEW_KEYS = { specs: "view.specs", batches: "view.batches", stock: "view.stock",
+const VIEW_KEYS = { resumo: "view.resumo", specs: "view.specs", batches: "view.batches", stock: "view.stock",
                     stocktake: "view.take", menu: "view.menu", sales: "view.sales" };
 function updateChrome() {
   $("#viewTitle").textContent = t(VIEW_KEYS[currentView]);
@@ -538,6 +563,7 @@ function showView(v) {
   if (v === "stocktake") loadStocktake();
   if (v === "menu") renderMenu();
   if (v === "sales") loadSalesView();
+  if (v === "resumo") loadDashboard();
 }
 
 // ---------- spec list ----------
@@ -1976,6 +2002,7 @@ window.addEventListener("load", async () => {
   try {
     await refreshStockMap();
     $("#authOverlay").classList.add("hidden");
+    maybeOnboarding();   // first-run wizard when there are no specs yet
   } catch (err) {
     if ((err.status || 0) === 401) { showAuth("login", !!st.has_staff); return; }
   }
@@ -2227,3 +2254,72 @@ $("#setStaffPinClear").addEventListener("click", async () => {
   await api("/api/auth/staff-pin", "PUT", { pin: "" });
   toast(t("staff.cleared"));
 });
+// ---------- SUMMARY (dashboard) ----------
+async function loadDashboard() {
+  const d = await api("/api/dashboard");
+  const rows = (xs) => xs.map((x) =>
+    `<div class="res-row" data-goto="${x.goto}" data-name="${esc(x.name)}">
+       <span class="res-name">${esc(x.name)}${x.supplier ? `<span class="dim-tag">${esc(x.supplier)}</span>` : ""}</span>
+       <span class="res-num ${x.bad ? "danger-text" : ""}">${x.right}</span>
+     </div>`).join("");
+  let html = `<div class="res-card res-head">
+      <h2>${t("res.title")}</h2>
+      ${d.last_count ? (d.needs_count_days > 7
+        ? `<span class="res-stamp warn">${t("res.countOld").replace("{n}", d.needs_count_days)}</span>
+           <button class="btn small" id="resCountBtn">${t("res.countBtn")}</button>`
+        : `<span class="res-stamp ok">${t("res.countOk").replace("{n}", d.needs_count_days)}</span>`)
+      : `<span class="res-stamp warn">${t("res.countBtn")}</span><button class="btn small" id="resCountBtn">${t("res.countBtn")}</button>`}
+    </div>`;
+  html += `<div class="res-card">
+      <h3>${t("res.lowTitle")}${d.low.length ? ` <span class="order-chip">${d.low.length}</span>` : ""}</h3>
+      ${d.low.length ? `<div class="res-list">${rows(d.low.map((r) => ({
+        name: r.name, supplier: r.supplier,
+        right: `${t("res.need").replace("{n}", r.need)} · ${r.fbe}/${r.par}`, bad: true,
+        goto: "stock" })))}</div>
+        <button class="btn small" id="resStockBtn">${t("res.gotoStock")}</button>`
+      : `<div class="empty-note" style="margin:0;">${t("res.allGood")}</div>`}
+    </div>`;
+  html += `<div class="res-card">
+      <h3>${t("res.expTitle")}${d.expiring.length ? ` <span class="order-chip">${d.expiring.length}</span>` : ""}</h3>
+      ${d.expiring.length ? `<div class="res-list">${rows(d.expiring.map((x) => ({
+        name: x.name, supplier: "",
+        right: x.days === 0 ? t("res.today") : t("res.batchDays").replace("{n}", x.days), bad: x.days <= 2,
+        goto: "batches" })))}</div>
+        <button class="btn small" id="resBatchBtn">${t("res.gotoBatches")}</button>`
+      : `<div class="empty-note" style="margin:0;">${t("res.noExp")}</div>`}
+    </div>`;
+  html += `<div class="res-card res-loss">
+      <h3>${t("res.lossTitle")}</h3>
+      <div class="res-eur ${d.losses_month > 20 ? "danger-text" : ""}">${eur(d.losses_month)}</div>
+      <div class="hint">${d.loss_entries_month} ${t("res.entries")}</div>
+    </div>`;
+  $("#resumoBox").innerHTML = html;
+  bindDash();
+}
+function bindDash() {
+  const b = $("#resCountBtn"); if (b) b.onclick = () => showView("stocktake");
+  const s = $("#resStockBtn"); if (s) s.onclick = () => showView("stock");
+  const bt = $("#resBatchBtn"); if (bt) bt.onclick = () => showView("batches");
+  document.querySelectorAll("#resumoBox .res-row").forEach((r) => {
+    r.onclick = () => showView(r.dataset.goto);
+  });
+}
+$("#resBtn").addEventListener("click", () => showView("resumo"));
+
+// ---------- onboarding (first-run when no specs) ----------
+function maybeOnboarding() {
+  if (localStorage.getItem("barspec.onboarded") === "1") return;
+  api("/api/specs").then((specs) => {
+    if (!specs.length) {
+      const o = document.getElementById("onbOverlay");
+      o.classList.remove("hidden");
+      document.getElementById("onbGoStock").onclick = () => { dismissOnb(); showView("stock"); };
+      document.getElementById("onbGoSpec").onclick = () => { dismissOnb(); showView("specs"); $("#newSpecBtn").click(); };
+      document.getElementById("onbSkip").onclick = dismissOnb;
+    }
+  }).catch(() => {});
+}
+function dismissOnb() {
+  localStorage.setItem("barspec.onboarded", "1");
+  document.getElementById("onbOverlay").classList.add("hidden");
+}
