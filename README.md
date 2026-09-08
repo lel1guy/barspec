@@ -62,6 +62,9 @@ in `pricing.py` (pure functions, unit-tested).
   is entered (signed cookie session, 14 days). A 🔒 Lock button in Settings
   locks it again. Security headers (CSP, frame-deny, nosniff) ride along on
   every response.
+- **Audit trail (S2)**: the receipts book. Every price edit and delete is
+  logged old → new with a timestamp; Settings → Recent changes shows the
+  trail. History is append-only — nothing edits the past.
 - **Suppliers (K4)**: each stock item names its supplier (free-form,
   suggested from what you already typed). The order list groups *To order*
   and *Over par* by supplier — one glance per supplier, one call per
@@ -146,6 +149,9 @@ A fresh install runs the same path as an upgrade — self-checking.
   allergens, V/VE/GF); labels resolve per language at display/export.
 - `011_supplier.sql` — `supplier` on stock items (free-form, datalist); the
   order list groups by supplier for one-tap-per-supplier ordering.
+- `012_audit.sql` — append-only audit trail: every price change (stock +
+  spec) and every delete, recorded old → new with a timestamp. Read-only;
+  history is never edited.
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests).
 

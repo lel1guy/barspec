@@ -116,6 +116,7 @@ const I18N = {
     "auth.setSub": "First run — choose a 4+ digit PIN. The app stays locked until someone enters it.",
     "auth.loginTitle": "BarSpec is locked", "auth.loginSub": "Enter the owner PIN to open the bar.",
     "auth.go": "Unlock", "auth.goSetup": "Set PIN", "auth.lock": "🔒 Lock",
+    "audit.title": "Recent changes", "audit.none": "No edits logged yet.",
     "a11y.skip": "Skip to content",
     "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
@@ -198,6 +199,7 @@ const I18N = {
     "auth.setSub": "Primeira vez — escolha um PIN com 4+ dígitos. A app fica bloqueada até alguém o inserir.",
     "auth.loginTitle": "BarSpec bloqueado", "auth.loginSub": "Introduza o PIN do dono para abrir o bar.",
     "auth.go": "Desbloquear", "auth.goSetup": "Definir PIN", "auth.lock": "🔒 Bloquear",
+    "audit.title": "Alterações recentes", "audit.none": "Ainda sem edições registadas.",
     "a11y.skip": "Saltar para o conteúdo",
     "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
@@ -1790,12 +1792,26 @@ $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOr
 $("#tabTrends").addEventListener("click", () => { setTakeTab("trends"); renderTrends(); });
 $("#saveTakeBtn").addEventListener("click", saveTake);
 $("#newCountBtn").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
-$("#setBtn").addEventListener("click", () => {
+$("#setBtn").addEventListener("click", async () => {
   applyUnitLabels();
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));
+  renderAudit();
   $("#setOverlay").classList.remove("hidden");
 });
+const AUDIT_VERB = { price: "◈", spec_price: "◈", deleted: "✕", adjusted: "±", added: "+" };
+async function renderAudit() {
+  const box = $("#auditBox");
+  try {
+    const rows = await api("/api/audit?limit=6");
+    box.innerHTML = rows.length
+      ? rows.map((r) =>
+          `<div class="audit-line">${AUDIT_VERB[r.action] || "•"}
+            <span class="edit-note">${esc((r.created_at || "").slice(5, 16))}</span>
+            ${esc(r.target)} <span class="edit-note">${esc(r.detail)}</span></div>`).join("")
+      : `<div class="edit-note">${t("audit.none")}</div>`;
+  } catch (err) { box.innerHTML = `<div class="edit-note">—</div>`; }
+}
 $("#setClose").addEventListener("click", () => $("#setOverlay").classList.add("hidden"));
 $("#lockBtn").addEventListener("click", async () => {
   await api("/api/auth/logout", "POST").catch(() => {});

@@ -317,6 +317,9 @@ def update_stock_item(stock_id: int, data: dict):
     )
     conn.commit()
     conn.close()
+    if new_price != float(row["bottle_price_eur"] or 0):
+        audit("price", row["name"],
+              f"€{row['bottle_price_eur'] or 0:.2f} -> €{new_price:.2f}")
     return {"impact": impact}
 
 
@@ -333,9 +336,13 @@ def delete_stock_item(stock_id: int):
     if used:
         conn.close()
         return "in-use"
+    name = conn.execute("SELECT name FROM stock_items WHERE id=?",
+                        (stock_id,)).fetchone()
+    name = name["name"] if name else f"#{stock_id}"
     conn.execute("DELETE FROM stock_items WHERE id=?", (stock_id,))
     conn.commit()
     conn.close()
+    audit("deleted", name, "stock item")
     return "ok"
 
 
@@ -599,14 +606,23 @@ def update_spec(spec_id: int, data: dict) -> bool:
     conn.commit()
     ok = cur.rowcount > 0
     conn.close()
+    if ok:
+        old_p = row["price_eur"]
+        new_p = data.get("price_eur", old_p)
+        if new_p != old_p:
+            f = lambda v: "—" if v is None else f"€{v:.2f}"
+            audit("spec_price", row["name"], f"{f(old_p)} -> {f(new_p)}")
     return ok
 
 
 def delete_spec(spec_id: int):
     conn = _conn()
+    row = conn.execute("SELECT name FROM specs WHERE id=?", (spec_id,)).fetchone()
+    name = row["name"] if row else f"#{spec_id}"
     conn.execute("DELETE FROM specs WHERE id=?", (spec_id,))
     conn.commit()
     conn.close()
+    audit("deleted", name, "spec")
 
 
 def duplicate_spec(spec_id: int):
@@ -844,9 +860,13 @@ def delete_batch(batch_id: int):
     if used:
         conn.close()
         raise ValueError("Batch is used by specs — remove it from them first")
+    name_row = conn.execute("SELECT name FROM batches WHERE id=?",
+                            (batch_id,)).fetchone()
+    bname = name_row["name"] if name_row else f"#{batch_id}"
     conn.execute("DELETE FROM batches WHERE id=?", (batch_id,))  # lines cascade
     conn.commit()
     conn.close()
+    audit("deleted", bname, "batch")
     return True
 
 
@@ -1318,3 +1338,27 @@ def set_setting_value(key: str, value: str) -> None:
         "ON CONFLICT (key) DO UPDATE SET value=excluded.value", (key, value))
     conn.commit()
     conn.close()
+
+
+# ---------- S2: audit trail (append-only receipts book) ----------
+
+def audit(action: str, target: str, detail: str = "") -> None:
+    conn = _conn()
+    conn.execute(
+        "INSERT INTO audit_log (action, target, detail) VALUES (?,?,?)",
+        (action, target[:120], detail[:400]))
+    conn.commit()
+    conn.close()
+
+
+def get_audit(limit: int = 25) -> list[dict]:
+    conn = _conn()
+    rows = conn.execute(
+        "SELECT * FROM audit_log ORDER BY created_at DESC, id DESC LIMIT ?",
+        (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def _fmt(v):
+    return "" if v is None else (f"€{v:.2f}" if isinstance(v, (int, float)) else str(v))
