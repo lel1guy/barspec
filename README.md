@@ -75,6 +75,11 @@ testadas).
   e cada eliminação fica registada antigo → novo com data/hora; Definições →
   Alterações recentes mostra o rasto. O histórico é só-adição — nada edita o
   passado.
+- **Modo equipa (staff, só-leitura)**: o dono pode ativar um **PIN da equipa**
+  (Definições). Quem entra com ele vê só as receitas (quantidades, método,
+  alergénios) e a carta — **nunca custos, preços ou margens**: o servidor
+  retira o dinheiro da resposta, não é apenas a UI que o esconde. O resto
+  (stock, contagens, vendas, exportações) devolve 403.
 - **Vendas e encolhimento (A.7)**: registo diário do que vendeu por receita
   (repetir o mesmo dia substitui) → **GP real** por receita/período, com
   preço/custo congelados no registo (semântica de fatura); e

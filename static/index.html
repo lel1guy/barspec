@@ -282,6 +282,10 @@
   <div class="overlay-card">
     <h3 id="authTitle" data-i18n="auth.setTitle">Set your PIN</h3>
     <div class="edit-note" id="authSub" data-i18n="auth.setSub">First run — choose a 4+ digit PIN. The app stays locked until someone enters it.</div>
+    <div id="authWho" class="set-ctl hidden" style="justify-content:center; margin:6px 0;">
+      <button class="btn ghost setopt" id="authWhoOwner" data-who="owner">Owner</button>
+      <button class="btn ghost setopt" id="authWhoStaff" data-who="staff">Staff</button>
+    </div>
     <form id="authForm" style="display:flex; gap:8px; margin:12px 0;">
       <input id="authPin" type="password" inputmode="numeric" maxlength="64" autocomplete="current-password"
              data-i18n-ph="auth.pinPh" placeholder="PIN" style="flex:1; text-align:center; font-size:18px; letter-spacing:.3em;">
@@ -318,11 +322,35 @@
     </div>
     <div class="hint" style="margin:12px 0 4px;" data-i18n="audit.title">Recent changes</div>
     <div id="auditBox" class="audit-list"></div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="staff.staffPin">Staff PIN (optional)</div>
+      <div class="set-ctl">
+        <input id="setStaffPin" type="password" placeholder="••••" style="width:90px; font-size:16px;">
+        <button class="btn ghost" id="setStaffPinBtn" data-i18n="staff.enable">Enable</button>
+        <button class="btn ghost" id="setStaffPinClear" data-i18n="staff.clear">Clear</button>
+      </div>
+    </div>
     <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:14px;">
-    <button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button>
-    <button class="btn" id="setClose" data-i18n="f.close">Close</button>
+      <button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button>
+      <button class="btn" id="setClose" data-i18n="f.close">Close</button>
+    </div>
   </div>
 </div>
+
+<!-- ============ STAFF MODE (read-only recipes, never money) ============ -->
+<section id="staffUI" class="hidden">
+  <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line2); flex-wrap:wrap;">
+    <b style="color:var(--steel-hi);">BarSpec<em style="color:#4fc3f7; font-style:normal;">.</em></b>
+    <span class="edit-note" data-i18n="staff.onlyRecipes">Recipes only — costs stay with the owner.</span>
+    <span style="flex:1"></span>
+    <input id="stSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" style="width:200px;">
+    <button id="stLogout" class="btn ghost" data-i18n="auth.lock">🔒 Lock</button>
+  </div>
+  <div style="display:flex; gap:0; flex-wrap:wrap;">
+    <div id="stList" class="staff-list"></div>
+    <div id="stDetail" class="staff-detail"></div>
+  </div>
+</section>
 <div class="overlay hidden no-print" id="qrOverlay" role="dialog" aria-modal="true" aria-label="Menu QR">
   <div class="overlay-card">
     <h3 data-i18n="export.qrTitle">Menu link</h3>

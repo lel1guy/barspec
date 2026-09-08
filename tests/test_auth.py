@@ -16,7 +16,8 @@ def _c():
 
 def test_open_when_no_pin():
     c = _c()
-    assert c.get("/api/auth/status").json() == {"set": False}
+    st = c.get("/api/auth/status").json()
+    assert st["set"] is False
     assert c.get("/api/specs").status_code == 200   # gate off pre-setup
 
 
@@ -29,6 +30,8 @@ def test_setup_then_gate_engages():
     anon = _c()
     assert anon.get("/api/specs").status_code == 401
     assert anon.get("/api/export/specs.xlsx").status_code == 401
+    st = anon.get("/api/auth/status").json()
+    assert st["set"] is True and st["role"] is None and st["has_staff"] is False
     assert anon.get("/api/auth/status").status_code == 200
 
 

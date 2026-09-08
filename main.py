@@ -8,7 +8,7 @@ from typing import Literal
 import csv
 import io
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -127,9 +127,42 @@ def index():
 
 # ---------- Specs ----------
 
+def _strip_money(spec: dict) -> dict:
+    """Staff view: recipes WITHOUT money — costs, prices, margins go away."""
+    spec = dict(spec)
+    spec["price_eur"] = None
+    spec["target_gp"] = None
+    for k in ("cost_eur", "margin", "cost_per_serve", "suggested_price"):
+        spec.pop(k, None)
+    sm = dict(spec.get("summary") or {})
+    for k in ("cost_eur", "margin", "suggested", "suggested_price", "price_eur"):
+        sm.pop(k, None)
+    spec["summary"] = sm
+    for line in spec.get("lines", []):
+        for k in ("cost_eur", "price_eur", "abv", "bottle_price_eur", "batch_cost_eur"):
+            line.pop(k, None)
+    return spec
+
+
+def _specs_for_role(request: Request, payload):
+    return [_strip_money(s) for s in payload] if request.state.role == "staff" else payload
+
+
+def _spec_for_role(request: Request, payload):
+    return _strip_money(payload) if request.state.role == "staff" else payload
+
+
 @app.get("/api/specs")
-def list_specs():
-    return db.get_specs()
+def list_specs(request: Request):
+    return _specs_for_role(request, db.get_specs())
+
+
+@app.get("/api/specs/{spec_id}")
+def get_spec(request: Request, spec_id: int):
+    s = db.get_spec(spec_id)
+    if not s:
+        raise HTTPException(404, "Spec not found")
+    return _spec_for_role(request, s)
 
 
 @app.post("/api/specs")
@@ -138,11 +171,11 @@ def create_spec(spec: SpecIn):
 
 
 @app.get("/api/specs/{spec_id}")
-def get_spec(spec_id: int):
+def get_spec(request: Request, spec_id: int):
     s = db.get_spec(spec_id)
     if not s:
         raise HTTPException(404, "Spec not found")
-    return s
+    return _spec_for_role(request, s)
 
 
 @app.put("/api/specs/{spec_id}")
@@ -244,8 +277,14 @@ def delete_stock(stock_id: int):
 # ---------- Menu (printable pricing view) ----------
 
 @app.get("/api/menu")
-def menu():
-    return db.get_menu()
+def menu(request: Request):
+    payload = db.get_menu()
+    if request.state.role == "staff":
+        # the menu is guest-facing (prices fine) but costs/margins are not
+        for row in payload if isinstance(payload, list) else payload.get("items", []):
+            for k in ("cost_eur", "cost", "margin"):
+                row.pop(k, None)
+    return payload
 
 
 # ---------- Stock-take (par levels + snapshots) ----------
@@ -504,15 +543,62 @@ async def pin_gate(request: Request, call_next):
               or path.startswith("/api/auth/")
               or path in ("/", "/favicon.ico"))
     if public or not authmod.pin_is_set():
+        request.state.role = "owner"
         return await call_next(request)
-    if authmod.cookie_valid(request.cookies.get(authmod._COOKIE)):
-        return await call_next(request)
-    return JSONResponse({"detail": "PIN required"}, status_code=401)
+    role = authmod.token_role(request.cookies.get(authmod._COOKIE))
+    if role is None:
+        return JSONResponse({"detail": "PIN required"}, status_code=401)
+    request.state.role = role
+    if role == "staff":
+        # staff may only READ recipes + the menu — never stock, counts, money
+        allowed = (request.method == "GET" and (
+            path == "/api/specs" or path.startswith("/api/specs/")
+            or path == "/api/menu"
+        ))
+        if not allowed:
+            return JSONResponse({"detail": "Owners only"}, status_code=403)
+    return await call_next(request)
 
 
 @app.get("/api/auth/status")
-def auth_status():
-    return {"set": authmod.pin_is_set()}
+def auth_status(request: Request):
+    role = authmod.token_role(request.cookies.get(authmod._COOKIE))
+    return {"set": authmod.pin_is_set(),
+            "role": role,
+            "has_staff": bool(db.get_setting(authmod.STAFF_PIN_KEY))}
+
+
+class StaffPinIn(BaseModel):
+    pin: str = ""          # 4+ to set/enable; "" to clear
+
+
+@app.put("/api/auth/staff-pin")
+def auth_staff_pin(request: Request, sp: StaffPinIn):
+    if not authmod.pin_is_set():
+        raise HTTPException(409, "Set the owner PIN first")
+    if authmod.token_role(request.cookies.get(authmod._COOKIE)) != "owner":
+        raise HTTPException(403, "Owners only")
+    if sp.pin:
+        if len(sp.pin) < 4:
+            raise HTTPException(400, "PIN must be at least 4 characters")
+        db.set_setting_value(authmod.STAFF_PIN_KEY, authmod.hash_pin(sp.pin))
+    else:
+        db.set_setting_value(authmod.STAFF_PIN_KEY, "")
+    return {"ok": True}
+
+
+@app.post("/api/auth/staff-login")
+def auth_staff_login(request: Request, pin: PinIn):
+    if not authmod.pin_is_set():
+        raise HTTPException(409, "No PIN set yet")
+    stored = db.get_setting(authmod.STAFF_PIN_KEY)
+    if not stored:
+        raise HTTPException(409, "No staff PIN set — the owner enables it in Settings")
+    if not authmod.verify_pin(pin.pin, stored):
+        raise HTTPException(401, "Wrong PIN")
+    resp = JSONResponse({"ok": True, "role": "staff"})
+    resp.headers.append("Set-Cookie", authmod.make_cookie(role="staff"))
+    return resp
 
 
 @app.post("/api/auth/setup")

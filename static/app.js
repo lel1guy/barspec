@@ -174,8 +174,12 @@ const I18N = {
     "auth.go": "Unlock", "auth.goSetup": "Set PIN", "auth.lock": "🔒 Lock",
     "audit.title": "Recent changes", "audit.none": "No edits logged yet.",
     "a11y.skip": "Skip to content",
-    "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
+    "a11y.skip": "Skip to content", "a11y.fsS": "Text size: small", "a11y.fsM": "Text size: medium",
     "a11y.fsL": "Text size: large",
+    "staff.onlyRecipes": "Recipes only — costs stay with the owner.",
+    "staff.staffPin": "Staff PIN (optional)", "staff.enable": "Enable", "staff.clear": "Clear",
+    "staff.whoOwner": "Owner", "staff.whoStaff": "Staff",
+    "staff.enabled": "Staff PIN enabled — staff log in with it.", "staff.cleared": "Staff PIN cleared.",
   },
   pt: {
     "side.workspace": "Área de trabalho", "nav.specs": "Receitas", "nav.batches": "Xaropes",
@@ -285,8 +289,12 @@ const I18N = {
     "auth.go": "Desbloquear", "auth.goSetup": "Definir PIN", "auth.lock": "🔒 Bloquear",
     "audit.title": "Alterações recentes", "audit.none": "Ainda sem edições registadas.",
     "a11y.skip": "Saltar para o conteúdo",
-    "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
+    "a11y.skip": "Saltar para o conteúdo", "a11y.fsS": "Tamanho do texto: pequeno", "a11y.fsM": "Tamanho do texto: médio",
     "a11y.fsL": "Tamanho do texto: grande",
+    "staff.onlyRecipes": "Só receitas — os custos ficam com o dono.",
+    "staff.staffPin": "PIN da equipa (opcional)", "staff.enable": "Ativar", "staff.clear": "Limpar",
+    "staff.whoOwner": "Dono", "staff.whoStaff": "Equipa",
+    "staff.enabled": "PIN da equipa ativado — a equipa entra com ele.", "staff.cleared": "PIN da equipa removido.",
   },
 };
 let lang = localStorage.getItem("barspec.lang") || "en";
@@ -1929,13 +1937,14 @@ window.addEventListener("load", async () => {
   applyI18n();
   applyFont();
   updateChrome();
-  const st = await api("/api/auth/status").catch(() => ({ set: false }));
-  if (!st.set) { showAuth("setup"); return; }
+  const st = await api("/api/auth/status").catch(() => ({ set: false, role: null, has_staff: false }));
+  if (st.role === "staff") { enterStaffMode(); return; }
+  if (!st.set) { showAuth("setup", false); return; }
   try {
     await refreshStockMap();
     $("#authOverlay").classList.add("hidden");
   } catch (err) {
-    if ((err.status || 0) === 401) { showAuth("login"); return; }
+    if ((err.status || 0) === 401) { showAuth("login", !!st.has_staff); return; }
   }
   const qv = new URLSearchParams(location.search).get("view");
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
@@ -2081,3 +2090,104 @@ async function renderShrinkage() {
         <tbody>${rows || `<tr><td colspan="6" class="edit-note">—</td></tr>`}</tbody></table>` + leakLine;
 }
 $("#sShrink").addEventListener("click", () => renderShrinkage().catch(() => {}));
+// ---------- STAFF MODE (022): read-only recipes, never money ----------
+let authWho = "owner";
+let staffSpecs = [];
+
+function enterStaffMode() {
+  document.body.dataset.role = "staff";
+  $("#authOverlay").classList.add("hidden");
+  $("#staffUI").classList.remove("hidden");
+  runStaff();
+}
+function showAuth(mode, hasStaff) {
+  authMode = mode;
+  const set = mode === "setup";
+  const dl = $("#authTitle"), sb = $("#authSub"), go = $("#authGo"), err = $("#authErr");
+  dl.textContent = t(set ? "auth.setTitle" : "auth.loginTitle");
+  sb.textContent = t(set ? "auth.setSub" : "auth.loginSub");
+  go.textContent = t(set ? "auth.goSetup" : "auth.go");
+  err.style.display = "none";
+  const whoRow = $("#authWho");
+  if (!set && hasStaff) {
+    whoRow.classList.remove("hidden");
+    paintWho();
+  } else {
+    whoRow.classList.add("hidden");
+    authWho = "owner";
+  }
+  $("#authOverlay").classList.remove("hidden");
+  $("#authPin").focus();
+}
+function paintWho() {
+  document.querySelectorAll("#authWho [data-who]").forEach((b) =>
+    b.classList.toggle("active", b.dataset.who === authWho));
+  const lb = $("#authPin");
+  lb.placeholder = authWho === "staff" ? t("staff.whoStaff") + " PIN" : "PIN";
+}
+$("#authWhoOwner").addEventListener("click", () => { authWho = "owner"; paintWho(); });
+$("#authWhoStaff").addEventListener("click", () => { authWho = "staff"; paintWho(); });
+async function submitAuth() {
+  const pin = $("#authPin").value;
+  const err = $("#authErr");
+  const ep = authMode === "setup" ? "setup"
+    : (authWho === "staff" ? "staff-login" : "login");
+  try {
+    await api("/api/auth/" + ep, "POST", { pin });
+    location.reload();
+  } catch (e) {
+    err.textContent = t(e.status === 401 ? "auth.wrong" : "auth.generic");
+    err.style.display = "block";
+  }
+}
+
+async function runStaff() {
+  const list = $("#stList"), detail = $("#stDetail"), search = $("#stSearch");
+  let open = null;
+  const render = async () => {
+    const q = search.value.trim().toLowerCase();
+    const shown = staffSpecs.filter((s) =>
+      !q || (s.name + " " + (s.method || "")).toLowerCase().includes(q));
+    list.innerHTML = shown.map((s) =>
+      `<div class="staff-item ${s.id === open ? "active" : ""}" data-id="${s.id}">
+         <b>${esc(s.name)}</b>
+         ${s.category ? `<span class="dim-tag">${esc(s.category)}</span>` : ""}
+         <div class="edit-note">${esc(s.method || "")}${s.dilution_pct ? ` · dil ${s.dilution_pct}%` : ""}</div>
+       </div>`).join("") || `<div class="edit-note" style="padding:12px;">—</div>`;
+  };
+  list.addEventListener("click", async (e) => {
+    const el = e.target.closest(".staff-item");
+    if (!el) return;
+    open = +el.dataset.id;
+    const d = await api("/api/specs/" + open);
+    const badges = badgesHtml(d);
+    const lines = (d.lines || []).map((l) =>
+      `<li>${esc(fmtAmt(l.amount_ml))} <span class="edit-note">${esc(l.unit || "ml")}</span>
+         — ${esc(l.name)}${l.batch_id ? ' <span class="dim-tag">xarope</span>' : ""}</li>`).join("");
+    detail.innerHTML = `<h2 style="margin-top:0;">${esc(d.name)}</h2>
+      <div class="spec-facts">${esc([d.glass, d.method, d.garnish].filter(Boolean).join(" · "))}</div>
+      ${badges}
+      <h3 style="margin:14px 0 6px;">${t("spec.ing")}</h3>
+      <ol>${lines || `<li class="edit-note">—</li>`}</ol>`;
+    await render();
+  });
+  search.addEventListener("input", render);
+  const specs = await api("/api/specs");
+  staffSpecs = specs;
+  await render();
+}
+$("#stLogout").addEventListener("click", async () => {
+  await api("/api/auth/logout", "POST").catch(() => {});
+  location.reload();
+});
+$("#setStaffPinBtn").addEventListener("click", async () => {
+  const pin = $("#setStaffPin").value;
+  if (!pin || pin.length < 4) { toast("PIN: 4+ characters"); return; }
+  await api("/api/auth/staff-pin", "PUT", { pin });
+  toast(t("staff.enabled"));
+  $("#setStaffPin").value = "";
+});
+$("#setStaffPinClear").addEventListener("click", async () => {
+  await api("/api/auth/staff-pin", "PUT", { pin: "" });
+  toast(t("staff.cleared"));
+});

@@ -405,6 +405,13 @@ html[data-fs="l"] main, html[data-fs="s"] main { min-height: auto; }
 .pnl-chip.ok { background: rgba(245, 190, 84, .16); color: #f5be54; }
 .pnl-chip.lo { background: rgba(231, 111, 81, .16); color: #e76f51; }
 .danger-text { color: #e76f51; }
+/* staff read-only mode */
+.staff-list { flex: 0 0 300px; max-width: 100%; border-right: 1px solid var(--line2); max-height: calc(100vh - 130px); overflow-y: auto; }
+.staff-list .staff-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.staff-list .staff-item.active { background: var(--panel2); }
+.staff-detail { flex: 1; min-width: 280px; padding: 14px 18px; }
+body[data-role="staff"] .side, body[data-role="staff"] .mhead { display: none !important; }
+body[data-role="staff"] main { max-width: 100%; }
 
 .spec-badges { margin: 2px 0 6px; display: flex; gap: 4px; flex-wrap: wrap; }
 .spec-badges .dim-tag.diet { border-color: #2ecc71; color: #2ecc71; }
