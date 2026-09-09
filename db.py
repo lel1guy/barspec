@@ -1418,51 +1418,6 @@ def save_sales_day(day: str, lines: list[dict]) -> dict:
             continue
         cost = (spec.get("summary") or {}).get("cost_eur") or 0.0
         qty = int(ln["qty"])
-        cur = conn.execute(
-            """INSERT INTO sales_lines (day, spec_id, qty, price_eur, cost_eur)
-               VALUES (?,?,?,?,?)
-               ON CONFLICT (day, spec_id) DO UPDATE SET
-                 qty=excluded.qty, price_eur=excluded.price_eur,
-                 cost_eur=excluded.cost_eur""",
-            (day, ln["spec_id"], qty, round(price, 2), round(cost, 3)))
-        if cur.rowcount and conn.execute(
-                "SELECT changes()").fetchone()[0] == 1 and not _sales_line_was_new(conn, day, ln["spec_id"], qty):
-            updated += 1
-        else:
-            created += 1
-    conn.commit()
-    conn.close()
-    return {"created": created, "updated": updated, "skipped": skipped}
-
-
-def _sales_line_was_new(conn, day, spec_id, qty):
-    # rowcount on upsert is not reliable across sqlite versions; count rows
-    row = conn.execute(
-        "SELECT qty FROM sales_lines WHERE day=? AND spec_id=?", (day, spec_id)).fetchone()
-    return row is not None and row["qty"] == qty and _saw_insert(conn, day, spec_id)
-
-
-def _saw_insert(conn, day, spec_id):
-    return False  # replaced below in python? see save fn note
-
-
-# ---------- A.7: daily sales -> actual GP + shrinkage ----------
-
-def save_sales_day(day: str, lines: list[dict]) -> dict:
-    """Post one day of sales. (day, spec) is idempotent — re-posting replaces.
-    price/cost are frozen snapshots at posting time (invoice-line semantics)."""
-    conn = _conn()
-    created, updated, skipped = 0, 0, []
-    for ln in lines:
-        spec = get_spec(ln["spec_id"])
-        if not spec:
-            continue
-        price = spec.get("price_eur")
-        if price is None:
-            skipped.append(spec["name"])
-            continue
-        cost = (spec.get("summary") or {}).get("cost_eur") or 0.0
-        qty = int(ln["qty"])
         exists = conn.execute(
             "SELECT 1 FROM sales_lines WHERE day=? AND spec_id=?",
             (day, ln["spec_id"])).fetchone()

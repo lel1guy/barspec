@@ -163,12 +163,6 @@ def list_specs(request: Request):
     return _specs_for_role(request, db.get_specs())
 
 
-@app.get("/api/specs/{spec_id}")
-def get_spec(request: Request, spec_id: int):
-    s = db.get_spec(spec_id)
-    if not s:
-        raise HTTPException(404, "Spec not found")
-    return _spec_for_role(request, s)
 
 
 @app.post("/api/specs")

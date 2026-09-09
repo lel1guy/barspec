@@ -494,17 +494,6 @@ function showAuth(mode) {
   $("#authOverlay").classList.remove("hidden");
   $("#authPin").focus();
 }
-async function submitAuth() {
-  const pin = $("#authPin").value;
-  const err = $("#authErr");
-  try {
-    await api("/api/auth/" + (authMode === "setup" ? "setup" : "login"), "POST", { pin });
-    location.reload();
-  } catch (e) {
-    err.textContent = t(e.status === 401 ? "auth.wrong" : "auth.generic");
-    err.style.display = "block";
-  }
-}
 $("#authForm").addEventListener("submit", (e) => { e.preventDefault(); submitAuth(); });
 $("#authGo").addEventListener("click", submitAuth);
 
