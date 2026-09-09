@@ -643,3 +643,5 @@ body[data-role="staff"] main { max-width: 100%; }
 .res-head { grid-column: 1 / -1; }
 .desktop-only { display: none; }
 @media (min-width: 701px) { .desktop-only { display: flex; } }
+
+.pack-note { font-size: 11px; margin-top: 2px; opacity: .8; }

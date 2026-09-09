@@ -1119,6 +1119,7 @@ async function renderStock() {
       <td>
         <input data-k="name" value="${esc(it.name)}" ${dim === "volume" ? "" : `title="${dim}"`}>
         <input class="sup-in" data-k="supplier" list="supNames" value="${esc(it.supplier || "")}" data-i18n-ph="stock.sup" placeholder="Supplier — blank ok">
+        ${it.pack_size > 1 && it.pack_price_eur ? `<div class="edit-note pack-note">📦 ${esc(it.pack_name || "pack")} de ${fmtAmt(it.pack_size)} @ €${(+it.pack_price_eur).toFixed(2)} (€${it.bottle_price_eur}/un)</div>` : ""}
       </td>
       <td>${abvCell}</td>
       <td><input type="number" data-k="bottle_price_eur" value="${it.bottle_price_eur}" min="0" step="0.1" class="stock-price-input"></td>
@@ -1691,11 +1692,17 @@ function renderOrder(payload) {
       }
       return out;
     };
+    // 014: buy in packs — say it in the order row (e.g. 2 × case of 24)
+    const packHint = (r, n) => {
+      const s = +(r.pack_size || 0);
+      if (!(s > 1) || !(n > 0)) return "";
+      return `<div class="edit-note">📦 ≈ ${Math.ceil(n / s)} × ${esc(r.pack_name || "pack")} (${fmtAmt(n)} un)</div>`;
+    };
 
     box.appendChild(section(t("order.to"), short,
       (rows) => `<thead><tr><th>${t("detail.thBottle")}</th><th class="num">${t("order.par")}</th><th class="num">${t("order.have")}</th><th class="num">${t("order.order")}</th></tr></thead>
         <tbody>${orderRowsHtml(rows, (r) => `<tr>
-          <td>${esc(r.name)}</td>
+          <td>${esc(r.name)}${packHint(r, r.to_order)}</td>
           <td class="num">${fmtFbe(r.par_level)}</td>
           <td class="num">${fmtFbe(r.fbe)}</td>
           <td class="num"><span class="order-chip">+${r.to_order}</span></td></tr>`)}</tbody>`,

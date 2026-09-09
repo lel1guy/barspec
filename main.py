@@ -730,3 +730,11 @@ def get_sales_shrinkage():
 @app.get("/api/dashboard")
 def dashboard():
     return db.dashboard()
+
+
+@app.get("/api/demo/status")
+def demo_status(request: Request):
+    """Owner-only demo self-check (counts, no money figures)."""
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    return db.demo_status()

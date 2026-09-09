@@ -1041,8 +1041,8 @@ def _review_rows(conn, lines):
     rows = []
     for ln in lines:
         stock = conn.execute(
-            "SELECT id, name, supplier, bottle_price_eur, bottle_volume_ml, par_level "
-            "FROM stock_items WHERE id=?",
+            "SELECT id, name, supplier, bottle_price_eur, bottle_volume_ml, par_level, "
+            "pack_size, pack_price_eur, pack_name FROM stock_items WHERE id=?",
             (ln["stock_item_id"],),
         ).fetchone()
         if not stock:
@@ -1059,6 +1059,9 @@ def _review_rows(conn, lines):
             "supplier": stock["supplier"] or "",
             "bottle_price_eur": stock["bottle_price_eur"],
             "bottle_volume_ml": stock["bottle_volume_ml"],
+            "pack_size": stock["pack_size"] or 1,
+            "pack_price_eur": stock["pack_price_eur"],
+            "pack_name": stock["pack_name"] or "",
             "par_level": par,
             "full_bottles": fb,
             "open_fraction": frac,
@@ -1667,3 +1670,27 @@ def dashboard() -> dict:
     out["losses_month"] = round(euros, 2)
     out["loss_entries_month"] = len(adj)
     return out
+
+
+def demo_status() -> dict:
+    """Demo self-check: is the month dataset intact? Counts only — no money
+    figures that would leak through an accidentally-open gate."""
+    conn = _conn()
+    out = []
+    def chk(name, ok, detail=""):
+        out.append({"name": name, "ok": bool(ok), "detail": str(detail)})
+    try:
+        chk("specs seeded", (conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] or 0) >= 40)
+        chk("stock seeded", (conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] or 0) >= 100)
+        takes = conn.execute("SELECT COUNT(*), MAX(taken_at) FROM stock_takes").fetchone()
+        chk("counts >= 4", (takes[0] or 0) >= 4, f"{takes[0]} counts, last {takes[1]}")
+        days = conn.execute("SELECT COUNT(DISTINCT day) FROM sales_lines").fetchone()[0]
+        chk("sales month >= 25 days", days >= 25, f"{days} days")
+        bad = conn.execute("SELECT COUNT(*) FROM specs WHERE price_eur IS NULL").fetchone()[0]
+        chk("every spec priced", bad == 0, f"{bad} unpriced")
+        losses = conn.execute("SELECT COUNT(*) FROM stock_adjustments").fetchone()[0]
+        chk("loss log entries", losses >= 3, f"{losses}")
+        chk("batches", (conn.execute("SELECT COUNT(*) FROM batches").fetchone()[0] or 0) >= 1)
+    finally:
+        conn.close()
+    return {"ok": all(x["ok"] for x in out), "checks": out}

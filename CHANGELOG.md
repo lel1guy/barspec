@@ -95,3 +95,16 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
   can 0.64, wine glass 1.48/1.72, espresso 0.097, galao 0.405); margins
   venue-realistic (wine glass 59-65%, espresso 92%); Delta coffee lands on
   Delta Cafes; dashboard low=8 / losses 101.60 / count age 3 days.
+
+
+## 2026-09-09 - 035: polish - pack labels + demo self-check
+- Stock rows show how an item is bought (e.g. a case of 24 at EUR 15.36,
+  unit price beneath); order rows now carry pack fields so a shortfall
+  reads "~1 x case de 24 (5 un)" instead of raw units.
+- Review/sheet rows now include pack_size/pack_price_eur/pack_name
+  (verified: Super Bock can shortfall row carries pack_size 24).
+- GET /api/demo/status (owner) - 7 checks, counts only (no money figures):
+  specs >= 40, stock >= 100, counts >= 4 with last date, sales month
+  days, zero unpriced specs, loss-log entries, batches. Green on the
+  full-month demo DB; 401 to anonymous once a PIN is set.
+- Tests: 178 total (176 + 2 demo-status). Cache-bust 20260908g.
