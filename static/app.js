@@ -83,6 +83,13 @@ const I18N = {
     "onb.s3": "3. Set the price — margins, Menu and Sales unlock",
     "onb.goStock": "+ Add stock", "onb.goSpec": "+ Create recipe",
     "onb.skip": "Explore on my own",
+    "pack.buyAs": "Buy in packs? (case/keg)", "pack.size": "Units per pack",
+    "pack.price": "Pack price €", "pack.hint": "Pack set? unit price derives (€18 / 24 = €0.75). Leave blank to type the unit price above.",
+    "pack.namePh": "case · keg · box",
+    "prod.btn": "+ Product", "prod.title": "New straight-serve product",
+    "prod.name": "Product name (sells as)", "prod.stock": "Stock item",
+    "prod.amount": "Serve size", "prod.sell": "Sell price €", "prod.cat": "Category",
+    "prod.create": "Create product", "prod.ok": "Product added", "prod.needStock": "Add the stock item first — Stock → + Add item",
     "mhead.unitsTitle": "Display unit — values are stored in ml",
     "mhead.search": "Search specs…", "mhead.newSpec": "+ New spec",
     "mhead.settings": "⚙ Settings", "settings.title": "Settings", "help.title": "Help",
@@ -218,6 +225,13 @@ const I18N = {
     "onb.s3": "3. Defina o preço — margens, Menu e Vendas desbloqueiam",
     "onb.goStock": "+ Adicionar stock", "onb.goSpec": "+ Criar receita",
     "onb.skip": "Explorar sozinho",
+    "pack.buyAs": "Comprar em packs? (caixa/keg)", "pack.size": "Unidades por pack",
+    "pack.price": "Preço do pack €", "pack.hint": "Pack preenchido? o preço unitário deriva (€18 / 24 = €0,75). Vazio = escreve o preço unitário acima.",
+    "pack.namePh": "caixa · keg · embalagem",
+    "prod.btn": "+ Produto", "prod.title": "Novo produto simples (venda direta)",
+    "prod.name": "Nome do produto (como se vende)", "prod.stock": "Artigo de stock",
+    "prod.amount": "Dose de serviço", "prod.sell": "Preço de venda €", "prod.cat": "Categoria",
+    "prod.create": "Criar produto", "prod.ok": "Produto adicionado", "prod.needStock": "Adicione primeiro o artigo no Stock → + Adicionar",
     "view.specs": "Receitas", "view.batches": "Xaropes", "view.stock": "Stock",
     "mhead.unitsTitle": "Unidade de apresentação — valores guardados em ml",
     "mhead.search": "Procurar receitas…", "mhead.newSpec": "+ Nova receita",
@@ -1273,6 +1287,8 @@ $("#saveStock").addEventListener("click", async () => {
   const unit = $("#stVolUnit").value;
   const canonical = (parseFloat($("#stVol").value) || 0) * U_FACTOR[unit];
   if (!canonical) { toast("Size needed"); return; }
+  const packSize = parseFloat($("#stPackSize").value) || 0;
+  const packPrice = parseFloat($("#stPackPrice").value) || 0;
   try {
     const payload = {
       name,
@@ -1282,11 +1298,17 @@ $("#saveStock").addEventListener("click", async () => {
       bottle_volume_ml: canonical,
       dimension: dim,
     };
+    if (packSize > 0 && packPrice > 0) {   // 014: pack wins, unit derives
+      payload.pack_size = packSize;
+      payload.pack_price_eur = packPrice;
+      payload.pack_name = $("#stPackName").value.trim();
+    }
     if (dim === "weight") payload.yield_frac = (parseFloat($("#stYield").value) || 100) / 100;
     await api("/api/stock", "POST", payload);
     toast("Item added");
     $("#stName").value = ""; $("#stSup").value = ""; $("#stAbv").value = 0; $("#stPrice").value = 0;
     $("#stVol").value = dim === "weight" ? 1 : dim === "count" ? 12 : 700;
+    $("#stPackName").value = ""; $("#stPackSize").value = ""; $("#stPackPrice").value = "";
     $("#addStockForm").classList.add("hidden");
     renderStock();
   } catch (err) { toast("Failed: " + err.message); }
@@ -2376,3 +2398,55 @@ function renderHelp() {
   const box = $("#helpBox");
   if (box) box.innerHTML = items;
 }
+// ---------- straight-serve products (014: beers/wines/sodas/water) ----------
+async function openQuickProduct() {
+  const sel = $("#qpStock");
+  const items = await api("/api/stock");
+  sel.innerHTML = items.map((i) =>
+    `<option value="${esc(i.name)}">${esc(i.name)}</option>`).join("");
+  if (!items.length) { toast(t("prod.needStock")); return; }
+  const first = items[0];
+  const setFor = (it) => {
+    const dim = it.dimension || "volume";
+    const size = it.bottle_volume_ml || 0;
+    const u = dim === "weight" ? "g" : dim === "count" ? "piece" : "ml";
+    $("#qpUnit").innerHTML = `<option value="${u}">${u}</option>`;
+    // sensible serve default: one whole purchase unit
+    let amt = dim === "count" ? (size || 1) : (dim === "volume" ? (size || 0) : (size || 0));
+    if (!amt) amt = 1;
+    $("#qpAmt").value = amt;
+  };
+  setFor(first);
+  sel.onchange = () => {
+    const it = items.find((i) => i.name === sel.value);
+    if (it) setFor(it);
+  };
+  $("#qpName").value = "";
+  $("#qpPrice").value = "";
+  $("#qpCat").value = "";
+  $("#qpOverlay").classList.remove("hidden");
+  $("#qpName").focus();
+}
+$("#qpBtn").addEventListener("click", openQuickProduct);
+$("#qpCancel").addEventListener("click", () => $("#qpOverlay").classList.add("hidden"));
+$("#qpCreate").addEventListener("click", async () => {
+  const name = $("#qpName").value.trim();
+  const stockName = $("#qpStock").value;
+  const amt = parseFloat($("#qpAmt").value) || 0;
+  const unit = $("#qpUnit").value;
+  const price = parseFloat($("#qpPrice").value) || 0;
+  if (!name || !stockName) { toast("Name needed"); return; }
+  if (amt <= 0) { toast("Amount needed"); return; }
+  try {
+    const spec = await api("/api/specs", "POST",
+      { name, category: $("#qpCat").value.trim() || null,
+        glass: "", method: "Straight serve", garnish: "", price_eur: price || null,
+        target_gp: 70 });
+    await api(`/api/specs/${spec.id}/lines`, "POST",
+      { name: stockName, amount_ml: amt, unit });
+    toast(t("prod.ok"));
+    $("#qpOverlay").classList.add("hidden");
+    await loadSpecs(false);
+    openSpec(spec.id);
+  } catch (err) { toast("Failed: " + err.message); }
+});

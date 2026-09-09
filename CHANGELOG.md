@@ -48,3 +48,14 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
 ## 2026-09-07 — 013–009: venue profile, a11y, training cards, exports/QR, mobile, backups
 ## 2026-09-06 — 008–004: PT-PT, dilution, categories, yield, batches
 ## 2026-09-05 — 003–001: units engine, stock-take, stock normalization
+
+## 2026-09-09 — 031: purchase packs + straight-serve products (014)
+- Stock items now know how they're BOUGHT: optional pack (case of 24,
+  6-bottle case, 30 L keg). When pack price + size are set the per-unit
+  price of truth is DERIVED (€18/24 = €0.75) and cost maths stay
+  untouched; pack edits ripple into every spec like any price change.
+- New-stock form gains "Buy in packs?" (pack name/size/price).
+- "+ Product" quick creator: pick a stock item + serve size + price →
+  a straight-serve product (beer can, wine by glass or bottle, soda) is
+  created in two calls, opening the spec with its honest margin.
+- migration 014 (additive). 176 pytest (172+4 pack tests) + 12/12 e2e.

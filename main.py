@@ -85,6 +85,11 @@ class StockIn(BaseModel):
     dimension: Literal["volume", "weight", "count"] = "volume"
     yield_frac: float = Field(1.0, gt=0, le=1.0)   # 005: usable/bought
     supplier: str = ""                       # K4: free-form, order-list grouping
+    # 014: purchase pack (case of 24, 6-bottle case, 30 L keg). When
+    # pack_price_eur + pack_size are set, the unit price is DERIVED.
+    pack_size: float | None = None
+    pack_price_eur: float | None = None
+    pack_name: str = ""
 
 
 class ParIn(BaseModel):

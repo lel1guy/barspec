@@ -37,6 +37,7 @@
     <button class="btn ghost no-print" id="resBtn" data-i18n="res.btn">◫ Summary</button>
     <button class="btn ghost no-print" id="setBtn" data-i18n="mhead.settings">⚙ Settings</button>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
+    <button class="btn ghost no-print" id="qpBtn" data-i18n="prod.btn">+ Product</button>
     <button class="btn ghost no-print" id="printCardsBtn" data-i18n="spec.cards">⤢ Cards</button>
   </div>
 
@@ -149,8 +150,20 @@
             <input id="stYield" type="number" value="100" min="1" max="100" step="1"
                    data-i18n-title="stock.yieldTitle" title="Usable after trim/cook: pay for 1 kg, use 800 g -> 80">
           </div>
-          <button id="saveStock" class="btn" data-i18n="f.save">Save</button>
-          <button id="cancelStock" class="btn ghost" data-i18n="f.cancel">Cancel</button>
+        </div>
+        <div class="formrow" style="margin-top:6px;">
+          <div style="flex:1.4; min-width:160px;"><label data-i18n="pack.buyAs">Buy in packs? (case/keg)</label>
+            <input id="stPackName" data-i18n-ph="pack.namePh" placeholder="case · keg · box" style="margin-bottom:4px;"></div>
+          <div style="flex:1; min-width:90px;"><label data-i18n="pack.size">Units per pack</label>
+            <input id="stPackSize" type="number" value="" min="1" step="1" placeholder="24"></div>
+          <div style="flex:1; min-width:90px;"><label data-i18n="pack.price">Pack price €</label>
+            <input id="stPackPrice" type="number" value="" min="0" step="0.01" placeholder="18.00"></div>
+          <div class="edit-note" style="flex:2; align-self:end; margin:0 0 6px;" id="packHint"
+               data-i18n="pack.hint">Pack set? unit price derives (€18 / 24 = €0.75). Leave blank to type the unit price above.</div>
+          <div style="display:flex; gap:6px; align-self:end; margin-bottom:6px;">
+            <button id="saveStock" class="btn" data-i18n="f.save">Save</button>
+            <button id="cancelStock" class="btn ghost" data-i18n="f.cancel">Cancel</button>
+          </div>
         </div>
         <div class="edit-note" style="margin-top:6px;" id="stockDimHint" data-i18n="stock.dimHint">A bottle is € per 700 ml; coffee € per kg (g); limes € per box of pieces. Size is stored canonically (ml / g / pc).</div>
       </div>
@@ -393,3 +406,33 @@
 <script src="/static/app.js?v=20260908e" defer></script>
 </body>
 </html>
+
+<!-- straight-serve product creator (014) -->
+<div class="overlay hidden" id="qpOverlay" style="z-index:120;">
+  <div class="overlay-card" style="max-width:480px;">
+    <h3 data-i18n="prod.title">New straight-serve product</h3>
+    <div class="edit-note" style="margin-bottom:12px;" data-i18n="prod.needStock">Add the stock item first — Stock → + Add item</div>
+    <div class="formrow">
+      <div style="flex:1.5; min-width:150px;"><label data-i18n="prod.name">Product name (sells as)</label>
+        <input id="qpName" placeholder="Beer X 33cl · Wine Y glass 15cl · Soda Z"></div>
+      <div style="flex:1; min-width:130px;"><label data-i18n="prod.stock">Stock item</label>
+        <select id="qpStock"></select></div>
+    </div>
+    <div class="formrow" style="margin-top:8px;">
+      <div style="flex:1; min-width:100px;"><label data-i18n="prod.amount">Serve size</label>
+        <div style="display:flex; gap:4px;">
+          <input id="qpAmt" type="number" value="1" min="0.1" step="0.5" style="flex:1;">
+          <select id="qpUnit" style="width:92px;"><option value="ml">ml</option></select>
+        </div>
+      </div>
+      <div style="flex:1; min-width:100px;"><label data-i18n="prod.sell">Sell price €</label>
+        <input id="qpPrice" type="number" min="0" step="0.1" value="0"></div>
+      <div style="flex:1; min-width:120px;"><label data-i18n="prod.cat">Category</label>
+        <input id="qpCat" placeholder="Cerveja · Vinho · Bebidas"></div>
+    </div>
+    <div style="display:flex; gap:6px; margin-top:14px; justify-content:flex-end;">
+      <button type="button" class="btn ghost" id="qpCancel" data-i18n="f.cancel">Cancel</button>
+      <button type="button" class="btn" id="qpCreate" data-i18n="prod.create">Create product</button>
+    </div>
+  </div>
+</div>

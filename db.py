@@ -243,6 +243,22 @@ def get_stock_item_by_name(name: str):
     return dict(row) if row else None
 
 
+def _pack_effective(data: dict, fallback_unit_price: float):
+    """Purchase-pack math (014): a pack (case of 24, 6-bottle case, 30 L keg)
+    is how the item is BOUGHT. When a pack price + size is given, the
+    per-unit price of truth is derived (pack price / pack size); the caller
+    stores that in bottle_price_eur so all cost maths stay untouched."""
+    pp = data.get("pack_price_eur")
+    ps = data.get("pack_size")
+    if pp is not None and ps:
+        ps = float(ps)
+        pp = float(pp)
+        if ps > 0 and pp > 0:
+            return (round(pp / ps, 4), pp, ps, str(data.get("pack_name", "") or ""))
+    return (float(data.get("bottle_price_eur", fallback_unit_price)),
+            None, 1.0, str(data.get("pack_name", "") or ""))
+
+
 def create_stock_item(data: dict):
     conn = _conn()
     dup = conn.execute(
@@ -255,12 +271,16 @@ def create_stock_item(data: dict):
     if dimension not in ("volume", "weight", "count"):
         conn.close()
         raise ValueError(f"Dimension must be volume|weight|count, got {dimension}")
+    unit_price, pack_price, pack_size, pack_name = _pack_effective(
+        data, float(data.get("bottle_price_eur", 0.0) or 0.0))
     cur = conn.execute(
-        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension, yield_frac, supplier)
-           VALUES (?,?,?,?,?,?,?)""",
-        (data["name"].strip(), data.get("abv", 0.0), data.get("bottle_price_eur", 0.0),
+        """INSERT INTO stock_items (name, abv, bottle_price_eur, bottle_volume_ml, dimension,
+              yield_frac, supplier, pack_size, pack_price_eur, pack_name)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (data["name"].strip(), data.get("abv", 0.0), unit_price,
          data.get("bottle_volume_ml", 700.0), data.get("dimension", "volume"),
-         data.get("yield_frac", 1.0), (data.get("supplier") or "").strip()),
+         data.get("yield_frac", 1.0), (data.get("supplier") or "").strip(),
+         pack_size, pack_price, pack_name),
     )
     conn.commit()
     new_id = _lastid(cur)
@@ -278,7 +298,11 @@ def update_stock_item(stock_id: int, data: dict):
         conn.close()
         return None
     old_price = row["bottle_price_eur"]
-    new_price = float(data.get("bottle_price_eur", old_price))
+    has_pack = data.get("pack_price_eur") is not None
+    if has_pack:
+        new_price, _, _, _ = _pack_effective(data, old_price)
+    else:
+        new_price = float(data.get("bottle_price_eur", old_price))
 
     new_dim = data.get("dimension") or row["dimension"]
     if new_dim not in ("volume", "weight", "count"):
@@ -306,13 +330,23 @@ def update_stock_item(stock_id: int, data: dict):
                 "cost_new": round(cost_new, 3),
             })
 
+    if has_pack:
+        new_pack_size = float(data.get("pack_size", row["pack_size"] or 1))
+        new_pack_price = float(data.get("pack_price_eur") or 0)
+        new_pack_name = str(data.get("pack_name", row["pack_name"] or "") or "")
+    else:
+        new_pack_size = float(data.get("pack_size", row["pack_size"] or 1))
+        new_pack_price = data.get("pack_price_eur", row["pack_price_eur"])
+        new_pack_name = str(data.get("pack_name", row["pack_name"] or "") or "")
     conn.execute(
         """UPDATE stock_items SET name=?, abv=?, bottle_price_eur=?, bottle_volume_ml=?,
-          dimension=?, yield_frac=?, supplier=?, updated_at=datetime('now') WHERE id=?""",
+          dimension=?, yield_frac=?, supplier=?, pack_size=?, pack_price_eur=?, pack_name=?,
+          updated_at=datetime('now') WHERE id=?""",
         (data.get("name", row["name"]).strip(), data.get("abv", row["abv"]),
          new_price, data.get("bottle_volume_ml", row["bottle_volume_ml"]),
          new_dim, float(data.get("yield_frac", row["yield_frac"]) or 1.0),
          (data.get("supplier", row["supplier"]) or "").strip(),
+         new_pack_size, new_pack_price, new_pack_name,
          stock_id),
     )
     conn.commit()
