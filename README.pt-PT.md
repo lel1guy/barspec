@@ -148,8 +148,14 @@ de stock à escala de garrafa neste mês (~€100), fornecedores e pars em ~99
 artigos geridos. Ao abrir: Resumo mostra abaixo-do-par e contagem com 3
 dias; Tendências/encomendas agrupam por fornecedor; Vendas → GP real cobre
 o mês completo (receita de 5 dígitos); o encolhimento tem uma janela real de
-contagens com história de fuga. As receitas são aproximações (a carta dá
-ingredientes + ABV, não quantidades); as receitas exatas pertencem ao espaço.
+contagens com história de fuga. O demo carrega também a **largura total da
+prateleira** (014): 21 produtos de venda direta — cerveja de pressão de um keg
+de 30 L (Imperiais/Canecas), latas compradas por caixa de 24, vinho a copo E a
+garrafa (mesmo stock, dois produtos), Coca-Cola/Fanta/Sumol/tónica, água Luso,
+e bebidas de café Delta (expresso, duplo, meia de leite, galão) — 48 itens
+vendáveis numa carta, todos nas contagens e vendas do mês. As receitas são
+aproximações (a carta dá ingredientes + ABV, não quantidades); as receitas
+exatas pertencem ao espaço.
 
 ## Testes
 

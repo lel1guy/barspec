@@ -80,3 +80,18 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
   Delta Cafes), everything boutique/uncertain (Angostura, St-Germain,
   Disaronno...) falls through to Makro Cash and Carry - the honest
   catch-all independents actually use.
+
+
+## 2026-09-09 - 034: fullest demo - pub/wine/cafe shelf + 30-day month
+- seed_shelf() adds the 014 breadth: 15 stock items bought the way venues
+  buy (Super Bock + Sagres kegs, cans by the case of 24, Luso water by the
+  6-pack, Delta Plano coffee by the kg) and 21 straight-serve products:
+  draught Imperial/Caneca from the keg, cans, wine by glass AND bottle
+  (same bottle stock, two products), Coca-Cola/Fanta/Sumol/tonica, water,
+  and espresso drinks (expresso, duplo, meia de leite, galao).
+- Full month now runs across 113 managed items (volume+count shelf), 6
+  counts / 582 lines, 30 sales days, 3 batches, 6 bottle-scale losses.
+- Verified: 48 sellable specs on one menu; costs exact (keg 200 ml = 0.56,
+  can 0.64, wine glass 1.48/1.72, espresso 0.097, galao 0.405); margins
+  venue-realistic (wine glass 59-65%, espresso 92%); Delta coffee lands on
+  Delta Cafes; dashboard low=8 / losses 101.60 / count age 3 days.

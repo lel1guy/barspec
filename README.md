@@ -156,6 +156,11 @@ BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
 rerun-safe): 6 weekly stock counts, daily sales for the whole month (~430
 lines, star specs selling hard), 3 dated house batches, bottle-scale loss
 entries this month (~€100), suppliers and par levels on ~99 managed items.
+The demo also carries the **full shelf breadth** (014): 21 straight-serve
+products — draught beer from a 30 L keg (Imperial/Caneca pours), cans bought
+by the case, wine by glass or bottle, Coca-Cola/Fanta/Sumol/tónica, Luso
+water, and Delta espresso drinks (espresso, duplo, meia de leite, galão) —
+48 sellable items on one menu, all in the month's counts and sales.
 The moment it opens: Resumo shows below-par stock and a count 3 days old,
 Trends/order lists group by supplier, Vendas → actual GP covers the full
 month (five-figure revenue), and shrinkage has a real count window with a

@@ -233,12 +233,6 @@ def build() -> None:
             print("  ", e)
     print(f"seeded {created} Argo specs (menu: {len(SPECS)})")
 
-def _main():
-    db.init_db()
-    build()
-    if "--month" in sys.argv:
-        print("month:", seed_month())
-
 
 # ---------------- full-month fabricator (demo: 30 days of real use) --------
 import datetime as _dt
@@ -256,7 +250,7 @@ _SUPPLIER_RULES = [
     (("Jack Daniel", "Woodford"), "Brown-Forman Portugal"),
     (("Roku", "Japanese gin"), "Beam Suntory Portugal"),
     (("Sagres",), "Central de Cervejas (Heineken)"),
-    (("Coca-Cola", "Fanta", "Sprite"), "CCEP Portugal"),
+    (("Coca-Cola", "Fanta", "Sprite", "Schweppes"), "CCEP Portugal"),
     (("Compal", "Sumol"), "Sumol+Compal"),
     (("Delta",), "Delta Cafés"),
     (("Super Bock", "Luso", "Vitalis"), "Super Bock Group"),
@@ -288,7 +282,11 @@ def seed_month(force: bool = True) -> dict:
             db.update_stock_item(it["id"],
                                  {"name": it["name"], "supplier": _supplier_for(it["name"])})
     items = db.get_stock_items()
-    managed = [it for it in items if it["bottle_price_eur"] > 0 and it["name"] != "Filtered water"]
+    # weight items (coffee/kg) can't be stock-counted yet (db rule) — manage
+    # the volume + count shelf only
+    managed = [it for it in items
+               if it["bottle_price_eur"] > 0 and it["name"] != "Filtered water"
+               and it.get("dimension") in ("volume", "count")]
     # pars: buying-manager intuition on a 1-6 shelf
     for it in managed:
         db.set_stock_par(it["id"], float(rng.randint(1, 6)))
@@ -373,6 +371,103 @@ def seed_month(force: bool = True) -> dict:
             "days_with_sales": days_with_sales, "sales_lines": total_lines,
             "batches": batches_made, "losses": losses, "managed": len(managed)}
 
+
+
+
+# ---------------- pub / wine-bar / café shelf (014 breadth) ----------------
+# stock: (name, abv, price_or_pack, size_units_canonical, dim, pack=(n, price, name))
+_SHELF_STOCK = [
+    ("Super Bock keg 30L", 5.1, 84.0, 30000, "volume", None),
+    ("Super Bock can 33cl", 5.1, 15.36, 1, "count", (24, 15.36, "case")),
+    ("Sagres keg 30L", 5.0, 79.0, 30000, "volume", None),
+    ("Sagres can 33cl", 5.0, 14.16, 1, "count", (24, 14.16, "case")),
+    ("Vinho Verde Loureiro 75cl", 11.0, 6.8, 750, "volume", None),
+    ("Vinho Branco Regional 75cl", 12.5, 7.4, 750, "volume", None),
+    ("Vinho Tinto Regional 75cl", 13.0, 8.6, 750, "volume", None),
+    ("Coca-Cola can 33cl", 0.0, 14.16, 1, "count", (24, 14.16, "case")),
+    ("Fanta can 33cl", 0.0, 14.16, 1, "count", (24, 14.16, "case")),
+    ("Sumol ananás can 33cl", 0.0, 15.6, 1, "count", (24, 15.6, "case")),
+    ("Schweppes tónica 20cl", 0.0, 13.2, 1, "count", (24, 13.2, "case")),
+    ("Água Luso 50cl", 0.0, 2.1, 1, "count", (6, 2.1, "pack")),
+    ("Luso gasosa 33cl", 0.0, 1.98, 1, "count", (6, 1.98, "pack")),
+    ("Delta Plano café 1kg", 0.0, 13.9, 1000, "weight", None),
+    ("Leite meio-gordo 1L", 0.0, 1.05, 1000, "volume", None),
+]
+# straight-serve / simple products: (name, stock_name, amount, unit, price, cat)
+_SHELF_PROD = [
+    ("Super Bock Imperial", "Super Bock keg 30L", 200, "ml", 2.0, "Cerveja"),
+    ("Super Bock Caneca", "Super Bock keg 30L", 500, "ml", 4.2, "Cerveja"),
+    ("Super Bock can", "Super Bock can 33cl", 1, "piece", 2.6, "Cerveja"),
+    ("Sagres Imperial", "Sagres keg 30L", 200, "ml", 1.9, "Cerveja"),
+    ("Sagres can", "Sagres can 33cl", 1, "piece", 2.5, "Cerveja"),
+    ("Vinho Verde copo 15cl", "Vinho Verde Loureiro 75cl", 150, "ml", 3.8, "Vinho"),
+    ("Vinho Verde garrafa", "Vinho Verde Loureiro 75cl", 750, "ml", 18.0, "Vinho"),
+    ("Branco copo 15cl", "Vinho Branco Regional 75cl", 150, "ml", 4.0, "Vinho"),
+    ("Branco garrafa", "Vinho Branco Regional 75cl", 750, "ml", 21.0, "Vinho"),
+    ("Tinto copo 15cl", "Vinho Tinto Regional 75cl", 150, "ml", 4.2, "Vinho"),
+    ("Tinto garrafa", "Vinho Tinto Regional 75cl", 750, "ml", 24.0, "Vinho"),
+    ("Coca-Cola can", "Coca-Cola can 33cl", 1, "piece", 2.2, "Bebidas"),
+    ("Fanta can", "Fanta can 33cl", 1, "piece", 2.2, "Bebidas"),
+    ("Sumol can", "Sumol ananás can 33cl", 1, "piece", 2.2, "Bebidas"),
+    ("Tónica", "Schweppes tónica 20cl", 1, "piece", 2.4, "Bebidas"),
+    ("Água Luso", "Água Luso 50cl", 1, "piece", 1.5, "Água"),
+    ("Luso gasosa", "Luso gasosa 33cl", 1, "piece", 1.5, "Água"),
+]
+# recipe-ish café drinks: (name, cat, price, [(stock, amount, unit)])
+_SHELF_CAFE = [
+    ("Café expresso", "Café", 1.2, [("Delta Plano café 1kg", 7, "g")]),
+    ("Café duplo", "Café", 1.6, [("Delta Plano café 1kg", 14, "g")]),
+    ("Meia de leite", "Café", 1.7, [("Delta Plano café 1kg", 7, "g"),
+                                   ("Leite meio-gordo 1L", 120, "ml")]),
+    ("Galão", "Café", 2.2, [("Delta Plano café 1kg", 14, "g"),
+                            ("Leite meio-gordo 1L", 200, "ml")]),
+]
+
+
+def seed_shelf() -> dict:
+    """Pub / wine / café shelf: pack-bought stock + straight-serve products."""
+    stock = {i["name"]: i for i in db.get_stock_items()}
+    specs = {s["name"] for s in db.get_specs()}
+    made = {"stock": 0, "products": 0}
+    for (name, abv, price, size, dim, pack) in _SHELF_STOCK:
+        if name in stock:
+            continue
+        payload = {"name": name, "abv": abv, "bottle_volume_ml": size,
+                   "dimension": dim, "bottle_price_eur": 0.0}
+        if pack:
+            payload["pack_size"], payload["pack_price_eur"] = pack[0], pack[1]
+            payload["pack_name"] = pack[2]
+        else:
+            payload["bottle_price_eur"] = price
+        db.create_stock_item(payload)
+        made["stock"] += 1
+    stock = {i["name"]: i for i in db.get_stock_items()}
+    for (name, stock_name, amount, unit, price, cat) in _SHELF_PROD:
+        if name in specs:
+            continue
+        sp = db.create_spec({"name": name, "category": cat, "price_eur": price,
+                             "method": "Straight serve", "glass": ""})["id"]
+        db.add_line(sp, {"name": stock_name, "amount_ml": amount, "unit": unit})
+        specs.add(name)
+        made["products"] += 1
+    for (name, cat, price, lines) in _SHELF_CAFE:
+        if name in specs:
+            continue
+        sp = db.create_spec({"name": name, "category": cat, "price_eur": price,
+                             "method": "Espresso machine", "glass": ""})["id"]
+        for (sn, amt, unit) in lines:
+            db.add_line(sp, {"name": sn, "amount_ml": amt, "unit": unit})
+        specs.add(name)
+        made["products"] += 1
+    return made
+
+
+def _main():
+    db.init_db()
+    build()
+    if "--month" in sys.argv:
+        print("shelf:", seed_shelf())
+        print("month:", seed_month())
 
 if __name__ == "__main__":
     _main()
