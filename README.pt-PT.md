@@ -167,7 +167,7 @@ exatas pertencem ao espaço.
 ## Testes
 
 ```bash
-pytest            # 172 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas, dashboard
+pytest            # 185 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas, dashboard, pedidos de compra, estatísticas
 npm run e2e       # smoke de browser real (Playwright, 11 percursos): PIN, receitas, PT-PT, filtro de stock, vendas, carta
 ```
 
@@ -228,6 +228,8 @@ atualização — auto-verificável.
   (stock + receita) e cada eliminação, registada antigo → novo com data/hora.
   Só leitura; o histórico nunca é editado.
 - `013_sales.sql` — vendas diárias por (dia, receita), quantidades
+- `014_packs.sql` — packs de compra (caixa/keg) nos artigos de stock
+- `015_purchase_orders.sql` — pedidos de compra + receção (histórico de preços)
   substituíveis (idempotente); preço/custo são instantâneos congelados no
   registo (semântica de fatura — preços futuros nunca reescrevem o GP
   passado). Alimenta o GP real e o encolhimento stock-vs-vendas.

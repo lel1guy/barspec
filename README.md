@@ -84,7 +84,7 @@ you do, by design.
 ## Tests
 
 ```bash
-pytest            # 172 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard
+pytest            # 185 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard, purchase orders, stats
 npm run e2e       # real-browser smoke (Playwright, 11 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
 ```
 
@@ -110,7 +110,9 @@ headless Chromium (`npm install` + the Playwright cache in
 - `010_allergens.sql` — EU-14 + V/VE/GF code lists on specs
 - `011_supplier.sql` — supplier per stock item
 - `012_audit.sql` — append-only audit trail (old → new, when)
-- `013_sales.sql` — daily sales per (day, spec); price/cost frozen at posting
+- `013_sales.sql` — daily sales by (day, spec), frozen snapshots
+- `014_packs.sql` — purchase packs (case/keg) on stock items
+- `015_purchase_orders.sql` — PO + receiving ledger (price history) — daily sales per (day, spec); price/cost frozen at posting
 
 DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests). Online
 snapshots under `backups/` (nightly 03:17, 14 kept); restore:
@@ -178,7 +180,7 @@ not amounts); exact specs belong to the venue.
 
 Phase A complete (counting, units engine, batches, costing precision, PT-PT),
 kitchen K1–K4, security S1/S2, sales & shrinkage, staff roles — all shipped
-(2026-09-08, 172 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
+(2026-09-09, 185 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
 multi-tenant, PWA) are deliberately gated on a real paying venue. The full
 product plan lives in the vault (`Projects/Bar-Tech-Venture/
 BarSpec-Vision-and-Dev-Plan.md`).
