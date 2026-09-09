@@ -1830,3 +1830,24 @@ def price_history(stock_id: int, limit: int = 6) -> list[dict]:
            ORDER BY po.created_at DESC LIMIT ?""", (stock_id, limit))]
     conn.close()
     return rows
+def stats_last30() -> dict:
+    """Chart data (owner screen): daily revenue/cost for the last 30 days
+    and per-category revenue + GP% over the same window (categories live on
+    the spec today; prices/costs are the frozen snapshots)."""
+    conn = _conn()
+    daily = [dict(r) for r in conn.execute(
+        """SELECT day, ROUND(SUM(price_eur*qty), 2) AS revenue,
+                  ROUND(SUM(cost_eur*qty), 2) AS cost
+           FROM sales_lines WHERE day >= date('now','-29 days')
+           GROUP BY day ORDER BY day""")]
+    cats = [dict(r) for r in conn.execute(
+        """SELECT COALESCE(NULLIF(s.category,''),'—') AS category,
+                  ROUND(SUM(sl.price_eur*sl.qty), 2) AS revenue,
+                  ROUND(SUM(sl.cost_eur*sl.qty), 2) AS cost
+           FROM sales_lines sl JOIN specs s ON s.id = sl.spec_id
+           WHERE sl.day >= date('now','-29 days')
+           GROUP BY category ORDER BY revenue DESC""")]
+    for c in cats:
+        c["gp"] = round((c["revenue"] - c["cost"]) / c["revenue"] * 100, 1) if c["revenue"] else 0.0
+    conn.close()
+    return {"daily": daily, "categories": cats}

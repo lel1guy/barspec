@@ -72,6 +72,7 @@ const I18N = {
     "view.resumo": "Summary", "res.btn": "◫ Summary",
  "res.firstCount": "No counts yet — set pars and do your first",
     "po.linesLbl": "lines", "po.btn": "📥 Orders", "po.title": "Orders & receiving", "po.open": "Open orders", "po.new": "+ New order", "po.supplier": "Supplier", "po.stock": "Stock item", "po.qty": "Qty (purchase units)", "po.addLine": "+ Add line", "po.create": "Create order", "po.receive": "Receive", "po.received": "received", "po.driftTitle": "Price changed since the order - apply?", "po.apply": "Apply €", "po.applied": "Prices updated", "po.emptyOpen": "No open orders.", "po.emptyHist": "Nothing received yet.", "po.total": "Total", "po.needSup": "Supplier name needed", "po.needLine": "Add at least one line", "po.done": "Order received",
+    "stats.title": "Sales — last 30 days", "stats.daily": "Daily revenue", "stats.cat": "GP by category", "stats.noData": "No sales in the window yet.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "res.title": "What needs you", "res.allGood": "Nothing below par.", "res.lowTitle": "Below par",
     "res.expTitle": "Expiring", "res.lossTitle": "Losses this month", "res.entries": "entr(ies)",
@@ -215,6 +216,7 @@ const I18N = {
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Resumo", "res.btn": "◫ Resumo",
     "po.linesLbl": "linhas", "po.btn": "📥 Compras", "po.title": "Compras e receção", "po.open": "Pedidos abertos", "po.new": "+ Novo pedido", "po.supplier": "Fornecedor", "po.stock": "Artigo", "po.qty": "Qtd (unidades de compra)", "po.addLine": "+ Adicionar linha", "po.create": "Criar pedido", "po.receive": "Receber", "po.received": "recebido", "po.driftTitle": "O preço mudou desde o pedido - aplicar?", "po.apply": "Aplicar €", "po.applied": "Preços atualizados", "po.emptyOpen": "Sem pedidos abertos.", "po.emptyHist": "Ainda nada recebido.", "po.total": "Total", "po.needSup": "Falta o fornecedor", "po.needLine": "Adicione pelo menos uma linha", "po.done": "Pedido recebido",
+    "stats.title": "Vendas — últimos 30 dias", "stats.daily": "Receita diária", "stats.cat": "GP por categoria", "stats.noData": "Sem vendas no período ainda.",
  "res.firstCount": "Ainda sem contagens — defina pars e faça a primeira",
     "res.title": "O que precisa de si", "res.allGood": "Nada abaixo do par.", "res.lowTitle": "Abaixo do par",
     "res.expTitle": "A expirar", "res.lossTitle": "Perdas este mês", "res.entries": "registo(s)",
@@ -1887,6 +1889,7 @@ async function renderPnl() {
 // ---------- wiring ----------
 $("#newSpecBtn").addEventListener("click", () => { editSpecForm(null); });
 $("#navSpecs").addEventListener("click", () => showView("specs"));
+$("#navResumo").addEventListener("click", () => showView("resumo"));
 $("#navBatches").addEventListener("click", () => showView("batches"));
 document.querySelectorAll(".setopt[data-lang]").forEach((b) =>
   b.addEventListener("click", () => setLang(b.dataset.lang)));
@@ -2332,6 +2335,52 @@ async function loadDashboard() {
     </div>`;
   $("#resumoBox").innerHTML = html;
   bindDash();
+  loadStats();     // charts card (owner-only endpoint; silent if denied)
+}
+
+// ---------- Summary charts (stats) ----------
+function bars30(daily) {
+  const fmtDay = (s) => { const d = new Date(s + "T00:00:00"); return `${d.getDate()}/${d.getMonth() + 1}`; };
+  const map = new Map(daily.map((x) => [x.day, x.revenue]));
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    days.push({ key, rev: map.get(key) || 0 });
+  }
+  const max = Math.max(1, ...days.map((x) => x.rev));
+  return `<div class="chart-bars">` + days.map((x, i) => {
+    const h = Math.round((x.rev / max) * 100);
+    const label = i % 5 === 0 ? `<span class="chart-x">${fmtDay(x.key)}</span>` : "";
+    return `<div class="chart-col" title="${x.key} · ${eur(x.rev)}"><div class="chart-bar ${x.rev === 0 ? "zero" : ""}" style="height:${Math.max(h, x.rev ? 3 : 1)}%"></div>${label}</div>`;
+  }).join("") + `</div>`;
+}
+function catRows(cats) {
+  if (!cats.length) return `<div class="empty-note" style="margin:0;">${t("stats.noData")}</div>`;
+  const top = cats.slice(0, 8);
+  return top.map((c) => {
+    const cls = c.gp >= 60 ? "ok" : c.gp >= 40 ? "warn" : "bad";
+    return `<div class="cat-row"><div class="cat-name">${esc(c.category)} <span class="dim-tag">${eur(c.revenue)}</span></div>
+      <div class="cat-track"><div class="cat-fill ${cls}" style="width:${Math.max(2, Math.min(100, c.gp))}%"></div></div>
+      <div class="cat-gp ${cls === "ok" ? "ok" : cls === "warn" ? "warn" : "bad"}">${c.gp.toFixed(0)}%</div></div>`;
+  }).join("");
+}
+async function loadStats() {
+  let st;
+  try { st = await api("/api/stats"); } catch { return; }
+  const rev = (st.daily || []).reduce((a, x) => a + x.revenue, 0);
+  const gps = st.categories || [];
+  const has = rev > 0;
+  const box = $("#resumoBox");
+  const card = document.createElement("div");
+  card.className = "res-card res-stats";
+  card.id = "statsCard";
+  card.innerHTML = `<h3>${t("stats.title")} ${has ? `<span class="order-chip">${eur(rev)}</span>` : ""}</h3>
+    <div class="stats-sec">${t("stats.daily")}</div>
+    ${has ? bars30(st.daily || []) : `<div class="empty-note" style="margin:0;">${t("stats.noData")}</div>`}
+    <div class="stats-sec" style="margin-top:12px;">${t("stats.cat")}</div>
+    ${gps.length ? catRows(gps) : `<div class="empty-note" style="margin:0;">${t("stats.noData")}</div>`}`;
+  box.appendChild(card);
 }
 function bindDash() {
   const b = $("#resCountBtn"); if (b) b.onclick = () => showView("stocktake");

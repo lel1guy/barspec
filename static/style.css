@@ -650,3 +650,26 @@ body[data-role="staff"] main { max-width: 100%; }
 .po-line { gap: 6px; margin: 4px 0; }
 .po-drift { display: flex; align-items: center; gap: 8px; justify-content: space-between;
   border: 1px solid var(--line2); border-radius: 8px; padding: 6px 8px; background: var(--panel2); }
+/* summary charts (037) */
+.res-stats { grid-column: 1 / -1; }
+.stats-sec { font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+  opacity: .75; margin-bottom: 6px; }
+.chart-bars { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+.chart-col { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; height: 100%; position: relative; }
+.chart-bar { width: 70%; max-width: 26px; border-radius: 3px 3px 0 0;
+  background: var(--accent, #5b8cff); min-height: 1px; }
+.chart-bar.zero { background: var(--line2); opacity: .5; }
+.chart-x { font-size: 9px; opacity: .6; margin-top: 3px; white-space: nowrap; }
+.cat-row { display: grid; grid-template-columns: 1fr 130px 44px; gap: 8px;
+  align-items: center; margin: 5px 0; }
+.cat-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.cat-track { height: 8px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+.cat-fill.ok { background: #3fbf6f; }
+.cat-fill.warn { background: #e0a63c; }
+.cat-fill.bad { background: #e05c5c; }
+.cat-gp { text-align: right; font-weight: 600; font-size: 13px; }
+.cat-gp.ok { color: #3fbf6f; }
+.cat-gp.warn { color: #e0a63c; }
+.cat-gp.bad { color: #e05c5c; }

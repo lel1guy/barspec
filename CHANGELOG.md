@@ -126,3 +126,16 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
 - Demo month now seeds 1 open PO + 1 received (history + price history
   populated out of the box). Migration 015; 183 pytest (178+5) and
   12/12 e2e; cache-bust 20260908h.
+
+
+## 2026-09-09 - 037: Summary fixes + charts
+- FIXED: Summary in the left nav did nothing - the sidebar binding list
+  predated navResumo (header button worked; nav item was wired). Bound.
+- NEW /api/stats (owner): daily revenue/cost for the last 30 days and
+  per-category revenue + GP%% (categories live, prices frozen snapshots).
+- Summary homepage gains a full-width charts card: 30-day daily-revenue
+  bars (zero-safe, hover shows day/amount) and top-8 GP-by-category
+  bars with revenue - colour-coded (>=60 green / >=40 amber / red).
+- 185 pytest (183 + 2 stats tests) and 12/12 e2e; live QA on the month
+  demo: left-nav click lands on resumo, 30 bars + 8 category rows,
+  zero JS errors. Cache-bust 20260908i.

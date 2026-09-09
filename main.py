@@ -792,3 +792,10 @@ def stock_price_history(stock_id: int, request: Request):
     if request.state.role != "owner":
         raise HTTPException(403, "Owner only")
     return db.price_history(stock_id)
+
+
+@app.get("/api/stats")
+def stats(request: Request):
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    return db.stats_last30()
