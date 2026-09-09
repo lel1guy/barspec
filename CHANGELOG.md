@@ -2,6 +2,17 @@
 
 Timeline of shipped builds (v1.1 era). User docs: [README](README.md).
 
+## 2026-09-09 — 030: demo bundle (The Argo, Vilamoura)
+- `ops/seed_argo.py`: builds a demo DB from The Argo's public signature menu
+  (22 specs: 18 signatures + 4 zero-proof). Every spec's pours are solved so
+  the computed ABV equals the menu's declared ABV exactly; purchase prices
+  are realistic PT retail approximations; ~100 stock items with suppliers
+  empty; categories by flavour profile. Recipes are indicative — the menu
+  lists ingredients + serve size + ABV, not amounts.
+- Margins land at realistic premium-venue levels (THE ARGO €2.30 cost on
+  €25 → ~91% GP). Reseed anytime: `BARSPEC_DB=... .venv/bin/python
+  ops/seed_argo.py` (rerun-safe: skips existing specs/stock).
+
 ## 2026-09-08 — 026: Summary dashboard + first-run onboarding
 - **Summary (◫ Resumo)**: attention page — below-par items from the latest
   count (supplier chips, "need n · fbe/par"), batches expiring ≤7 days,

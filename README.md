@@ -141,6 +141,21 @@ tests/dev). Deploys: snapshot the DB, restart, verify `:8777`, push. A
 silent while the app answers and alerts if `:8777` goes down. Build history:
 [CHANGELOG.md](CHANGELOG.md).
 
+### Demo bundle (The Argo, Vilamoura)
+
+A ready-to-demo dataset built from the public signature menu (22 specs, ABV
+tuned to the menu's declared values, realistic PT purchase prices — swap for
+real invoices before a serious pitch):
+
+```bash
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py   # build
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+```
+
+Open `:8791` — the 22 Argo specs (incl. 4 zero-proof), ~100 stock items,
+categories by flavour profile. Recipes are indicative builds (the menu gives
+ingredients + ABV, not amounts); exact specs belong to the venue.
+
 ## Roadmap / status
 
 Phase A complete (counting, units engine, batches, costing precision, PT-PT),
