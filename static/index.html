@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260908g">
+<link rel="stylesheet" href="/static/style.css?v=20260908h">
 </head>
 <body>
 <a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
@@ -35,6 +35,7 @@
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
     <button class="btn ghost no-print" id="resBtn" data-i18n="res.btn">◫ Summary</button>
+    <button class="btn ghost no-print" id="poBtn" data-i18n="po.btn">📥 Compras</button>
     <button class="btn ghost no-print" id="setBtn" data-i18n="mhead.settings">⚙ Settings</button>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
     <button class="btn ghost no-print" id="qpBtn" data-i18n="prod.btn">+ Product</button>
@@ -403,7 +404,7 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260908g" defer></script>
+<script src="/static/app.js?v=20260908h" defer></script>
 </body>
 </html>
 
@@ -434,5 +435,33 @@
       <button type="button" class="btn ghost" id="qpCancel" data-i18n="f.cancel">Cancel</button>
       <button type="button" class="btn" id="qpCreate" data-i18n="prod.create">Create product</button>
     </div>
+  </div>
+</div>
+<!-- purchase orders (015): create, receive, history -->
+<div class="overlay hidden" id="poOverlay" style="z-index:120;">
+  <div class="overlay-card" style="max-width:560px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <h3 style="flex:1;" data-i18n="po.title">Compras — orders and receiving</h3>
+      <button type="button" class="btn ghost small" id="poClose" data-i18n="f.cancel">Close</button>
+    </div>
+    <div class="hint" style="margin:10px 0 4px;" data-i18n="po.open">Open orders</div>
+    <div id="poOpen"></div>
+    <details id="poNewBox" style="margin-top:8px;">
+      <summary class="hint" data-i18n="po.new">+ New order</summary>
+      <div class="formrow">
+        <div style="flex:1.6; min-width:140px;"><label data-i18n="po.supplier">Supplier</label>
+          <input id="poSup" list="supNames" placeholder="Makro…"></div>
+      </div>
+      <div id="poNewLines"></div>
+      <div style="display:flex; gap:6px; margin:6px 0;">
+        <button type="button" class="btn ghost small" id="poAddLine" data-i18n="po.addLine">+ Add line</button>
+      </div>
+      <div style="display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+        <span class="edit-note" id="poNewTotal"></span>
+        <button type="button" class="btn" id="poCreate" data-i18n="po.create">Create order</button>
+      </div>
+    </details>
+    <div class="hint" style="margin:14px 0 4px;" data-i18n="po.history">Recent received</div>
+    <div id="poHistory"></div>
   </div>
 </div>

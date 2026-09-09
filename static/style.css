@@ -645,3 +645,8 @@ body[data-role="staff"] main { max-width: 100%; }
 @media (min-width: 701px) { .desktop-only { display: flex; } }
 
 .pack-note { font-size: 11px; margin-top: 2px; opacity: .8; }
+
+/* purchase orders (015) */
+.po-line { gap: 6px; margin: 4px 0; }
+.po-drift { display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  border: 1px solid var(--line2); border-radius: 8px; padding: 6px 8px; background: var(--panel2); }

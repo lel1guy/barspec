@@ -43,6 +43,13 @@ testadas).
 - **EN / PT-PT**: alternância de idioma num clique (barra superior, lembrada
   por browser). Navegação, formulários, botões, dicas e cartas traduzem;
   números e € nunca traduzem.
+- **Pedidos de compra e receção**: encomende por fornecedor com preços
+  unitários congelados na altura do pedido; receber regista a entrega,
+  fica no histórico e sinaliza **desvios de preço** (custo guardado vs
+  fatura) com aplicação num clique + ripple. Receção parcial mantém o
+  pedido aberto. Cada linha recebida alimenta o **histórico de preços**
+  do artigo. Os POs são o rasto do dinheiro — as contagens continuam a
+  ser donas do stock físico. Migração 015.
 - **Resumo (página de atenção)**: à primeira vista, em cada visita — abaixo
   do par (última contagem, com fornecedores), xaropes a expirar numa
   semana, perdas do mês em € e lembrete de contagem quando a última tem
@@ -267,6 +274,7 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 | GET | `/api/sales/summary?from_day&to_day` | GP real por receita + totais do período |
 | GET | `/api/sales/shrinkage` | stock usado (últimas 2 contagens) vs esperado pelas vendas — a fuga em € |
 | GET | `/api/dashboard` | resumo de atenção: abaixo do par, a expirar, perdas €, idade da contagem |
+| POST | `/api/pos` | abrir PO (preços congelados) · `GET /api/pos` · `POST /api/pos/{id}/receive` (parcial ok, relatório de desvio) · `GET /api/stock/{id}/price-history` |
 | GET/POST | `/api/auth/status` · `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | gate do PIN do dono (as rotas protegidas devolvem 401 sem cookie) |
 
 ## Operações

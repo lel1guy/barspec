@@ -738,3 +738,57 @@ def demo_status(request: Request):
     if request.state.role != "owner":
         raise HTTPException(403, "Owner only")
     return db.demo_status()
+# ---------- purchase orders (015) ----------
+
+class PoLineIn(BaseModel):
+    stock_item_id: int
+    qty: float = 1.0
+
+
+class PoIn(BaseModel):
+    supplier: str = ""
+    lines: list[PoLineIn]
+
+
+class PoReceiveIn(BaseModel):
+    lines: list[PoLineIn] | None = None   # partial receive
+
+
+class StockHistoryIn(BaseModel):
+    limit: int = 6
+
+
+@app.post("/api/pos")
+def create_po(po: PoIn, request: Request):
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    try:
+        return db.create_purchase_order(
+            po.supplier, [l.model_dump() for l in po.lines])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/pos")
+def list_pos(status: str | None = None, request: Request = None):
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    return db.get_purchase_orders(status)
+
+
+@app.post("/api/pos/{po_id}/receive")
+def receive_po(po_id: int, body: PoReceiveIn, request: Request):
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    try:
+        return db.receive_purchase_order(
+            po_id, [l.model_dump() for l in body.lines] if body.lines else None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/stock/{stock_id}/price-history")
+def stock_price_history(stock_id: int, request: Request):
+    if request.state.role != "owner":
+        raise HTTPException(403, "Owner only")
+    return db.price_history(stock_id)

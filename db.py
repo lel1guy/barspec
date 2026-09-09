@@ -1694,3 +1694,139 @@ def demo_status() -> dict:
     finally:
         conn.close()
     return {"ok": all(x["ok"] for x in out), "checks": out}
+# ---------- purchase orders + receiving (015) ----------
+
+def _po_full(conn, po_id) -> dict | None:
+    po = conn.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,)).fetchone()
+    if not po:
+        return None
+    lines = [dict(r) for r in conn.execute(
+        """SELECT pl.*, si.name, si.bottle_volume_ml, si.dimension,
+                  si.pack_size, si.pack_name, si.bottle_price_eur AS stored_price_eur
+           FROM purchase_order_lines pl JOIN stock_items si ON si.id = pl.stock_item_id
+           WHERE pl.po_id=? ORDER BY si.name""", (po_id,))]
+    d = dict(po)
+    d["lines"] = lines
+    d["line_count"] = len(lines)
+    d["total_eur"] = round(sum((l["qty_received"] or 0) * l["unit_price_eur"] for l in lines), 2)
+    return d
+
+
+def create_purchase_order(supplier: str, lines: list[dict]) -> dict:
+    """lines: [{stock_item_id, qty}] — unit prices frozen from stock at order
+    time (invoice-line honesty)."""
+    conn = _conn()
+    if not lines:
+        raise ValueError("Order needs at least one line")
+    item_ids = [l["stock_item_id"] for l in lines]
+    if not item_ids:
+        raise ValueError("Order needs at least one stock item")
+    ph = ",".join("?" * len(item_ids))
+    rows = {r["id"]: r for r in conn.execute(
+        f"SELECT * FROM stock_items WHERE id IN ({ph})", item_ids)}
+    cur = conn.execute(
+        "INSERT INTO purchase_orders (supplier) VALUES (?)",
+        ((supplier or "").strip(),))
+    po_id = cur.lastrowid
+    for l in lines:
+        sid = l["stock_item_id"]
+        it = rows.get(sid)
+        if not it:
+            conn.close()
+            raise ValueError(f"Stock item #{sid} not found")
+        qty = float(l.get("qty") or 0)
+        if qty <= 0:
+            conn.close()
+            raise ValueError("Line qty must be > 0")
+        conn.execute(
+            "INSERT INTO purchase_order_lines (po_id, stock_item_id, qty, unit_price_eur) "
+            "VALUES (?,?,?,?)",
+            (po_id, sid, qty, it["bottle_price_eur"] or 0))
+    conn.commit()
+    conn.close()
+    audit("purchase", supplier or "PO", f"PO #{po_id} opened ({len(lines)} lines)")
+    return _po_full(_conn(), po_id)
+
+
+def get_purchase_orders(status: str | None = None) -> list[dict]:
+    conn = _conn()
+    if status:
+        rows = conn.execute(
+            "SELECT id FROM purchase_orders WHERE status=? ORDER BY id DESC",
+            (status,)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id FROM purchase_orders ORDER BY id DESC LIMIT 50").fetchall()
+    out = [_po_full(conn, r["id"]) for r in rows]
+    conn.close()
+    return [o for o in out if o]
+
+
+def receive_purchase_order(po_id: int, lines: list[dict] | None = None) -> dict:
+    """Receive a PO. lines optional for partial: [{stock_item_id, qty}]
+    received — defaults to the full order. Detects price drift between the
+    frozen unit price and the stored cost; caller decides whether to apply.
+    Never mutates count levels: POs are the money trail, counts own stock."""
+    conn = _conn()
+    po = conn.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,)).fetchone()
+    if not po:
+        conn.close()
+        raise ValueError("PO not found")
+    if po["status"] != "open":
+        conn.close()
+        raise ValueError("PO already received/cancelled")
+    partial = {l["stock_item_id"]: float(l.get("qty") or 0) for l in lines} if lines else None
+    po_lines = conn.execute(
+        "SELECT * FROM purchase_order_lines WHERE po_id=?", (po_id,)).fetchall()
+    drift, total = [], 0.0
+    for pl in po_lines:
+        sid = pl["stock_item_id"]
+        if partial is not None and sid not in partial:
+            continue
+        qty = partial[sid] if partial is not None else pl["qty"]
+        if qty <= 0:
+            continue
+        conn.execute(
+            "UPDATE purchase_order_lines SET qty_received = qty_received + ? WHERE id=?",
+            (qty, pl["id"]))
+        total += qty * pl["unit_price_eur"]
+        stored = conn.execute(
+            "SELECT bottle_price_eur, name, bottle_volume_ml, dimension, "
+            "pack_size, pack_price_eur, pack_name FROM stock_items WHERE id=?",
+            (sid,)).fetchone()
+        if stored and abs((stored["bottle_price_eur"] or 0) - pl["unit_price_eur"]) > 0.005:
+            drift.append({"stock_item_id": sid, "name": stored["name"],
+                          "stored_unit": stored["bottle_price_eur"] or 0,
+                          "invoice_unit": pl["unit_price_eur"],
+                          "bottle_volume_ml": stored["bottle_volume_ml"],
+                          "dimension": stored["dimension"],
+                          "pack_size": stored["pack_size"] or 1,
+                          "pack_name": stored["pack_name"] or ""})
+    # full receive closes the PO; partial keeps it open for the rest
+    remaining = conn.execute(
+        "SELECT COUNT(*) c FROM purchase_order_lines WHERE po_id=? AND qty_received < qty",
+        (po_id,)).fetchone()["c"]
+    if remaining == 0:
+        conn.execute(
+            "UPDATE purchase_orders SET status='received', received_at=datetime('now') "
+            "WHERE id=?", (po_id,))
+    conn.commit()
+    conn.close()
+    if remaining == 0:
+        audit("purchase", po["supplier"] or "PO", f"PO #{po_id} fully received (€{total:.2f})")
+    else:
+        audit("purchase", po["supplier"] or "PO", f"PO #{po_id} partial receive (€{total:.2f})")
+    return {"po": _po_full(_conn(), po_id), "received_eur": round(total, 2), "drift": drift}
+
+
+def price_history(stock_id: int, limit: int = 6) -> list[dict]:
+    """Unit price paid per received line, newest first (the buying record)."""
+    conn = _conn()
+    rows = [dict(r) for r in conn.execute(
+        """SELECT po.created_at, pl.qty_received, pl.unit_price_eur
+           FROM purchase_order_lines pl
+           JOIN purchase_orders po ON po.id = pl.po_id
+           WHERE pl.stock_item_id=? AND pl.qty_received > 0 AND po.status='received'
+           ORDER BY po.created_at DESC LIMIT ?""", (stock_id, limit))]
+    conn.close()
+    return rows

@@ -365,11 +365,36 @@ def seed_month(force: bool = True) -> dict:
                   "VALUES (?,?,?,?,?)",
                   (it["id"], delta, rng.choice(_REASONS), "demo month log", d))
         losses += 1
+    c.commit()     # release before the PO writer opens its own connection
+    # purchase loop: 2 open POs from below-par items + 1 fully received (history)
+    pos_open = pos_done = 0
+    par_items = [it for it in db.get_stock_items()
+                 if (it.get("par_level") or 0) > 0
+                 and (it.get("bottle_price_eur") or 0) > 0
+                 and it.get("dimension") in ("volume", "count")]
+    for idx in range(2):
+        picks = rng.sample(par_items, min(3, len(par_items)))
+        supplier = _supplier_for(picks[0]["name"])
+        try:
+            po = db.create_purchase_order(
+                supplier, [{"stock_item_id": it["id"], "qty": float(rng.randint(1, 3))}
+                           for it in picks])
+            pos_open += 1
+        except ValueError:
+            continue
+        if idx == 0:      # receive the first, keep the second open
+            try:
+                db.receive_purchase_order(po["id"])
+                pos_done += 1
+                pos_open -= 1
+            except ValueError:
+                pass
     c.commit()
     c.close()
     return {"count_dates": len(count_dates), "take_rows": take_rows,
             "days_with_sales": days_with_sales, "sales_lines": total_lines,
-            "batches": batches_made, "losses": losses, "managed": len(managed)}
+            "batches": batches_made, "losses": losses, "managed": len(managed),
+            "pos_open": pos_open, "pos_received": pos_done}
 
 
 

@@ -36,6 +36,12 @@ Built by **Vitor Vareiro.** European Portuguese read this in
   posting** (invoice semantics — future price changes never rewrite past GP).
   Shrinkage compares stock *used* between your last two counts vs what your
   sales *explain* — the leak in € is the headline number.
+- **Purchase orders + receiving**: order by supplier with unit prices frozen
+  at order time; receiving records the delivery, logs it, and flags **price
+  drift** (stored cost vs invoice) with one-click apply + ripple. Partial
+  receive keeps the PO open. Every received line feeds the item's **price
+  history**. POs are the money trail — counts stay the owners of physical
+  stock. Migration 015.
 - **Summary (attention page)**: one glance on every visit — items below
   par from the latest count (with suppliers), batches expiring within a
   week, losses this month in €, and a "count again" nudge when the last
@@ -130,6 +136,7 @@ snapshots under `backups/` (nightly 03:17, 14 kept); restore:
 | GET | `/api/sales/summary?from_day&to_day` | actual GP per spec + totals |
 | GET | `/api/sales/shrinkage` | stock-vs-sales leak in € (last two counts) |
 | GET | `/api/dashboard` | attention summary: below-par, expiring, losses €, count age |
+| POST | `/api/pos` | open a PO (prices frozen) · `GET /api/pos` · `POST /api/pos/{id}/receive` (partial ok, drift report) · `GET /api/stock/{id}/price-history` |
 | GET/POST/PUT | `/api/auth/status\|setup\|login\|logout\|staff-login\|staff-pin` | owner + staff PIN gate (protected routes 401 without a cookie; staff 403 outside read-only) |
 
 ## Operations

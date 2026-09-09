@@ -108,3 +108,21 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
   days, zero unpriced specs, loss-log entries, batches. Green on the
   full-month demo DB; 401 to anonymous once a PIN is set.
 - Tests: 178 total (176 + 2 demo-status). Cache-bust 20260908g.
+
+
+## 2026-09-09 - 036: purchase orders + receiving (the buy loop, 015)
+- POs by supplier with unit prices FROZEN at order time (invoice-line
+  honesty like sales snapshots); open/received states; partial receive
+  keeps a PO open; full receive closes it (audited).
+- Receiving reports price DRIFT (stored cost vs frozen invoice price)
+  with one-click apply through the normal stock PUT (ripple included);
+  every received line feeds GET /api/stock/{id}/price-history.
+- POs are the money trail only: counts stay the owners of physical
+  stock (no phantom on-hand column). Owner-gated routes (403 staff,
+  401 anonymous once a PIN is set).
+- UI: header Orders (Compras) overlay - open POs with lines + receive,
+  new-order editor (supplier + stock/qty lines), received history.
+  Hidden from staff (money-adjacent).
+- Demo month now seeds 1 open PO + 1 received (history + price history
+  populated out of the box). Migration 015; 183 pytest (178+5) and
+  12/12 e2e; cache-bust 20260908h.

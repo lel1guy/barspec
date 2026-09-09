@@ -71,6 +71,7 @@ const I18N = {
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Summary", "res.btn": "◫ Summary",
  "res.firstCount": "No counts yet — set pars and do your first",
+    "po.linesLbl": "lines", "po.btn": "📥 Orders", "po.title": "Orders & receiving", "po.open": "Open orders", "po.new": "+ New order", "po.supplier": "Supplier", "po.stock": "Stock item", "po.qty": "Qty (purchase units)", "po.addLine": "+ Add line", "po.create": "Create order", "po.receive": "Receive", "po.received": "received", "po.driftTitle": "Price changed since the order - apply?", "po.apply": "Apply €", "po.applied": "Prices updated", "po.emptyOpen": "No open orders.", "po.emptyHist": "Nothing received yet.", "po.total": "Total", "po.needSup": "Supplier name needed", "po.needLine": "Add at least one line", "po.done": "Order received",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "res.title": "What needs you", "res.allGood": "Nothing below par.", "res.lowTitle": "Below par",
     "res.expTitle": "Expiring", "res.lossTitle": "Losses this month", "res.entries": "entr(ies)",
@@ -213,6 +214,7 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Resumo", "res.btn": "◫ Resumo",
+    "po.linesLbl": "linhas", "po.btn": "📥 Compras", "po.title": "Compras e receção", "po.open": "Pedidos abertos", "po.new": "+ Novo pedido", "po.supplier": "Fornecedor", "po.stock": "Artigo", "po.qty": "Qtd (unidades de compra)", "po.addLine": "+ Adicionar linha", "po.create": "Criar pedido", "po.receive": "Receber", "po.received": "recebido", "po.driftTitle": "O preço mudou desde o pedido - aplicar?", "po.apply": "Aplicar €", "po.applied": "Preços atualizados", "po.emptyOpen": "Sem pedidos abertos.", "po.emptyHist": "Ainda nada recebido.", "po.total": "Total", "po.needSup": "Falta o fornecedor", "po.needLine": "Adicione pelo menos uma linha", "po.done": "Pedido recebido",
  "res.firstCount": "Ainda sem contagens — defina pars e faça a primeira",
     "res.title": "O que precisa de si", "res.allGood": "Nada abaixo do par.", "res.lowTitle": "Abaixo do par",
     "res.expTitle": "A expirar", "res.lossTitle": "Perdas este mês", "res.entries": "registo(s)",
@@ -2195,6 +2197,7 @@ function enterStaffMode() {
   document.body.dataset.role = "staff";
   $("#authOverlay").classList.add("hidden");
   $("#staffUI").classList.remove("hidden");
+  if (typeof hideOwnerChrome === "function") hideOwnerChrome();
   runStaff();
 }
 function showAuth(mode, hasStaff) {
@@ -2457,3 +2460,169 @@ $("#qpCreate").addEventListener("click", async () => {
     openSpec(spec.id);
   } catch (err) { toast("Failed: " + err.message); }
 });
+// ---------- purchase orders (015): create / receive / history ----------
+let poStockItems = [];
+async function refreshPOStock() {
+  poStockItems = await api("/api/stock");
+}
+function poLineRow(stockId = null, qty = "") {
+  const opts = poStockItems.map((i) =>
+    `<option value="${i.id}" ${stockId == i.id ? "selected" : ""}>${esc(i.name)}</option>`).join("");
+  return `<div class="po-line formrow">
+    <select class="po-sel" style="flex:2; min-width:140px;">${opts}</select>
+    <input type="number" class="po-qty" value="${qty}" min="0.5" step="0.5" style="flex:.6; width:90px;" placeholder="qty">
+    <button type="button" class="btn ghost small po-del" aria-label="remove">✕</button>
+  </div>`;
+}
+function poItemLabel(it) {
+  const unit = it.dimension === "volume" ? "un" : it.dimension === "weight" ? "kg" : "un";
+  let p = "";
+  if (it.pack_size > 1 && it.pack_price_eur) p = ` · 📦 ${esc(it.pack_name || "pack")} de ${fmtAmt(it.pack_size)}`;
+  return `${esc(it.name)} <span class="edit-note">(€${it.bottle_price_eur}/${unit}${p})</span>`;
+}
+function poRowHtml(po) {
+  const date = (po.created_at || "").replace("T", " ").slice(0, 16);
+  const lines = (po.lines || []).map((l) => {
+    const unit = l.dimension === "weight" ? "kg" : "un";
+    const pack = l.pack_size > 1 ? ` · ~${Math.ceil(l.qty / l.pack_size)} × ${esc(l.pack_name || "pack")}` : "";
+    return `<div class="edit-note">×${fmtAmt(l.qty_received)}/${fmtAmt(l.qty)} ${esc(l.name)} @ €${l.unit_price_eur}${pack}${l.qty_received < l.qty ? "" : " ✓"}</div>`;
+  }).join("");
+  const btn = po.status === "open"
+    ? `<button type="button" class="btn small" data-rec-po="${po.id}" data-i18n="po.receive">Receive</button>`
+    : `<span class="exp-chip ok" data-i18n="po.received">received</span>`;
+  return `<div class="res-card" style="padding:8px 10px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <strong style="flex:1;">${esc(po.supplier || "—")} <span class="edit-note">#${po.id} · ${date}</span></strong>
+      ${btn}
+    </div>
+    ${lines}
+  </div>`;
+}
+function poHistoryHtml(pos) {
+  if (!pos.length) return `<p class="edit-note">${t("po.emptyHist")}</p>`;
+  return `<div class="audit-list">${pos.map((p) =>
+    `<div class="audit-row"><span>${esc(p.supplier || "—")} · #${p.id}</span>
+       <span class="edit-note">${(p.created_at || "").slice(0, 10)}</span>
+       <span class="num">€${p.total_eur} · ${p.line_count} ${t("po.linesLbl")}</span></div>`).join("")}</div>`;
+}
+async function renderPO() {
+  if ($("#poOverlay").classList.contains("hidden")) return;
+  const [all, open] = await Promise.all([api("/api/pos"), api("/api/pos?status=open")]);
+  const received = all.filter((p) => p.status === "received").slice(0, 10);
+  $("#poOpen").innerHTML = open.length
+    ? open.map(poRowHtml).join("")
+    : `<p class="edit-note">${t("po.emptyOpen")}</p>`;
+  $("#poHistory").innerHTML = poHistoryHtml(received);
+}
+async function openPOOverlay() {
+  await refreshPOStock();
+  await renderPO();
+  $("#poOverlay").classList.remove("hidden");
+}
+$("#poBtn").addEventListener("click", () => openPOOverlay());
+$("#poClose").addEventListener("click", () => $("#poOverlay").classList.add("hidden"));
+$("#poOpen").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-rec-po]");
+  if (!b) return;
+  b.disabled = true;
+  try {
+    const res = await api(`/api/pos/${b.dataset.recPo}/receive`, "POST", {});
+    toast(t("po.done"));
+    await renderPO();
+    if ((res.drift || []).length) {
+      const html = res.drift.map((d) =>
+        `<div class="po-drift"><span>${esc(d.name)} — €${d.stored_unit} → €${d.invoice_unit}?</span>
+         <button type="button" class="btn small" data-apply="${d.stock_item_id}" data-idx="${res.drift.indexOf(d)}">${t("po.apply")}</button></div>`).join("");
+      window.__drift = res.drift;
+      showModal(t("po.driftTitle"), html, "po");
+    } else {
+      renderStock();
+    }
+  } catch (err) { toast("Failed: " + err.message); b.disabled = false; }
+});
+function showModal(title, html, kind) {
+  // lightweight drift dialog reusing the settings overlay pattern
+  let el = $("#driftModal");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "driftModal";
+    el.className = "overlay hidden";
+    el.style.zIndex = 130;
+    el.innerHTML = `<div class="overlay-card" style="max-width:440px;">
+      <h3 data-title></h3><div data-body style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button type="button" class="btn ghost" data-close></button></div></div>`;
+    document.body.appendChild(el);
+    el.addEventListener("click", (ev) => {
+      const ap = ev.target.closest("[data-apply]");
+      if (ap) { applyDrift(+ap.dataset.apply); return; }
+      if (ev.target.closest("[data-close]")) el.classList.add("hidden");
+    });
+  }
+  el.querySelector("[data-title]").textContent = title;
+  el.querySelector("[data-close]").textContent = t("f.cancel");
+  el.querySelector("[data-body]").innerHTML = html;
+  el.classList.remove("hidden");
+}
+async function applyDrift(stockId) {
+  const d = (window.__drift || []).find((x) => x.stock_item_id === stockId);
+  if (!d) return;
+  try {
+    const payload = { name: d.name, dimension: d.dimension || "volume",
+                      bottle_volume_ml: d.bottle_volume_ml || 700,
+                      bottle_price_eur: d.invoice_unit };
+    if ((d.pack_size || 1) > 1) {
+      payload.pack_size = d.pack_size;
+      payload.pack_price_eur = d.invoice_unit * d.pack_size;
+      payload.pack_name = d.pack_name || "pack";
+    }
+    await api(`/api/stock/${stockId}`, "PUT", payload);
+    toast(t("po.applied"));
+    const box = document.getElementById("driftModal");
+    if (box) box.classList.add("hidden");
+    renderStock();
+    await renderPO();
+  } catch (err) { toast("Failed: " + err.message); }
+}
+// new-order line editor
+$("#poAddLine").addEventListener("click", () => {
+  const wrap = $("#poNewLines");
+  wrap.insertAdjacentHTML("beforeend", poLineRow());
+  const box = wrap.lastElementChild;
+  box.querySelector(".po-del").onclick = () => { box.remove(); poNewTotal(); };
+  box.querySelector(".po-sel").onchange = poNewTotal;
+  box.querySelector(".po-qty").oninput = poNewTotal;
+  poNewTotal();
+});
+function poNewTotal() {
+  let total = 0;
+  document.querySelectorAll("#poNewLines .po-line").forEach((row) => {
+    const it = poStockItems.find((i) => i.id == row.querySelector(".po-sel").value);
+    const q = parseFloat(row.querySelector(".po-qty").value) || 0;
+    if (it) total += q * it.bottle_price_eur;
+  });
+  $("#poNewTotal").textContent = total > 0 ? `${t("po.total")}: ${eur(total)}` : "";
+}
+$("#poCreate").addEventListener("click", async () => {
+  const supplier = $("#poSup").value.trim();
+  if (!supplier) { toast(t("po.needSup")); return; }
+  const lines = [];
+  document.querySelectorAll("#poNewLines .po-line").forEach((row) => {
+    const id = +row.querySelector(".po-sel").value;
+    const q = parseFloat(row.querySelector(".po-qty").value) || 0;
+    if (id && q > 0) lines.push({ stock_item_id: id, qty: q });
+  });
+  if (!lines.length) { toast(t("po.needLine")); return; }
+  try {
+    await api("/api/pos", "POST", { supplier, lines });
+    toast("Saved");
+    $("#poSup").value = ""; $("#poNewLines").innerHTML = ""; poNewTotal();
+    await renderPO();
+  } catch (err) { toast("Failed: " + err.message); }
+});
+// hide from staff (money-adjacent)
+function hideOwnerChrome() {
+  const pBtn = $("#poBtn");
+  if (pBtn) pBtn.classList.add("hidden");
+}
+document.addEventListener("DOMContentLoaded", () => { if (document.body.dataset.role === "staff") hideOwnerChrome(); });
