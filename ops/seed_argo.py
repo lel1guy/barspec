@@ -244,9 +244,31 @@ def _main():
 import datetime as _dt
 import random as _rnd
 
-_SUPPLIERS = ["Prime Drinks", "AGR · Bebidas", "Makro Cash", "Casa Ferreira",
-              "Delta Cafés", "Hortifruti Algarve"]
-_REASONS = ["Spillage", "Waste", "Spoilage", "Correction"]
+# Real PT supply mapping (venue-facing): brand houses where the label is
+# unambiguous, wholesale (Makro) as the honest catch-all independents use.
+_SUPPLIER_RULES = [
+    # brand houses only where the owner is unambiguous; everything boutique
+    # or uncertain falls through to the wholesale catch-all (Makro)
+    (("Bombay", "Grey Goose", "Patrón", "Leblon", "Dewar",
+      "Martini Floreale"), "Bacardi-Martini Portugal"),
+    (("Absolut", "Italicus", "Mancino Sakura"), "Pernod Ricard Portugal"),
+    (("Veuve Clicquot", "Belvedere"), "LVMH Moët Hennessy Portugal"),
+    (("Jack Daniel", "Woodford"), "Brown-Forman Portugal"),
+    (("Roku", "Japanese gin"), "Beam Suntory Portugal"),
+    (("Sagres",), "Central de Cervejas (Heineken)"),
+    (("Coca-Cola", "Fanta", "Sprite"), "CCEP Portugal"),
+    (("Compal", "Sumol"), "Sumol+Compal"),
+    (("Delta",), "Delta Cafés"),
+    (("Super Bock", "Luso", "Vitalis"), "Super Bock Group"),
+]
+_REASONS = ("Spillage", "Waste", "Spoilage", "Correction")
+
+
+def _supplier_for(name: str) -> str:
+    for tokens, sup in _SUPPLIER_RULES:
+        if any(tok.lower() in name.lower() for tok in tokens):
+            return sup
+    return "Makro Cash & Carry"   # honest catch-all for the boutique shelf
 
 
 def seed_month(force: bool = True) -> dict:
@@ -264,7 +286,7 @@ def seed_month(force: bool = True) -> dict:
     for it in items:
         if not (it.get("supplier") or "").strip():
             db.update_stock_item(it["id"],
-                                 {"name": it["name"], "supplier": rng.choice(_SUPPLIERS)})
+                                 {"name": it["name"], "supplier": _supplier_for(it["name"])})
     items = db.get_stock_items()
     managed = [it for it in items if it["bottle_price_eur"] > 0 and it["name"] != "Filtered water"]
     # pars: buying-manager intuition on a 1-6 shelf

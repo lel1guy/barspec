@@ -71,3 +71,12 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
   month, shrinkage with a real count window and a leak story all demo
   immediately. Verified via API: dashboard low=8 age=3d, losses €99.89,
   shrinkage rows=47.
+
+
+## 2026-09-09 - 033: real PT supplier mapping in the demo
+- seed_month no longer randomises suppliers: brand houses where ownership is
+  unambiguous (Bacardi-Martini, Pernod Ricard, LVMH Moet Hennessy,
+  Brown-Forman, Beam Suntory, Super Bock Group, SCC, CCEP, Sumol+Compal,
+  Delta Cafes), everything boutique/uncertain (Angostura, St-Germain,
+  Disaronno...) falls through to Makro Cash and Carry - the honest
+  catch-all independents actually use.
