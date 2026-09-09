@@ -148,13 +148,19 @@ tuned to the menu's declared values, realistic PT purchase prices — swap for
 real invoices before a serious pitch):
 
 ```bash
-BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py   # build
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
 BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
 ```
 
-Open `:8791` — the 22 Argo specs (incl. 4 zero-proof), ~100 stock items,
-categories by flavour profile. Recipes are indicative builds (the menu gives
-ingredients + ABV, not amounts); exact specs belong to the venue.
+`--month` fabricates **30 days of real use** behind the menu (deterministic,
+rerun-safe): 6 weekly stock counts, daily sales for the whole month (~430
+lines, star specs selling hard), 3 dated house batches, bottle-scale loss
+entries this month (~€100), suppliers and par levels on ~99 managed items.
+The moment it opens: Resumo shows below-par stock and a count 3 days old,
+Trends/order lists group by supplier, Vendas → actual GP covers the full
+month (five-figure revenue), and shrinkage has a real count window with a
+leak story. Recipes are indicative builds (the menu gives ingredients + ABV,
+not amounts); exact specs belong to the venue.
 
 ## Roadmap / status
 

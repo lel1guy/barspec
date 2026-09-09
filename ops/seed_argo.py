@@ -233,6 +233,124 @@ def build() -> None:
             print("  ", e)
     print(f"seeded {created} Argo specs (menu: {len(SPECS)})")
 
-if __name__ == "__main__":
+def _main():
     db.init_db()
     build()
+    if "--month" in sys.argv:
+        print("month:", seed_month())
+
+
+# ---------------- full-month fabricator (demo: 30 days of real use) --------
+import datetime as _dt
+import random as _rnd
+
+_SUPPLIERS = ["Prime Drinks", "AGR · Bebidas", "Makro Cash", "Casa Ferreira",
+              "Delta Cafés", "Hortifruti Algarve"]
+_REASONS = ["Spillage", "Waste", "Spoilage", "Correction"]
+
+
+def seed_month(force: bool = True) -> dict:
+    """A plausible month behind the menu: weekly counts, daily sales, house
+    batches, dated losses, suppliers + pars. Deterministic (seeded rng)."""
+    rng = _rnd.Random(20260909)
+    c = db._conn()
+    items = db.get_stock_items()
+    priced_specs = [s for s in db.get_specs() if s.get("price_eur")]
+    if not items or not priced_specs:
+        return {"error": "seed specs/stock first"}
+    month_days = [(_dt.date.today() - _dt.timedelta(days=i)).isoformat()
+                  for i in range(29, -1, -1)]     # oldest -> today
+    # suppliers (deterministic) — already-signed rows untouched
+    for it in items:
+        if not (it.get("supplier") or "").strip():
+            db.update_stock_item(it["id"],
+                                 {"name": it["name"], "supplier": rng.choice(_SUPPLIERS)})
+    items = db.get_stock_items()
+    managed = [it for it in items if it["bottle_price_eur"] > 0 and it["name"] != "Filtered water"]
+    # pars: buying-manager intuition on a 1-6 shelf
+    for it in managed:
+        db.set_stock_par(it["id"], float(rng.randint(1, 6)))
+    # counts: 6 snapshots over the month (last one 4 days ago)
+    count_dates = [(month_days[i]) for i in (0, 5, 11, 17, 23, 26)]
+    inv = {it["id"]: (it.get("par_level") or 1) * rng.uniform(2.2, 3.4)
+           for it in managed}
+    take_rows = 0
+    for d in count_dates:
+        cur = c.execute("INSERT INTO stock_takes (taken_at) VALUES (?)",
+                        (d + " 11:00:00",))
+        tid = cur.lastrowid
+        for it in managed:
+            p = it.get("par_level") or 1
+            inv[it["id"]] = max(0.0, inv[it["id"]] - rng.uniform(0.35, 1.1) * p)
+            full = int(inv[it["id"]])
+            if rng.random() < 0.85:      # a few items skipped on any count
+                q = rng.choice((0.0, 0.25, 0.5, 0.75, 1.0))   # UI fractions only
+                c.execute(
+                    "INSERT INTO stock_take_lines (take_id, stock_item_id, full_bottles, open_fraction) "
+                    "VALUES (?,?,?,?)", (tid, it["id"], full, q))
+                take_rows += 1
+    c.commit()     # release the write txn before the sales writer kicks in
+    # sales: every day, several specs; star specs sell big
+    by_id = {s["id"]: s for s in priced_specs}
+    ids = list(by_id)
+    stars = rng.sample(ids, min(5, len(ids)))
+    days_with_sales = 0
+    total_lines = 0
+    for d in month_days:
+        lines = []
+        for sid in stars:
+            if rng.random() < 0.8:
+                lines.append({"spec_id": sid, "qty": rng.randint(4, 22)})
+        for sid in rng.sample(ids, rng.randint(6, 14)):
+            lines.append({"spec_id": sid, "qty": rng.randint(1, 9)})
+        res = db.save_sales_day(d, lines)
+        days_with_sales += 1
+        total_lines += res.get("created", 0) + res.get("updated", 0)
+    # house batches (dated, referenced nowhere = extra realism for Batches tab)
+    batch_spec = [
+        ("Salted citrus cordial", "Shake 30 s, rest 24 h, fine-strain",
+         1000, 10,
+         [("Sicilian lemon", 300), ("Lime juice", 300), ("Sea breeze", 40),
+          ("Filtered water", 360)]),
+        ("House vanilla caramel", "Simmer 20 min, cool, bottle", 900, 21,
+         [("Caramel", 700), ("Filtered water", 200)]),
+        ("Earl Grey infusion", "Cold-steep 6 h", 1000, 4,
+         [("Earl Grey", 1000)]),
+    ]
+    batches_made = 0
+    for (name, method, size, shelf, line_specs) in batch_spec:
+        made = rng.choice(month_days[:24])
+        try:
+            b = db.create_batch({"name": name, "method": method,
+                                 "batch_size_ml": size,
+                                 "shelf_life_days": shelf, "made_date": made})
+        except ValueError:
+            continue
+        for (k, ml) in line_specs:
+            nm = k if k == WATER_KEY else S[k][0]
+            db.add_batch_line(b["id"], {"name": nm, "amount_ml": ml, "unit": "ml"})
+        batches_made += 1
+    # dated losses (loss log + dashboard €) — current calendar month, bottle-scale
+    losses = 0
+    cur_month = _dt.date.today().strftime("%Y-%m")
+    month_loss_days = [d for d in month_days if d.startswith(cur_month)] or month_days[-8:]
+    pricey = [it for it in managed if (it.get("bottle_price_eur") or 0) > 10]
+    pool = pricey or managed
+    for _ in range(6):
+        it = rng.choice(pool)
+        size = it.get("bottle_volume_ml") or 700
+        delta = -round(rng.uniform(size * 0.25, size * 1.1), 0)
+        d = rng.choice(month_loss_days) + f" {rng.randint(10, 23):02d}:00:00"
+        c.execute("INSERT INTO stock_adjustments (stock_item_id, delta, reason, note, created_at) "
+                  "VALUES (?,?,?,?,?)",
+                  (it["id"], delta, rng.choice(_REASONS), "demo month log", d))
+        losses += 1
+    c.commit()
+    c.close()
+    return {"count_dates": len(count_dates), "take_rows": take_rows,
+            "days_with_sales": days_with_sales, "sales_lines": total_lines,
+            "batches": batches_made, "losses": losses, "managed": len(managed)}
+
+
+if __name__ == "__main__":
+    _main()

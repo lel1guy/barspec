@@ -59,3 +59,15 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
   a straight-serve product (beer can, wine by glass or bottle, soda) is
   created in two calls, opening the spec with its honest margin.
 - migration 014 (additive). 176 pytest (172+4 pack tests) + 12/12 e2e.
+
+## 2026-09-09 — 032: demo = a full month of use
+- `ops/seed_argo.py --month` fabricates 30 days of real operation behind
+  the Argo menu (deterministic rng, rerun-safe): 6 weekly stock counts
+  (514 lines), daily sales for the full month (~430 lines, ~€39k revenue,
+  star specs selling hard), 3 dated house batches (citrus cordial, vanilla
+  caramel, Earl Grey), bottle-scale losses this month (~€100 across 6
+  entries), suppliers (6) and par levels on ~99 managed items.
+- Result: Resumo, Trends/orders-by-supplier, Vendas → actual GP over the
+  month, shrinkage with a real count window and a leak story all demo
+  immediately. Verified via API: dashboard low=8 age=3d, losses €99.89,
+  shrinkage rows=47.
