@@ -129,6 +129,28 @@ Na primeira execução são semeadas 5 receitas clássicas com preços reais de
 garrafa + preços PT sensatos (Negroni €9, Margarita €10…) para o custo E o
 preço demonstrarem logo.
 
+### Pacote de demonstração (The Argo, Vilamoura)
+
+Um conjunto de dados pronto a mostrar, construído a partir da carta de
+assinatura pública (22 receitas, ABV afinado aos valores declarados na carta,
+preços de compra PT realistas — troque pelas faturas reais antes de uma
+apresentação a sério):
+
+```bash
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+```
+
+`--month` fabrica **30 dias de uso real** por trás da carta (determinístico,
+seguro repetir): 6 contagens semanais, vendas diárias do mês inteiro (~430
+linhas, receitas-estrela a vender forte), 3 xaropes caseiros datados, perdas
+de stock à escala de garrafa neste mês (~€100), fornecedores e pars em ~99
+artigos geridos. Ao abrir: Resumo mostra abaixo-do-par e contagem com 3
+dias; Tendências/encomendas agrupam por fornecedor; Vendas → GP real cobre
+o mês completo (receita de 5 dígitos); o encolhimento tem uma janela real de
+contagens com história de fuga. As receitas são aproximações (a carta dá
+ingredientes + ABV, não quantidades); as receitas exatas pertencem ao espaço.
+
 ## Testes
 
 ```bash
