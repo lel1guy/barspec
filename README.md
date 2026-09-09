@@ -1,74 +1,46 @@
 # BarSpec
 
-Recipe and cost manager for **bars, pubs, cafés and restaurants** — store
-your recipes (drinks *and* dishes) once, scale any pour to N servings, see
-real per-drink cost and ABV, price the menu honestly, and never lose track of
-what the shelf is doing.
+> Know what every drink *really* costs — and where the money leaks.
 
-Built by **Vitor Vareiro.** European Portuguese read this in
-[Português](README.pt-PT.md).
+Recipe, stock, purchasing and margin manager for **bars, pubs, cafés and
+restaurants**. One menu: cocktails, draught from the keg, cans by the case,
+wine by the glass *or* the bottle, espresso, softs. Cost is **derived, never
+guessed** — change one bottle price and every recipe that uses it updates,
+with the impact report in front of you.
 
-## What it does
+![BarSpec Summary — below par, expiring batches, losses this month, 30-day revenue and GP by category](docs/screenshots/hero-resumo.png)
 
-- **Recipes**: name, glass, method, garnish. Create / edit / duplicate /
-  delete. Batch pours link to homemade syrups; allergens (EU-14) and dietary
-  tags (V/VE/GF) ride along with badges.
-- **Stock**: one line per real item — `Campari €19 / 700 ml`, coffee `€18 /
-  1 kg`, limes `€3.60 / 12 pc`. Change a price **once** and every recipe
-  using it recalculates — the impact report says which ones and by how much,
-  even through batches.
-- **Honest costing math**: cost is *derived*, never stored. Volume/weight/
-  piece with yield %, dilution by ice, ABV weighted by volume. Price
-  suggestions round **up** to €0.50 so the real margin never dips below your
-  target (an invariant with a test).
-- **Batches (house syrups, prep)**: cost per litre derives from the stock
-  lines inside; `servings` = real cost per portion on the prep sheet.
-- **Stock-take**: count in full bottles + open fractions, dated snapshots —
-  trends, FBE/order list, dead-stock € (cash asleep on the shelf), "cash
-  tied up" above par.
-- **Kitchen lane**: loss log (signed adjustments with reasons), Sections P&L
-  with margin chips, allergens, **suppliers** — the order list groups by
-  supplier.
-- **Menu**: priced, printable, grouped by section, venue name + IVA footer,
-  QR deep-link share.
-- **Sales → actual GP & shrinkage**: enter what you sold per spec per day;
-  re-posting a day replaces it. Price/cost are **snapshots frozen at
-  posting** (invoice semantics — future price changes never rewrite past GP).
-  Shrinkage compares stock *used* between your last two counts vs what your
-  sales *explain* — the leak in € is the headline number.
-- **Purchase orders + receiving**: order by supplier with unit prices frozen
-  at order time; receiving records the delivery, logs it, and flags **price
-  drift** (stored cost vs invoice) with one-click apply + ripple. Partial
-  receive keeps the PO open. Every received line feeds the item's **price
-  history**. POs are the money trail — counts stay the owners of physical
-  stock. Migration 015.
-- **Summary (attention page)**: one glance on every visit — items below
-  par from the latest count (with suppliers), batches expiring within a
-  week, losses this month in €, and a "count again" nudge when the last
-  count is older than 7 days. Cards jump straight to the relevant view.
-- **First-run onboarding**: an empty venue opens into a 3-step wizard
-  (add stock → create a recipe → set a price) with direct action buttons.
-- **Exports & share**: spec book / stock as .xlsx + .csv, training cards
-  (print a spec deck — never a cost), menu QR.
-- **Owner security**: first run asks for a PIN (pbkdf2-hashed, never stored
-  plaintext). After that everything is locked behind a signed session cookie
-  (14 days). **Audit trail**: every price edit and delete is logged
-  old → new with a timestamp (append-only).
-- **Staff mode**: the owner can enable a staff PIN (Settings). Staff see
-  recipes and the menu — **money is removed server-side** (costs, prices,
-  margins stripped from the JSON, not just hidden in the UI). Stock, counts,
-  sales, exports and every write return 403 to staff.
-- **PT-PT**: the whole UI is bilingual EN/PT (menu prices in PT format
-  €19,00), text size A−/A/A+, responsive mobile layout with a floor-friendly
-  bottom bar.
-- **Backups**: nightly online sqlite snapshot, 14 kept, with a tested
-  restore script (local only by design).
+Leia em [Português](README.pt-PT.md). Built by **Vitor Vareiro.**
 
-## Tech
+## Why bars use it
 
-Python + FastAPI + SQLite + vanilla JS (no build step, no ORM). One data
-file, one process, no external services. Full architecture rationale lives in
-the [Developer Guide](docs/DEV_GUIDE.md).
+- **Cost is derived, never stored.** Volume/weight/piece, yield %, dilution,
+  ABV by volume — price suggestions round *up* to €0.50 so the real margin
+  never dips below your target (an invariant with a test).
+- **Two counts a week → the leak in €.** Shrinkage compares stock *used*
+  between counts against what your sales *explain* — and stock-take trends
+  show the movement, dead stock and cash asleep on the shelf.
+- **Orders that catch price drift.** POs freeze prices at order time;
+  receiving flags *stored €11.00 → invoice €11.80?* with one-click apply
+  that ripples through every recipe. Every received line feeds the item's
+  price history.
+- **Sales → actual GP.** Post what you sold per day; re-posting replaces.
+  Price/cost are snapshots frozen at posting — future price changes never
+  rewrite past GP. Shrinkage, category GP, 30-day revenue, all on one
+  attention page.
+- **Owner PIN + staff mode.** Money is stripped **server-side** for staff
+  (costs, prices, margins never leave the API), not just hidden in the UI.
+  Every write outside read-only returns 403. Append-only audit trail on
+  price edits.
+- **One file, no services.** SQLite + FastAPI + vanilla JS — no build step,
+  no ORM, no cloud. Nightly snapshots with a tested restore. Runs on a
+  Raspberry Pi if you want.
+
+![Spec detail — derived cost, ABV and margin on every recipe](docs/screenshots/spec-detail.png)
+
+![Priced menu, grouped, phone-first](docs/screenshots/menu-phone.png)
+
+![Orders & receiving — open POs, receive, drift](docs/screenshots/orders.png)
 
 ## Run it
 
@@ -77,110 +49,59 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8777
 ```
 
-Open `http://localhost:8777`. Or `docker compose up -d --build` (port 8780,
-data in `./data`). First visit: set your owner PIN — the app stays open until
-you do, by design.
+Or `docker compose up -d --build` (port 8780, data in `./data`). First
+visit: set your owner PIN — the app stays open until you do, by design.
 
-## Tests
-
-```bash
-pytest            # 185 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard, purchase orders, stats
-npm run e2e       # real-browser smoke (Playwright, 11 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
-```
-
-The migration tests build a real v0 database and upgrade it — if they pass,
-every future venue file upgrades safely. Money tests cover cent-rounding,
-unpriced bottles, price-ripple, FBE/par/order math and sales snapshots. The
-e2e suite boots the real app on a throwaway DB and drives the owner flows in
-headless Chromium (`npm install` + the Playwright cache in
-`~/.cache/ms-playwright`).
-
-## Schema / migrations
-
-- `001_stock.sql` — normalize ingredients → stock_items + spec_lines;
-  price_eur + target_gp on specs
-- `002_stocktake.sql` — par levels + dated count snapshots
-- `003_units.sql` — dimension (volume|weight|count), units engine
-- `004_batches.sql` — homemade batches; exactly-one price source CHECK
-- `005_yield.sql` — yield_frac (usable ÷ bought)
-- `006_categories.sql` — menu sections; partial PUTs never wipe them
-- `007_dilution.sql` — ice dilution % (served volume/ABV; cost unchanged)
-- `008_settings.sql` — venue profile (name, IVA %)
-- `009_kitchen.sql` — servings on batches + stock adjustments (loss log)
-- `010_allergens.sql` — EU-14 + V/VE/GF code lists on specs
-- `011_supplier.sql` — supplier per stock item
-- `012_audit.sql` — append-only audit trail (old → new, when)
-- `013_sales.sql` — daily sales by (day, spec), frozen snapshots
-- `014_packs.sql` — purchase packs (case/keg) on stock items
-- `015_purchase_orders.sql` — PO + receiving ledger (price history) — daily sales per (day, spec); price/cost frozen at posting
-
-DB file: `barspec.db` (override with `BARSPEC_DB=/path` for tests). Online
-snapshots under `backups/` (nightly 03:17, 14 kept); restore:
-`sudo ops/restore.sh backups/barspec-*.db`.
-
-## API (main routes)
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET/POST/PUT/DELETE | `/api/specs`, `/api/specs/{id}`, `/api/specs/{id}/lines` | recipes, lines, duplicate |
-| GET/POST/PUT/DELETE | `/api/stock`, `/api/stock/{id}` | items, price ripple, supplier |
-| PATCH | `/api/stock/{id}/par` | count target |
-| GET/POST/PUT/DELETE | `/api/batches`, `/api/batches/{id}`, lines | house syrups & prep |
-| GET/POST | `/api/stock-takes`, `/api/stock-takes/{sheet\|last\|trends}` | count snapshots, order list, movement/dead stock |
-| POST | `/api/stock-adjustments` | loss log (signed amounts + reason) |
-| GET | `/api/menu` | printable priced menu |
-| GET/PUT | `/api/settings` | venue profile (name, IVA) |
-| GET | `/api/report/pnl` | Sections P&L + dead stock |
-| GET | `/api/export/specs.xlsx\|.csv`, `/api/export/stock.xlsx\|.csv` | owner files (costs included deliberately) |
-| GET | `/api/export/menu-qr.svg?url=…` | menu QR SVG |
-| GET | `/api/audit` | recent audit trail lines |
-| POST/GET/DELETE | `/api/sales`, `/api/sales/{id}` | post/list/delete a sales day |
-| GET | `/api/sales/summary?from_day&to_day` | actual GP per spec + totals |
-| GET | `/api/sales/shrinkage` | stock-vs-sales leak in € (last two counts) |
-| GET | `/api/dashboard` | attention summary: below-par, expiring, losses €, count age |
-| POST | `/api/pos` | open a PO (prices frozen) · `GET /api/pos` · `POST /api/pos/{id}/receive` (partial ok, drift report) · `GET /api/stock/{id}/price-history` |
-| GET/POST/PUT | `/api/auth/status\|setup\|login\|logout\|staff-login\|staff-pin` | owner + staff PIN gate (protected routes 401 without a cookie; staff 403 outside read-only) |
-
-## Operations
-
-Live service runs under systemd as **system Python** (`/usr/bin/python3` —
-SELinux blocks the repo venv, so live deps install via dnf; the venv is for
-tests/dev). Deploys: snapshot the DB, restart, verify `:8777`, push. A
-**health watchdog** (`ops/healthcheck.sh`, Hermes cron every 10 min) is
-silent while the app answers and alerts if `:8777` goes down. Build history:
-[CHANGELOG.md](CHANGELOG.md).
-
-### Demo bundle (The Argo, Vilamoura)
-
-A ready-to-demo dataset built from the public signature menu (22 specs, ABV
-tuned to the menu's declared values, realistic PT purchase prices — swap for
-real invoices before a serious pitch):
+**Try it with a full month of real data** (48 items, 30 days of counts,
+sales and a €100 leak story to find):
 
 ```bash
 BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
 BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
 ```
 
-`--month` fabricates **30 days of real use** behind the menu (deterministic,
-rerun-safe): 6 weekly stock counts, daily sales for the whole month (~430
-lines, star specs selling hard), 3 dated house batches, bottle-scale loss
-entries this month (~€100), suppliers and par levels on ~99 managed items.
-The demo also carries the **full shelf breadth** (014): 21 straight-serve
-products — draught beer from a 30 L keg (Imperial/Caneca pours), cans bought
-by the case, wine by glass or bottle, Coca-Cola/Fanta/Sumol/tónica, Luso
-water, and Delta espresso drinks (espresso, duplo, meia de leite, galão) —
-48 sellable items on one menu, all in the month's counts and sales.
-The moment it opens: Resumo shows below-par stock and a count 3 days old,
-Trends/order lists group by supplier, Vendas → actual GP covers the full
-month (five-figure revenue), and shrinkage has a real count window with a
-leak story. Recipes are indicative builds (the menu gives ingredients + ABV,
-not amounts); exact specs belong to the venue.
+## Tech
 
-## Roadmap / status
+Python + FastAPI + SQLite + vanilla JS. One data file, one process, no
+external services. Full architecture, unit/unit engine, migration notes and
+API map live in the [Developer Guide](docs/DEV_GUIDE.md) — user workflows in
+the [User Guide](docs/USER_GUIDE.md), build history in
+[CHANGELOG.md](CHANGELOG.md).
 
-Phase A complete (counting, units engine, batches, costing precision, PT-PT),
-kitchen K1–K4, security S1/S2, sales & shrinkage, staff roles — all shipped
-(2026-09-09, 185 tests). Phases B/C (multi-venue, VPS + Caddy, hosted
-multi-tenant, PWA) are deliberately gated on a real paying venue. The full
-product plan lives in the vault (`Projects/Bar-Tech-Venture/
-BarSpec-Vision-and-Dev-Plan.md`).
+```bash
+pytest        # 185 tests: pricing, migrations, API, counts, units, batches,
+              # yield, categories, dilution, kitchen, allergens, suppliers,
+              # audit, auth (incl. brute-force brake), staff, sales,
+              # dashboard, purchase orders, stats
+npm run e2e   # real-browser smoke (Playwright, 12 flows) on a throwaway DB
+```
+
+<details>
+<summary>Schema / migrations (15)</summary>
+
+`001_stock` normalize → stock_items + spec_lines · `002` par + count
+snapshots · `003` units engine (volume|weight|count) · `004` batches, one
+price source · `005` yield % · `006` categories · `007` dilution ·
+`008` venue profile · `009` kitchen + loss log · `010` allergens ·
+`011` suppliers · `012` append-only audit · `013` sales snapshots ·
+`014` purchase packs (case/keg) · `015` purchase orders + receiving ledger.
+
+DB file `barspec.db` (override `BARSPEC_DB=/path` for tests). Online
+snapshots under `backups/` (nightly, 14 kept); restore:
+`sudo ops/restore.sh backups/barspec-*.db`.
+</details>
+
+## Operations
+
+Live service runs under systemd as system Python; deploys snapshot the DB,
+restart, verify, push. A health watchdog probes every 10 min and alerts on
+downtime. Everything else you need to run it in anger is in the
+[Developer Guide](docs/DEV_GUIDE.md).
+
+## Status
+
+Phase A complete: counting, units engine, batches, costing precision, PT-PT,
+kitchen lane, security, sales → actual GP + shrinkage, staff roles, purchase
+orders + receiving, charts — shipped (2026-09-09, 185 tests). Multi-venue,
+hosting and a hosted multi-tenant future are deliberately gated on a real
+paying venue — feedback drives the roadmap, not guesses.
