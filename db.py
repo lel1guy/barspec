@@ -1635,8 +1635,10 @@ def demo_status() -> dict:
     def chk(name, ok, detail=""):
         out.append({"name": name, "ok": bool(ok), "detail": str(detail)})
     try:
-        chk("specs seeded", (conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] or 0) >= 40)
-        chk("stock seeded", (conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] or 0) >= 100)
+        chk("specs seeded",
+            (conn.execute("SELECT COUNT(*) FROM specs").fetchone()[0] or 0) >= 30)
+        chk("stock seeded",
+            (conn.execute("SELECT COUNT(*) FROM stock_items").fetchone()[0] or 0) >= 40)
         takes = conn.execute("SELECT COUNT(*), MAX(taken_at) FROM stock_takes").fetchone()
         chk("counts >= 4", (takes[0] or 0) >= 4, f"{takes[0]} counts, last {takes[1]}")
         days = conn.execute("SELECT COUNT(DISTINCT day) FROM sales_lines").fetchone()[0]

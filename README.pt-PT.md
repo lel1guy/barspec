@@ -169,33 +169,29 @@ Na primeira execução são semeadas 5 receitas clássicas com preços reais de
 garrafa + preços PT sensatos (Negroni €9, Margarita €10…) para o custo E o
 preço demonstrarem logo.
 
-### Pacote de demonstração (The Argo, Vilamoura)
+### Pacote de demonstração — "Três Copos — Bar & Cozinha" (fictício)
 
-Um conjunto de dados pronto a mostrar, construído a partir da carta de
-assinatura pública (22 receitas, ABV afinado aos valores declarados na carta,
-preços de compra PT realistas — troque pelas faturas reais antes de uma
-apresentação a sério):
+Um espaço completo e ficcional, para não pedir nada emprestado a ninguém: um
+bar de bairro *com cozinha* — 14 cocktails clássicos, cerveja de barril e de
+lata, vinhos a copo e à garrafa, refrigerantes, café e uma carta curta de
+petiscos. 46 artigos vendáveis, 59 linhas de stock, e um mês inteiro de uso
+por trás.
 
 ```bash
-BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
-BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+BARSPEC_DB=/tmp/barspec-demo.db .venv/bin/python ops/seed_demo.py --month
+BARSPEC_DB=/tmp/barspec-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+# PIN do dono 1234 · PIN de equipa 2468 (ecrã de equipa sem dinheiro)
 ```
 
-`--month` fabrica **30 dias de uso real** por trás da carta (determinístico,
-seguro repetir): 6 contagens semanais, vendas diárias do mês inteiro (~430
-linhas, receitas-estrela a vender forte), 3 xaropes caseiros datados, perdas
-de stock à escala de garrafa neste mês (~€100), fornecedores e pars em ~99
-artigos geridos. Ao abrir: Resumo mostra abaixo-do-par e contagem com 3
-dias; Tendências/encomendas agrupam por fornecedor; Vendas → GP real cobre
-o mês completo (receita de 5 dígitos); o encolhimento tem uma janela real de
-contagens com história de fuga. O demo carrega também a **largura total da
-prateleira** (014): 21 produtos de venda direta — cerveja de pressão de um keg
-de 30 L (Imperiais/Canecas), latas compradas por caixa de 24, vinho a copo E a
-garrafa (mesmo stock, dois produtos), Coca-Cola/Fanta/Sumol/tónica, água Luso,
-e bebidas de café Delta (expresso, duplo, meia de leite, galão) — 48 itens
-vendáveis numa carta, todos nas contagens e vendas do mês. As receitas são
-aproximações (a carta dá ingredientes + ABV, não quantidades); as receitas
-exatas pertencem ao espaço.
+O `--month` fabrica **30 dias de uso real** (determinístico, repetível):
+6 contagens semanais, vendas diárias do mês inteiro, 3 lotes datados (xarope
+simples, xarope de gengibre, cordial de groselha — os cocktails servem-se
+deles), perdas datadas, fornecedores, pars, um pedido recebido e um aberto.
+A carta impressa leva o nome do espaço e o rodapé com IVA a 23%.
+
+O `ops/seed_argo.py` continua incluído como extra: uma carta pública real
+(The Argo, Vilamoura) resolvida para os ABV declarados — útil para demonstrar
+com uma lista de cocktails premium em vez da ficcional.
 
 ## Testes
 

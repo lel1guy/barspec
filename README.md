@@ -172,31 +172,28 @@ tests/dev). Deploys: snapshot the DB, restart, verify `:8777`, push. A
 silent while the app answers and alerts if `:8777` goes down. Build history:
 [CHANGELOG.md](CHANGELOG.md).
 
-### Demo bundle (The Argo, Vilamoura)
+### Demo bundle — "Três Copos — Bar & Cozinha" (fictional)
 
-A ready-to-demo dataset built from the public signature menu (22 specs, ABV
-tuned to the menu's declared values, realistic PT purchase prices — swap for
-real invoices before a serious pitch):
+A complete fictional venue so nothing real is borrowed: a neighbourhood bar
+*with a kitchen* — 14 classic cocktails, draught and canned beer, wines by
+the glass and the bottle, sodas, coffee, and a short snack menu. 46 sellable
+items, 59 stock lines, and a full month of use behind them.
 
 ```bash
-BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
-BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+BARSPEC_DB=/tmp/barspec-demo.db .venv/bin/python ops/seed_demo.py --month
+BARSPEC_DB=/tmp/barspec-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+# owner PIN 1234 · staff PIN 2468 (money-free staff screen)
 ```
 
-`--month` fabricates **30 days of real use** behind the menu (deterministic,
-rerun-safe): 6 weekly stock counts, daily sales for the whole month (~430
-lines, star specs selling hard), 3 dated house batches, bottle-scale loss
-entries this month (~€100), suppliers and par levels on ~99 managed items.
-The demo also carries the **full shelf breadth** (014): 21 straight-serve
-products — draught beer from a 30 L keg (Imperial/Caneca pours), cans bought
-by the case, wine by glass or bottle, Coca-Cola/Fanta/Sumol/tónica, Luso
-water, and Delta espresso drinks (espresso, duplo, meia de leite, galão) —
-48 sellable items on one menu, all in the month's counts and sales.
-The moment it opens: Resumo shows below-par stock and a count 3 days old,
-Trends/order lists group by supplier, Vendas → actual GP covers the full
-month (five-figure revenue), and shrinkage has a real count window with a
-leak story. Recipes are indicative builds (the menu gives ingredients + ABV,
-not amounts); exact specs belong to the venue.
+`--month` fabricates **30 days of real use** (deterministic, rerun-safe):
+6 weekly counts, daily sales for the whole month, 3 dated house batches
+(simple syrup, ginger syrup, grenadine cordial — cocktails pour from them),
+dated losses in the loss log, suppliers, pars, one PO received and one open.
+The printed menu carries the venue name and the 23% IVA footer.
+
+`ops/seed_argo.py` still ships as an extra: a real public menu (The Argo,
+Vilamoura) solved to its declared ABVs — useful when you want to demo with a
+premium cocktail list instead of the fictional one.
 
 ## Roadmap / status
 

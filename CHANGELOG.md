@@ -139,3 +139,20 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
 - 185 pytest (183 + 2 stats tests) and 12/12 e2e; live QA on the month
   demo: left-nav click lands on resumo, 30 bars + 8 category rows,
   zero JS errors. Cache-bust 20260908i.
+
+
+## 2026-09-10 - 043: fictional demo venue + shared month engine
+- NEW ops/seed_demo.py: "Tres Copos - Bar e Cozinha", an entirely fictional
+  neighbourhood bar with a kitchen - 14 classic cocktails, 5 beers (keg,
+  cans), 10 wines (glass + bottle), 7 softs, 4 coffees, 6 kitchen plates;
+  46 specs, 59 stock lines, all costs derived, all PT-PT.
+- Venue profile + IVA 23% seeded (printed menu carries the name), owner PIN
+  1234 and staff PIN 2468 so the demo opens into the money view and the
+  money-free staff screen in one step.
+- Clears the app's 5 template specs plus their brand stock on a fresh DB.
+- NEW ops/seed_common.py: month fabricator extracted and generalised (counts,
+  sales, batches, losses, purchase loop); ops/seed_argo.py still ships as
+  the real-menu extra.
+- demo/status thresholds generalised for smaller venues (minimum 30 specs,
+  40 stock lines) - the fictional venue passes 7/7.
+- Screenshots regenerated from the fictional venue (desktop only).
