@@ -53,35 +53,63 @@ Plus a sixth view, **Vendas** (Sales) — see the Sales section below.
 
 ---
 
-## Getting started (about 10 minutes)
+## Your first 30 minutes
 
-1. **First visit: set your owner PIN.** The app stays open until you do, on
-   purpose — you can't lock yourself out. After that, anyone who opens the
-   app gets the PIN screen (wrong PIN = nothing). 🔒 Lock in Settings logs
-   out.
-2. **Add a venue name (optional):** Menu → ☰ Venue. It prints on your menu.
-3. **Add your real stock** — Stock → **+ Add item**:
-   - a bottle: name, ABV %, price paid, size (e.g. 700 ml) — kind *Bottle*
-   - coffee/beans/flour: price per kg — kind *Weight*, with yield % if
-     trimming matters
-   - limes: price per box of 12 — kind *Per piece*
-   - add the **supplier** name while you're there (the order list will group
-     by it)
-4. **Enter your first specs** — Specs → **+ New spec**: name, glass, method;
-   then add ingredient lines: pick a stock item (or type free text with a
-   cost) and the amount per serve. Amounts can be ml, cl, oz, g, kg, dash,
-   barspoon or pieces — they convert to a canonical unit underneath.
-5. **Price your specs** — in the spec detail, set the **target margin**
-   (e.g. 75%) and hit *suggested*; BarSpec rounds **up** to the nearest
-   €0.50 so the real margin never dips below your target. Or type a price
-   and read the actual margin chip (green ≥ target, amber close, red low).
-6. **Do your first count** — Stock-take: set a *par* (what you want on the
-   shelf) on the items you count, then count. The order list appears
-   immediately.
+*This guide is task-based (how-to). The reasoning behind the design —
+derived costs, frozen snapshots, why purchase orders don't move stock — is in
+[WHY.md](WHY.md); the code-level reference is the [Developer Guide](DEV_GUIDE.md).*
 
-Optional but powerful: **enable a Staff PIN** (Settings → Staff PIN) so the
-team can look up recipes without ever seeing costs — money is removed
-server-side, not just hidden.
+**Fast track (5 minutes, no typing):** run the month demo and follow along with
+real data — 48 items, 30 days of counts and sales, and a €100 leak hiding in
+the shrinkage report:
+
+```bash
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+```
+
+**From zero to a priced menu (30 minutes):**
+
+1. **Set your owner PIN** *(1 min).* The app stays open until you do, on
+   purpose — you can't lock yourself out. After that, wrong PIN = nothing.
+   🔒 in Settings logs out.
+2. **Name the venue** *(1 min)* — Menu → ☰ Venue; it prints on the menu.
+3. **Add real stock** *(10 min)* — Stock → **+ Add item**, one line per thing
+   you buy: a bottle (name, ABV, price, size — e.g. gin €23 / 700 ml), coffee
+   by the kilo (*Weight* + yield % if trimming matters), a case of beer
+   (*Per piece*, size 1, then **Buy in packs?** 24 @ €15.36 → cost per can
+   derives itself), a 30 L keg, wine by the bottle. Add the **supplier** as
+   you go — the order list groups by it.
+4. **Create your first specs** *(8 min)* — Specs → **+ New spec**: name,
+   glass, method, then ingredient lines (ml/cl/oz/g/dash/piece — all
+   convert). Faster for simple things: **+ Product** (pick the stock item,
+   the serve size, the price — a soda or a wine glass in three fields).
+5. **Price honestly** *(2 min)* — set the **target margin** (e.g. 75%) and
+   hit *suggested*: BarSpec rounds **up** to the nearest €0.50 so the real
+   margin never dips below your target. The margin chip reads green ≥ target,
+   amber close, red low.
+6. **Set pars and do your first count** *(5 min)* — Stock-take: par = what
+   you want on the shelf, count in full bottles + open fractions, save. The
+   **order list** appears immediately, grouped by supplier, with dead-stock €.
+7. **Order and receive** *(2 min)* — 📥 **Orders**: create a PO (prices freeze
+   at that moment), and when the delivery arrives hit **Receive**. If the
+   invoice price moved, BarSpec asks "stored €11.00 → invoice €11.80?" — one
+   click applies it and ripples through every recipe.
+8. **Post a day of sales** *(1 min)* — Vendas: enter what you sold per spec;
+   re-posting a day replaces it (never rewrites history). Your **actual GP**
+   and the **shrinkage** number appear — stock used between counts vs what
+   sales explain.
+9. **Invite the team safely** *(1 min)* — Settings → Staff PIN. Staff see
+   recipes and the menu; costs, prices and margins are removed in the API —
+   never sent to their browser at all.
+
+When the month fills up, the Summary homepage becomes the first thing you see:
+below-par items with suppliers, batches expiring this week, losses in €, a
+count-age nudge — plus 30-day revenue and GP-by-category charts.
+
+Optional but worth it: press **+ Product** and add the boring 60% of the menu
+(cans, softs, water, coffee) — the app only earns its keep when the *whole*
+bar is in it, not just the cocktails.
 
 ---
 

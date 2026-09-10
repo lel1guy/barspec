@@ -209,37 +209,66 @@ uma bebida de unidades mistas.
 
 ---
 
-## Primeira execução e dados
+## Começar: os primeiros 30 minutos
 
-- Na primeira execução são semeadas **5 receitas clássicas** (Negroni,
-  Margarita, Old Fashioned, Espresso Martini, Aperol Spritz) com preços reais
-  de garrafa e preços PT sensatos para o custo *e* o preço demonstrarem logo.
-  Apague-as quando quiser.
-- **Na primeira execução define também o seu PIN** (ecrã "Defina o seu PIN").
-  A partir daí a app fica bloqueada até o PIN ser inserido — o 🔒 Bloquear
-  nas Definições fecha a sessão na hora.
-- Os dados vivem num único ficheiro SQLite: `barspec.db` ao lado da app
-  (substitua com a variável de ambiente `BARSPEC_DB`). **Faça cópias de
-  segurança copiando esse ficheiro** — use a cópia de segurança online do
-  SQLite ou pare a app primeiro; nunca faça `cp` a uma base viva. Todas as
-  noites às 03:17 há uma cópia automática para `backups/` (14 mantidas).
+*Este guia é orientado a tarefas (how-to). O porquê das decisões — custos
+derivados, snapshots congelados, porque as encomendas não mexem no stock —
+está em [WHY.md](WHY.md); a referência técnica é o
+[Guia do programador](DEV_GUIDE.pt-PT.md).*
 
-### Correr
+**Atalho (5 minutos, sem escrever nada):** corra a demonstração de um mês e
+acompanhe com dados reais — 48 artigos, 30 dias de contagens e vendas, e uma
+fuga de €100 escondida no relatório de encolhimento:
 
 ```bash
-cd barspec
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
 ```
 
-Abra http://127.0.0.1:8000
+**Do zero a uma carta com preços (30 minutos):**
 
-Docker (portátil, dados em `./data/`):
+1. **Defina o PIN do dono** *(1 min).* A app fica aberta até o fazer, de
+   propósito — não se tranca de fora. Depois, PIN errado = nada. 🔒 nas
+   Definições termina a sessão.
+2. **Dê nome ao espaço** *(1 min)* — Carta → ☰ Espaço; sai impresso na carta.
+3. **Adicione stock real** *(10 min)* — Stock → **+ Adicionar artigo**, uma
+   linha por coisa que compra: uma garrafa (nome, ABV, preço, tamanho — ex.
+   gin €23 / 700 ml), café ao quilo (*Peso* + rendimento % se houver
+   desperdício de corte), uma caixa de cerveja (*Por peça*, tamanho 1, e
+   **Comprar em packs?** 24 @ €15,36 → o custo por lata sai sozinho), um keg
+   de 30 L, vinho à garrafa. Vá preenchendo o **fornecedor** — a lista de
+   encomendas agrupa por ele.
+4. **Crie as primeiras receitas** *(8 min)* — Receitas → **+ Nova receita**:
+   nome, copo, método, e as linhas de ingredientes (ml/cl/oz/g/dash/peça —
+   tudo converte). Para coisas simples há o **+ Produto** (escolher o artigo,
+   a dose, o preço — um refrigerante ou um copo de vinho em três campos).
+5. **Precifique com honestidade** *(2 min)* — defina a **margem alvo** (ex.
+   75%) e carregue em *sugerido*: o BarSpec arredonda **para cima** aos €0,50
+   seguintes, para a margem real nunca ficar abaixo do alvo. O chip de margem
+   lê verde ≥ alvo, âmbar perto, vermelho baixo.
+6. **Defina pars e faça a primeira contagem** *(5 min)* — Contagem: par =
+   o que quer ter na prateleira, conte em garrafas inteiras + frações de
+   aberta, guarde. A **lista de encomendas** aparece logo, agrupada por
+   fornecedor, com o € de stock morto.
+7. **Encomendar e receber** *(2 min)* — 📥 **Compras**: crie um pedido (os
+   preços congelam nesse momento) e, quando a entrega chegar, carregue em
+   **Receber**. Se o preço da fatura mudou, o BarSpec pergunta "guardado €11,00
+   → fatura €11,80?" — um clique aplica e propaga por todas as receitas.
+8. **Registe um dia de vendas** *(1 min)* — Vendas: introduza o que vendeu por
+   receita; reenviar um dia substitui-o (nunca reescreve o histórico). O seu
+   **GP real** e o **encolhimento** aparecem — stock usado entre contagens vs
+   o que as vendas explicam.
+9. **Convide a equipa em segurança** *(1 min)* — Definições → PIN de equipa.
+   A equipa vê receitas e carta; custos, preços e margens são removidos na
+   API — nunca chegam ao browser deles.
 
-```bash
-docker compose up -d --build   # serve em http://localhost:8780
-```
+Quando o mês enche, o Resumo torna-se a primeira coisa que vê: artigos abaixo
+do par com fornecedores, lotes a expirar esta semana, perdas em €, aviso da
+idade da contagem — mais os gráficos de receita a 30 dias e GP por categoria.
+
+Opcional mas vale a pena: use o **+ Produto** para meter os 60% aborrecidos da
+carta (latas, refrigerantes, água, café) — a app só se paga quando o bar
+*inteiro* está lá dentro, não só os cocktails.
 
 ---
 
