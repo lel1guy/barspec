@@ -38,10 +38,12 @@ def actual_migrations() -> int:
     return len(list((ROOT / "migrations").glob("*.sql")))
 
 
-def actual_e2e() -> int:
-    """Flows = ok(...) calls in the smoke suite, minus its own definition."""
+def actual_e2e() -> tuple[int, int]:
+    """(flows, assertions) in the smoke suite: flow entries vs ok() asserts."""
     src = (ROOT / "e2e/smoke.mjs").read_text()
-    return max(0, len(re.findall(r"\bok\(", src)) - 1)
+    flows = len(re.findall(r"^\s*name:\s*['\"]", src, re.M))
+    asserts = max(0, len(re.findall(r"\bok\(", src)) - 1)
+    return flows, asserts
 
 
 def declared(text: str, patterns: list[str]) -> list[int]:
@@ -52,8 +54,10 @@ def declared(text: str, patterns: list[str]) -> list[int]:
 
 
 def main() -> int:
-    tests, migs, e2e = actual_tests(), actual_migrations(), actual_e2e()
-    print(f"actual: {tests} tests · {migs} migrations · {e2e} e2e flows")
+    tests, migs = actual_tests(), actual_migrations()
+    e2e, e2e_asserts = actual_e2e()
+    print(f"actual: {tests} tests · {migs} migrations · {e2e} e2e flows "
+          f"({e2e_asserts} assertions)")
     problems = []
     for rel in DOCS:
         p = ROOT / rel
@@ -69,6 +73,10 @@ def main() -> int:
             problems.append(f"{rel}: migrations quoted up to {max(m_nums)}, actual {migs}")
         if e_nums and max(e_nums) != e2e:
             problems.append(f"{rel}: e2e flows quoted up to {max(e_nums)}, actual {e2e}")
+        a_nums = declared(text, [r"(\d+)\s+assertions?"])
+        if a_nums and max(a_nums) != e2e_asserts:
+            problems.append(
+                f"{rel}: assertions quoted up to {max(a_nums)}, actual {e2e_asserts}")
     if problems:
         print("\nDRIFT:")
         for x in problems:

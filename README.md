@@ -93,7 +93,7 @@ the [Developer Guide](docs/DEV_GUIDE.md); the *why* behind the design
 
 ```bash
 pytest            # 185 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard, purchase orders, stats
-npm run e2e       # real-browser smoke (Playwright, 12 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
+npm run e2e       # real-browser smoke (Playwright, 7 flows / 15 assertions): PIN, recipes, PT-PT, stock filter, sales view, menu
 .venv/bin/python ops/docs-check.py   # docs numbers vs reality (tests/migrations/e2e)
 ```
 
@@ -196,5 +196,11 @@ BarSpec-Vision-and-Dev-Plan.md`).
 
 ## License
 
-License not chosen yet — this repository is private. If you're reading it
-from somewhere else, ask first.
+**GNU AGPL-3.0** — see [LICENSE](LICENSE). You may use, study, modify and
+self-host BarSpec freely; if you run a modified version as a network service,
+the AGPL requires you to publish your changes.
+
+**Commercial license available on request** — if you want to embed BarSpec in
+a closed product or offer it as a hosted service without the AGPL's
+source-disclosure obligations, contact me for a commercial license
+(dual-licensing; I hold the copyright).

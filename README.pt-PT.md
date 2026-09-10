@@ -317,5 +317,11 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 
 ## Licença
 
-Licença ainda por escolher — este repositório é privado. Se estás a lê-lo
-noutro sítio, pergunta primeiro.
+**GNU AGPL-3.0** — ver [LICENSE](LICENSE). Podes usar, estudar, modificar e
+auto-alojar o BarSpec livremente; se correres uma versão modificada como
+serviço em rede, a AGPL obriga-te a publicar as tuas alterações.
+
+**Licença comercial disponível a pedido** — se quiseres integrar o BarSpec num
+produto fechado ou oferecê-lo como serviço alojado sem as obrigações de
+divulgação da AGPL, contacta-me para uma licença comercial (dupla licença;
+o copyright é meu).

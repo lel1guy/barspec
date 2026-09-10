@@ -2554,8 +2554,8 @@ async function renderPO() {
 }
 async function openPOOverlay() {
   await refreshPOStock();
-  await renderPO();
-  $("#poOverlay").classList.remove("hidden");
+  $("#poOverlay").classList.remove("hidden");   // unhide BEFORE render: renderPO
+  await renderPO();                             // early-returns while hidden
 }
 $("#poBtn").addEventListener("click", () => openPOOverlay());
 $("#poClose").addEventListener("click", () => $("#poOverlay").classList.add("hidden"));

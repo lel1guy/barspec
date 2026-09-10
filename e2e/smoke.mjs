@@ -139,6 +139,29 @@ const flows = [
       ok("menu lists specs", rows >= 4, `(got ${rows})`);
     },
   },
+  {
+    // 039 regression: openPOOverlay used to call renderPO() while the overlay
+    // was still hidden, and renderPO early-returns when hidden -> the Orders
+    // panel always opened EMPTY. Assert it renders an open PO with a Receive
+    // button, using the page's own owner session.
+    name: "orders overlay renders an open PO (regression)",
+    run: async () => {
+      const made = await page.evaluate(async () => {
+        const items = await api("/api/stock");
+        const res = await api("/api/pos", "POST",
+          { supplier: "E2E Supplier", lines: [{ stock_item_id: items[0].id, qty: 2 }] });
+        return !!res && res.status === "open";
+      });
+      ok("PO created via API", made);
+      await page.click("#poBtn");
+      await page.waitForSelector("#poOverlay:not(.hidden)", { timeout: 6000 });
+      await page.waitForTimeout(900);
+      const box = await page.$eval("#poOpen", (el) => el.innerText || "");
+      ok("open PO row visible", box.includes("E2E Supplier"), box.slice(0, 60));
+      ok("receive button present", await page.$("#poOpen [data-rec-po]") !== null);
+      await page.click("#poClose");
+    },
+  },
 ];
 
 async function main() {
