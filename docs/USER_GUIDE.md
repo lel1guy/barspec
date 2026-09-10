@@ -28,7 +28,7 @@ a purchase price and every recipe that touches it updates instantly.
 
 ---
 
-## The five screens (desktop sidebar / mobile bottom bar)
+## The screens (desktop sidebar / mobile bottom bar)
 
 1. **Specs** — your recipe book. Each spec (cocktail, dish, drink) has a
    name, glass, method, garnish, its ingredient lines, cost per serve and —
@@ -48,8 +48,19 @@ a purchase price and every recipe that touches it updates instantly.
    recipe.
 5. **Menu** — the printable, priced view grouped by section, with your venue
    name and IVA footer. Share it via QR; print it when prices change.
+6. **Sales (Vendas)** — post what you sold per day, read actual GP and the
+   shrinkage leak. Full walkthrough in *Sales & shrinkage* below.
+7. **Summary (Resumo)** — the homepage: below-par items with suppliers,
+   batches expiring this week, losses this month in €, a count-age nudge —
+   plus 30-day revenue and GP-by-category charts. Cards jump to the view
+   that fixes the problem.
 
-Plus a sixth view, **Vendas** (Sales) — see the Sales section below.
+Two more places that are not in the sidebar:
+
+- **📥 Orders** (header button) — purchase orders and receiving; see
+  *Orders — buying and receiving* below. Owner-only.
+- **⚙ Settings** — PIN, staff PIN, venue name, language, text size, audit
+  trail, Help. Reference at the end of this guide.
 
 ---
 
@@ -155,6 +166,62 @@ your IVA % when set. Share the QR so a phone opens the live menu.
 
 ---
 
+### Orders — buying and receiving
+
+The order list tells you *what* to buy; this is where you actually buy it.
+
+1. **Create a PO** — 📥 Orders → *+ New order* → supplier (free text, it
+   autocompletes from your stock), add lines (item + how many you're
+   buying), *Create order*. The unit price is **frozen at that moment** —
+   if a supplier changes prices next month, this order still reads today's
+   numbers.
+2. **Receive the delivery** — when it arrives, open 📥 Orders → **Receive**
+   on that order. BarSpec logs it (with an audit entry) and closes the PO.
+   *Partial delivery?* Enter only what arrived; the PO stays open for the
+   rest — but note the receive button takes the full remaining order, so
+   for a partial delivery create a smaller order or adjust after.
+3. **Price drift** — if the invoice price differs from what you have stored
+   for that item, BarSpec asks: *"Sweet vermouth — stored €11.00 → invoice
+   €11.80?"* One click applies it and the price ripple updates every recipe
+   that uses it (with the impact report). If you don't apply, nothing
+   changes — the PO still records what you actually paid.
+4. **Price history** — every received line is remembered per item, so you
+   can answer *"what did I pay for gin in March?"* (API:
+   `GET /api/stock/{id}/price-history`).
+
+What receiving does **not** do: change your stock levels. Counts own the
+physical numbers, orders own the money trail — that's what keeps shrinkage
+honest. Future deliveries just mean one more PO.
+
+### Summary — reading the attention page
+
+The homepage answers one question: *what needs me today?*
+
+- **Below par** — items under their target from the last count, with the
+  supplier name (so you know who to call). Click a row to open Stock already
+  filtered to that item.
+- **Expiring** — batches (house syrups, prep) whose shelf life ends within
+  7 days; ≤2 days shows red.
+- **Losses this month** — the € logged in the loss register (spillages,
+  waste, spoilage).
+- **Count age** — "counted 3 days ago" or a nudge when it's been over a week.
+- **Charts** — daily revenue for the last 30 days and GP% by category
+  (green ≥60%, amber ≥40%, red below), with the window's total revenue in
+  the card header.
+
+If a card says nothing is wrong: good, go serve drinks.
+
+### Printing, exports and training cards
+
+- **Menu** — *print* for the wall/table, or share the **QR** so customers
+  open it on their phone. Set the venue name and IVA % first (Menu → ☰).
+- **Specs / Stock exports** — .xlsx and .csv for your accountant or a
+  spreadsheet-minded manager. Owner-only (they contain costs).
+- **Training cards** — print a spec deck from Specs: ingredients, method,
+  glass, garnish — **never costs or prices**, safe to leave on the bar.
+- **In-app Help** — Settings → Help: a short PT/EN FAQ for the floor,
+  money-free by design.
+
 ## Everyday tips
 
 - **Search** filters specs (and stock) as you type — essential once the
@@ -174,6 +241,31 @@ your IVA % when set. Share the QR so a phone opens the live menu.
 
 ---
 
+## Settings reference (⚙)
+
+- **Owner PIN** — set on first run. 🔒 logs the session out. There is no
+  "forgot PIN" e-mail: recovery means stopping the app and clearing the PIN
+  in the database (ops job) — write the PIN down somewhere safe.
+- **Staff PIN** — enable it so the team can look up recipes and the menu
+  without seeing money. Costs, prices and margins are removed **at the API**
+  (they never reach the staff browser), and every write returns 403.
+- **Venue name + IVA %** — prints on the menu.
+- **Language** — EN / PT-PT, per browser. Prices format correctly in both
+  (€9.50 vs €9,50).
+- **Text size** — A− / A / A+ for the screen on the bar; the whole layout
+  scales, nothing is cut off.
+- **Audit trail** — the last price edits and deletes, old → new, with a
+  timestamp and the user. Append-only: nothing is ever rewritten.
+- **Help** — the in-app FAQ (see above).
+
+## Backups and restore
+
+Nightly the app snapshots its single SQLite file (`barspec.db`) into
+`backups/` (14 kept) with no downtime. Restoring is one command, listed in
+the Developer Guide (`ops/restore.sh`). Because the whole venue lives in one
+file, "backup" also means: copy that file to a USB stick before anything
+scary. (Runs by the owner/ops, not in the UI.)
+
 ## Safety model in plain words
 
 - **Owner PIN** opens everything; sessions last 14 days.
@@ -186,6 +278,43 @@ your IVA % when set. Share the QR so a phone opens the live menu.
   remote look is ever needed.
 
 ---
+
+## Troubleshooting
+
+- **"It looks old / a button does nothing after an update"** — the browser
+  cached the old code. Hard-refresh (Ctrl+Shift+R / Cmd+Shift+R).
+- **"A cost is €0.00"** — that ingredient's stock item has no price, or the
+  spec line is free text. Open Stock, add the price; every recipe using it
+  updates instantly.
+- **"The order list is empty"** — you need a count first (or pars set).
+  Count items only appear if they have a par level above 0.
+- **"Shrinkage shows a big number"** — check three things in order: were both
+  counts done at a similar time of day (before/after service)? Did you post
+  the sales for the whole window? Was there a delivery you didn't record as
+  a PO? If all three are clean, the leak is real — that's the point.
+- **"Staff can't see prices"** — correct, by design. Staff mode has no money.
+- **"Wrong language / prices look odd"** — Settings → language; formatting is
+  per-browser, so each device remembers its own.
+- **"I forgot the PIN"** — see Settings reference: it's an ops reset, not a
+  UI flow.
+- **"Numbers look stale"** — Summary refreshes on every visit; other views
+  refresh when you open them. If in doubt, hard-refresh.
+
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| **Par** | The stock level you want to keep on the shelf. The order list is par minus what you have. |
+| **FBE** | *Full-bottle equivalent* — whole bottles + the fraction of an open one (¾ bottle = 0.75). |
+| **Dead stock** | Items sitting in your list that no recipe uses — money asleep in the store. |
+| **Shrinkage** | Stock used between two counts vs what your sales explain. The difference, in €, is your leak. |
+| **GP / margin** | Gross profit: (price − cost) ÷ price. The chips go green ≥ your target, amber near, red below. |
+| **ABV** | Alcohol by volume. BarSpec weights it across the spec (dilution included) so you see the serve you really pour. |
+| **Dilution** | Ice melt added to a drink — raises volume, lowers ABV, doesn't change cost. |
+| **Yield %** | Usable portion ÷ bought (trimming, cooking loss). 1 kg bought at 80% yield = 800 g usable. |
+| **Batch** | A house-made preparation (syrup, infusion, mix) with its own recipe; specs can pour from it. |
+| **PO** | Purchase order — what you're buying from a supplier, at prices frozen when you create it. |
+| **Price drift** | The invoice price disagreeing with your stored price when you receive a PO. |
 
 ## FAQ
 

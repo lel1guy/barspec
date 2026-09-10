@@ -58,7 +58,7 @@ parado").
 
 ---
 
-## Os cinco ecrãs
+## Os ecrãs (barra lateral no desktop / barra inferior no telemóvel)
 
 ### Receitas — o seu livro de receitas
 
@@ -175,6 +175,33 @@ Sob a carta, a **P&L por secção** mostra a margem média de cada categoria
 sentado na prateleira que nenhuma receita toca.
 
 ---
+
+### Resumo — a página de atenção
+
+A homepage responde a uma pergunta: *o que precisa de mim hoje?*
+
+- **Abaixo do par** — artigos abaixo do alvo desde a última contagem, com o
+  fornecedor (para saber a quem ligar). Clique numa linha para abrir o Stock
+  já filtrado nesse artigo.
+- **A expirar** — lotes (xaropes, preparações) cuja validade acaba em menos
+  de 7 dias; ≤2 dias aparece a vermelho.
+- **Perdas este mês** — o € registado no registo de perdas.
+- **Idade da contagem** — "contado há 3 dias", ou um aviso se passou mais de
+  uma semana.
+- **Gráficos** — receita diária dos últimos 30 dias e GP% por categoria
+  (verde ≥60%, âmbar ≥40%, vermelho abaixo), com o total da janela no topo.
+
+Se um cartão diz que está tudo bem: ótimo, vai servir.
+
+### Vendas — o dinheiro
+
+1. **Registar vendas** — escolha a receita, a quantidade, adicione linhas e
+   *Guardar dia*. Guardar outra vez o mesmo dia **substitui** (nunca
+   reescreve o histórico: preços e custos ficam congelados no momento).
+2. **GP real** — por receita e no total: quantidade, receita, custo, GP €,
+   GP%, com os chips de margem.
+3. **Encolhimento** — compara o stock *usado* entre as duas últimas contagens
+   com o que as vendas explicam. A diferença em € é a fuga.
 
 ## Precificar uma bebida (o momento da compra)
 
@@ -296,6 +323,99 @@ lista de encomendas dá-lhe as compras da semana e o valor de dinheiro parado.
 esbatidas no Stock) → decida: crie uma receita ou deixe de o comprar.
 
 ---
+
+## Compras e receção (📥)
+
+A lista de encomendas diz *o que* comprar; aqui é onde compra de facto.
+
+1. **Criar um pedido** — 📥 Compras → *+ Novo pedido* → fornecedor, linhas
+   (artigo + quantidade), *Criar pedido*. O preço unitário fica **congelado
+   nesse momento**.
+2. **Receber a entrega** — quando chegar, abra 📥 Compras → **Receber**. O
+   BarSpec registra (com entrada na auditoria) e fecha o pedido. Entrega
+   parcial: o botão recebe o resto todo — para parcial, crie um pedido
+   menor.
+3. **Desvio de preço** — se o preço da fatura diferir do guardado, o BarSpec
+   pergunta *"guardado €11,00 → fatura €11,80?"*. Um clique aplica e propaga
+   por todas as receitas. Se não aplicar, nada muda — o pedido fica na mesma
+   com o que pagou.
+4. **Histórico de preços** — cada linha recebida é memorizada por artigo
+   (*"quanto paguei pelo gin em março?"*).
+
+Receber **não** mexe nos níveis de stock: as contagens são donas do físico,
+os pedidos são o rasto do dinheiro — é isso que mantém o encolhimento honesto.
+
+## Impressão, exportações e cartões de formação
+
+- **Carta** — *imprimir* para a parede/mesa, ou partilhar o **QR** para o
+  telemóvel do cliente. Defina primeiro o nome do espaço e o IVA (Carta → ☰).
+- **Exportações de Receitas / Stock** — .xlsx e .csv para o contabilista ou
+  um gestor de folha de cálculo. Só para o dono (contêm custos).
+- **Cartões de formação** — imprima um baralho a partir de Receitas:
+  ingredientes, método, copo, guarnição — **nunca custos ou preços**, seguro
+  para ficar no balcão.
+- **Ajuda na app** — Definições → Ajuda: FAQ curta PT/EN para a equipa, sem
+  dinheiro por desenho.
+
+## Definições (⚙)
+
+- **PIN do dono** — definido na primeira utilização. 🔒 termina a sessão.
+  Não há "recuperar PIN": a recuperação é parar a app e limpar o PIN na base
+  de dados (tarefa de ops) — escreva o PIN num sítio seguro.
+- **PIN de equipa** — ative para a equipa consultar receitas e carta sem ver
+  dinheiro. Custos, preços e margens são removidos **na API** (nunca chegam
+  ao browser da equipa) e todas as escritas devolvem 403.
+- **Nome do espaço + IVA %** — sai impresso na carta.
+- **Idioma** — EN / PT-PT, por browser. Os preços formatam-se corretamente
+  nos dois (€9.50 vs €9,50).
+- **Tamanho do texto** — A− / A / A+ para o ecrã no balcão.
+- **Auditoria** — as últimas edições de preço e eliminações, antigo → novo,
+  com data e utilizador. Só acrescenta: nada é reescrito.
+- **Ajuda** — a FAQ dentro da app.
+
+## Cópias de segurança e restauro
+
+Todas as noites a app faz um snapshot do seu único ficheiro SQLite
+(`barspec.db`) para `backups/` (14 guardados) sem parar o serviço. Restaurar
+é um comando, no Guia do programador (`ops/restore.sh`). Como o espaço inteiro
+vive num ficheiro, "backup" também significa: copie esse ficheiro para uma
+pen antes de algo assustador. (Corre no dono/ops, não na UI.)
+
+## Resolução de problemas
+
+- **"Está com aspeto antigo / um botão não faz nada depois de uma
+  atualização"** — cache do browser. Faça hard-refresh (Ctrl+Shift+R).
+- **"Um custo está a €0,00"** — o artigo não tem preço, ou a linha é texto
+  livre. Abra Stock, meta o preço; todas as receitas atualizam logo.
+- **"A lista de encomendas está vazia"** — precisa de uma contagem primeiro
+  (ou pars definidos). Só aparecem artigos com par acima de 0.
+- **"O encolhimento dá um número grande"** — verifique por ordem: as duas
+  contagens foram feitas a horas semelhantes (antes/depois do serviço)?
+  Registou as vendas da janela toda? Houve entrega não registada como
+  pedido? Se as três estão limpas, a fuga é real — é esse o objetivo.
+- **"A equipa não vê preços"** — correto, por desenho. O modo equipa não tem
+  dinheiro.
+- **"Idioma errado / preços estranhos"** — Definições → idioma; a formatação
+  é por browser.
+- **"Esqueci-me do PIN"** — ver Definições: é reset de ops, não há fluxo na UI.
+- **"Os números parecem velhos"** — o Resumo atualiza a cada visita; as
+  outras vistas atualizam quando as abre. Na dúvida, hard-refresh.
+
+## Glossário
+
+| Termo | Significado |
+|---|---|
+| **Par** | O nível de stock que quer manter. A lista de encomendas é o par menos o que tem. |
+| **FBE** | *Full-bottle equivalent* — garrafas inteiras + fração da aberta (¾ = 0,75). |
+| **Stock morto** | Artigos na lista que nenhuma receita usa — dinheiro a dormir. |
+| **Encolhimento** | Stock usado entre duas contagens vs o que as vendas explicam. A diferença, em €, é a fuga. |
+| **GP / margem** | Lucro bruto: (preço − custo) ÷ preço. Chips verde ≥ alvo, âmbar perto, vermelho abaixo. |
+| **ABV** | Teor alcoólico; o BarSpec pondera por volume (com diluição) para mostrar o que serve mesmo. |
+| **Diluição** | Água do gelo — sobe o volume, baixa o ABV, não muda o custo. |
+| **Rendimento %** | Parte aproveitável ÷ comprada (aparas, perda ao cozinhar). 1 kg a 80% = 800 g úteis. |
+| **Lote (batch)** | Preparação caseira (xarope, infusão, mistura) com receita própria; as receitas podem servir-se dela. |
+| **PO** | Pedido de compra — o que compra ao fornecedor, com preços congelados na criação. |
+| **Desvio de preço** | A fatura discordar do preço guardado ao receber um pedido. |
 
 ## Perguntas frequentes
 
