@@ -156,3 +156,18 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
 - demo/status thresholds generalised for smaller venues (minimum 30 specs,
   40 stock lines) - the fictional venue passes 7/7.
 - Screenshots regenerated from the fictional venue (desktop only).
+
+
+## 2026-09-10 - 044: Homepage in the nav, Settings as a page, venue renamed
+- Navigation: "Summary" is now "Homepage" (EN) / "Inicio" (PT) and lives ONLY
+  in the nav (the header button is gone; the mobile bar carries it too, 8
+  items, no overflow at 390px).
+- Settings stopped being a popup: it is a real page in the navigation
+  (#view-settings) with language, text size, display unit, staff PIN, audit
+  trail, Help and Lock. Header keeps only Orders, + New spec, + Product,
+  Cards.
+- Demo venue renamed to "The Prancing Pony" (fictional), seeded with IVA 23%
+  and owner 1234 / staff 2468.
+- Docs: guides updated for the nav change; screenshots regenerated, new
+  settings.png. Cache-bust 20260908k.
+- 185 pytest + 7 e2e flows green; docs-check clean.

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260908j">
+<link rel="stylesheet" href="/static/style.css?v=20260908k">
 </head>
 <body>
 <a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
@@ -15,13 +15,14 @@
   <div class="brand"><div class="word">BarSpec<em>.</em></div><span class="ver">v1.1</span></div>
   <div class="grp" data-i18n="side.workspace">Workspace</div>
   <nav class="sidenav">
-    <button id="navResumo" class="navitem desktop-only"><span class="ic">◫</span><span data-i18n="nav.resumo">Summary</span></button>
+    <button id="navResumo" class="navitem"><span class="ic">⌂</span><span data-i18n="nav.resumo">Homepage</span></button>
     <button id="navSpecs" class="navitem active"><span class="ic">▤</span><span data-i18n="nav.specs">Specs</span><span class="navbadge" id="countSpecs">0</span></button>
     <button id="navBatches" class="navitem"><span class="ic">≋</span><span data-i18n="nav.batches">Batches</span><span class="navbadge" id="countBatches">0</span></button>
     <button id="navStock" class="navitem"><span class="ic">◫</span><span data-i18n="nav.stock">Stock</span><span class="navbadge" id="countStock">0</span></button>
     <button id="navTake" class="navitem"><span class="ic">▦</span><span data-i18n="nav.take">Stock-take</span><span class="navbadge" id="countTake">0</span></button>
     <button id="navMenu" class="navitem"><span class="ic">▤</span><span data-i18n="nav.menu">Menu</span></button>
     <button id="navSales" class="navitem"><span class="ic">€</span><span data-i18n="nav.sales">Vendas</span></button>
+    <button id="navSettings" class="navitem"><span class="ic">⚙</span><span data-i18n="nav.settings">Settings</span></button>
   </nav>
 </aside>
 
@@ -34,9 +35,7 @@
     <div class="search no-print" id="searchBox">
       <input id="specSearch" data-i18n-ph="mhead.search" placeholder="Search specs…" autocomplete="off">
     </div>
-    <button class="btn ghost no-print" id="resBtn" data-i18n="res.btn">◫ Summary</button>
     <button class="btn ghost no-print" id="poBtn" data-i18n="po.btn">📥 Compras</button>
-    <button class="btn ghost no-print" id="setBtn" data-i18n="mhead.settings">⚙ Settings</button>
     <button class="btn primary no-print" id="newSpecBtn" data-i18n="mhead.newSpec">+ New spec</button>
     <button class="btn ghost no-print" id="qpBtn" data-i18n="prod.btn">+ Product</button>
     <button class="btn ghost no-print" id="printCardsBtn" data-i18n="spec.cards">⤢ Cards</button>
@@ -315,8 +314,8 @@
     <div class="edit-note" id="authErr" style="color:#e76f51; display:none;">Wrong PIN.</div>
   </div>
 </div>
-<div class="overlay hidden no-print" id="setOverlay" role="dialog" aria-modal="true" aria-label="Settings">
-  <div class="overlay-card set-card">
+<section id="view-settings" class="view">
+  <div class="res-card" style="max-width:680px; margin:18px auto;">
     <h3 data-i18n="settings.title">Settings</h3>
     <div class="set-row">
       <div class="set-label" data-i18n="settings.lang">Language</div>
@@ -355,10 +354,9 @@
     </div>
     <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:14px;">
       <button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button>
-      <button class="btn" id="setClose" data-i18n="f.close">Close</button>
     </div>
   </div>
-</div>
+</section>
 
 <!-- ============ STAFF MODE (read-only recipes, never money) ============ -->
 <section id="staffUI" class="hidden">
@@ -404,7 +402,7 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260908j" defer></script>
+<script src="/static/app.js?v=20260908k" defer></script>
 </body>
 </html>
 

@@ -86,15 +86,17 @@ const flows = [
   {
     name: "PT toggle: chrome + € comma",
     run: async () => {
-      await page.click("#setBtn");
-      await sleep(300);
+      await page.click("#navSettings");
+      await sleep(400);
       await page.click(".setopt[data-lang=pt]");
       await sleep(1500);
+      await page.click("#navSpecs");            // Homepage/Settings are pages now
+      await sleep(900);
       const titleTxt = (await txt("#viewTitle")) || "";
       ok("title flips to Receitas", titleTxt.includes("Receitas"), `(got '${titleTxt}')`);
       const listText = await page.$eval("#specList", (el) => el.innerText);
       ok("PT euro comma (€8,00)", /€\d+,\d{2}/.test(listText), `(${listText.slice(0, 60)})`);
-      await page.click("#setClose");   // close the dialog or it blocks nav clicks
+      await page.click("#navSpecs");   // leave Settings so nav clicks keep working
       await sleep(300);
     },
   },

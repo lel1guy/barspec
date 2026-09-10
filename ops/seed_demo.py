@@ -1,4 +1,4 @@
-"""Fictional demo venue — "Três Copos — Bar & Cozinha".
+"""Fictional demo venue — "The Prancing Pony".
 
 A classic neighbourhood bar *with a kitchen*: classic cocktails, draught and
 canned beer, wines by the glass and the bottle, sodas, coffee and a short
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # repo root (d
 import db
 from seed_common import seed_month, supplier_for
 
-VENUE = {"name": "Três Copos — Bar & Cozinha", "iva": 23,
+VENUE = {"name": "The Prancing Pony", "iva": 23,
          "owner_pin": "1234", "staff_pin": "2468"}
 
 # (name, abv, price, size_canonical, dimension, pack=(qty, price, label), yield)

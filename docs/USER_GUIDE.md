@@ -55,12 +55,14 @@ a purchase price and every recipe that touches it updates instantly.
    plus 30-day revenue and GP-by-category charts. Cards jump to the view
    that fixes the problem.
 
-Two more places that are not in the sidebar:
+8. **Settings (⚙)** — its own page in the navigation: language, text size,
+   display unit, staff PIN, the audit trail, Help, and Lock. Reference at the
+   end of this guide.
+
+One place is not in the sidebar:
 
 - **📥 Orders** (header button) — purchase orders and receiving; see
   *Orders — buying and receiving* below. Owner-only.
-- **⚙ Settings** — PIN, staff PIN, venue name, language, text size, audit
-  trail, Help. Reference at the end of this guide.
 
 ---
 
@@ -241,7 +243,7 @@ If a card says nothing is wrong: good, go serve drinks.
 
 ---
 
-## Settings reference (⚙)
+## Settings page (⚙)
 
 - **Owner PIN** — set on first run. 🔒 logs the session out. There is no
   "forgot PIN" e-mail: recovery means stopping the app and clearing the PIN

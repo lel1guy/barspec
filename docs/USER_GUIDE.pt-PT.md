@@ -324,6 +324,11 @@ esbatidas no Stock) → decida: crie uma receita ou deixe de o comprar.
 
 ---
 
+## Definições na navegação
+
+A página **Definições (⚙)** vive na barra de navegação: idioma, tamanho do
+texto, unidade de apresentação, PIN de equipa, auditoria, ajuda e trancar.
+
 ## Compras e receção (📥)
 
 A lista de encomendas diz *o que* comprar; aqui é onde compra de facto.
@@ -357,7 +362,7 @@ os pedidos são o rasto do dinheiro — é isso que mantém o encolhimento hones
 - **Ajuda na app** — Definições → Ajuda: FAQ curta PT/EN para a equipa, sem
   dinheiro por desenho.
 
-## Definições (⚙)
+## Página de definições (⚙)
 
 - **PIN do dono** — definido na primeira utilização. 🔒 termina a sessão.
   Não há "recuperar PIN": a recuperação é parar a app e limpar o PIN na base

@@ -66,10 +66,10 @@ const eur = (v) => {
 // ---------- i18n (008): EN / PT-PT ----------
 const I18N = {
   en: {
-    "side.workspace": "Workspace", "nav.resumo": "⌂ Summary", "nav.specs": "Specs", "nav.batches": "Batches",
+    "side.workspace": "Workspace", "nav.resumo": "Homepage", "nav.specs": "Specs", "nav.batches": "Batches",
     "nav.stock": "Stock", "nav.take": "Stock-take", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
-    "view.resumo": "Summary", "res.btn": "◫ Summary",
+    "view.resumo": "Homepage", "nav.settings": "Settings",
  "res.firstCount": "No counts yet — set pars and do your first",
     "po.linesLbl": "lines", "po.btn": "📥 Orders", "po.title": "Orders & receiving", "po.open": "Open orders", "po.new": "+ New order", "po.supplier": "Supplier", "po.stock": "Stock item", "po.qty": "Qty (purchase units)", "po.addLine": "+ Add line", "po.create": "Create order", "po.receive": "Receive", "po.received": "received", "po.driftTitle": "Price changed since the order - apply?", "po.apply": "Apply €", "po.applied": "Prices updated", "po.emptyOpen": "No open orders.", "po.emptyHist": "Nothing received yet.", "po.total": "Total", "po.needSup": "Supplier name needed", "po.needLine": "Add at least one line", "po.done": "Order received",
     "stats.title": "Sales — last 30 days", "stats.daily": "Daily revenue", "stats.cat": "GP by category", "stats.noData": "No sales in the window yet.",
@@ -211,10 +211,10 @@ const I18N = {
     "staff.enabled": "Staff PIN enabled — staff log in with it.", "staff.cleared": "Staff PIN cleared.",
   },
   pt: {
-    "side.workspace": "Área de trabalho", "nav.resumo": "⌂ Resumo", "nav.specs": "Receitas", "nav.batches": "Xaropes",
+    "side.workspace": "Área de trabalho", "nav.resumo": "Início", "nav.specs": "Receitas", "nav.batches": "Xaropes",
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
-    "view.resumo": "Resumo", "res.btn": "◫ Resumo",
+    "view.resumo": "Início", "nav.settings": "Definições",
     "po.linesLbl": "linhas", "po.btn": "📥 Compras", "po.title": "Compras e receção", "po.open": "Pedidos abertos", "po.new": "+ Novo pedido", "po.supplier": "Fornecedor", "po.stock": "Artigo", "po.qty": "Qtd (unidades de compra)", "po.addLine": "+ Adicionar linha", "po.create": "Criar pedido", "po.receive": "Receber", "po.received": "recebido", "po.driftTitle": "O preço mudou desde o pedido - aplicar?", "po.apply": "Aplicar €", "po.applied": "Preços atualizados", "po.emptyOpen": "Sem pedidos abertos.", "po.emptyHist": "Ainda nada recebido.", "po.total": "Total", "po.needSup": "Falta o fornecedor", "po.needLine": "Adicione pelo menos uma linha", "po.done": "Pedido recebido",
     "stats.title": "Vendas — últimos 30 dias", "stats.daily": "Receita diária", "stats.cat": "GP por categoria", "stats.noData": "Sem vendas no período ainda.",
  "res.firstCount": "Ainda sem contagens — defina pars e faça a primeira",
@@ -376,7 +376,7 @@ function setLang(l) {
   else if (currentView === "stocktake") loadStocktake();
   else if (currentView === "menu") renderMenu();
   else if (currentView === "sales") loadSalesView();
-  if (!document.getElementById("setOverlay").classList.contains("hidden")) renderHelp();
+  if (currentView === "settings") renderHelp();
 }
 // text scale S/M/L (persisted); zoom on content, nav stays compact
 let fs = localStorage.getItem("barspec.fontsize") || "m";
@@ -537,18 +537,21 @@ function applySearch() {
   });
 }
 const VIEWS = {
-  resumo: { title: "Summary", crumb: "SUMMARY", header: false },
+  resumo: { title: "Homepage", crumb: "HOMEPAGE", header: false },
   specs: { title: "Specs", crumb: "SPECS", header: true },
   batches: { title: "Batches", crumb: "BATCHES", header: false },
   stock: { title: "Stock", crumb: "STOCK", header: false },
   stocktake: { title: "Stock-take", crumb: "STOCK-TAKE", header: false },
   menu:  { title: "Menu",  crumb: "MENU",  header: false },
   sales: { title: "Sales", crumb: "SALES", header: false },
+  settings: { title: "Settings", crumb: "SETTINGS", header: false },
 };
 const NAV_IDS = { resumo: "navResumo", specs: "navSpecs", batches: "navBatches", stock: "navStock",
-                  stocktake: "navTake", menu: "navMenu", sales: "navSales" };
+                  stocktake: "navTake", menu: "navMenu", sales: "navSales",
+                  settings: "navSettings" };
 const VIEW_KEYS = { resumo: "view.resumo", specs: "view.specs", batches: "view.batches", stock: "view.stock",
-                    stocktake: "view.take", menu: "view.menu", sales: "view.sales" };
+                    stocktake: "view.take", menu: "view.menu", sales: "view.sales",
+                    settings: "nav.settings" };
 function updateChrome() {
   $("#viewTitle").textContent = t(VIEW_KEYS[currentView]);
   $("#crumbLabel").textContent = "BARSPEC / " + t(VIEW_KEYS[currentView]).toUpperCase();
@@ -574,6 +577,7 @@ function showView(v) {
   if (v === "menu") renderMenu();
   if (v === "sales") loadSalesView();
   if (v === "resumo") loadDashboard();
+  if (v === "settings") loadSettingsPage();
 }
 
 // ---------- spec list ----------
@@ -1982,14 +1986,14 @@ $("#tabOrder").addEventListener("click", () => { setTakeTab("order"); loadLastOr
 $("#tabTrends").addEventListener("click", () => { setTakeTab("trends"); renderTrends(); });
 $("#saveTakeBtn").addEventListener("click", saveTake);
 $("#newCountBtn").addEventListener("click", () => { loadStocktake(); setTakeTab("count"); });
-$("#setBtn").addEventListener("click", async () => {
+async function loadSettingsPage() {
   applyUnitLabels();
   document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
     b.classList.toggle("active", b.dataset.unit === unit));
   renderAudit();
   renderHelp();
-  $("#setOverlay").classList.remove("hidden");
-});
+}
+$("#navSettings").addEventListener("click", () => showView("settings"));
 const AUDIT_VERB = { price: "◈", spec_price: "◈", deleted: "✕", adjusted: "±", added: "+" };
 async function renderAudit() {
   const box = $("#auditBox");
@@ -2003,13 +2007,9 @@ async function renderAudit() {
       : `<div class="edit-note">${t("audit.none")}</div>`;
   } catch (err) { box.innerHTML = `<div class="edit-note">—</div>`; }
 }
-$("#setClose").addEventListener("click", () => $("#setOverlay").classList.add("hidden"));
 $("#lockBtn").addEventListener("click", async () => {
   await api("/api/auth/logout", "POST").catch(() => {});
   location.reload();
-});
-$("#setOverlay").addEventListener("click", (e) => {
-  if (e.target.id === "setOverlay") $("#setOverlay").classList.add("hidden");
 });
 document.querySelectorAll("#unitBox .unitbtn").forEach((b) =>
   b.addEventListener("click", () => setUnit(b.dataset.unit)));
@@ -2389,7 +2389,6 @@ function bindDash() {
     };
   });
 }
-$("#resBtn").addEventListener("click", () => showView("resumo"));
 
 // ---------- onboarding (first-run when no specs) ----------
 function maybeOnboarding() {

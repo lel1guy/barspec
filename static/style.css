@@ -673,3 +673,9 @@ body[data-role="staff"] main { max-width: 100%; }
 .cat-gp.ok { color: #3fbf6f; }
 .cat-gp.warn { color: #e0a63c; }
 .cat-gp.bad { color: #e05c5c; }
+
+/* 8 nav items on a phone (Homepage + Settings joined the bar) — keep labels readable */
+@media (max-width: 560px) {
+  .navitem { font-size: 9px; padding: 5px 1px; }
+  .navitem .ic { font-size: 15px; }
+}
