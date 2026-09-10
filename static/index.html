@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=20260908l">
+<link rel="stylesheet" href="/static/style.css?v=20260908m">
 </head>
 <body>
 <a class="skip-link" href="#maincontent" data-i18n="a11y.skip">Skip to content</a>
@@ -293,6 +293,63 @@
   <section id="view-cards" class="view">
     <div id="cardsDeck"></div>
   </section>
+  <section id="view-settings" class="view">
+    <div class="set-grid">
+      <div class="res-card">
+        <h3 class="set-h" data-i18n="settings.title">Settings</h3>
+        <div class="set-row">
+          <div class="set-label" data-i18n="settings.lang">Language</div>
+          <div class="set-ctl" id="langRow">
+            <button class="langbtn setopt" data-lang="en">EN</button>
+            <button class="langbtn setopt" data-lang="pt">PT</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label" data-i18n="settings.text">Text size</div>
+          <div class="set-ctl" id="fontBox" role="group" aria-label="Text size">
+            <button class="fontbtn" data-fs="s" data-i18n-title="a11y.fsS" title="Text size: small" aria-pressed="false">A−</button>
+            <button class="fontbtn" data-fs="m" data-i18n-title="a11y.fsM" title="Text size: medium" aria-pressed="false">A</button>
+            <button class="fontbtn" data-fs="l" data-i18n-title="a11y.fsL" title="Text size: large" aria-pressed="false">A+</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <div class="set-label" data-i18n="settings.unit">Display unit</div>
+          <div class="unitctl set-ctl" id="unitBox" role="group" data-i18n-title="mhead.unitsTitle" title="Display unit — values are stored in ml">
+            <button class="unitbtn" data-unit="ml">ml</button>
+            <button class="unitbtn" data-unit="cl">cl</button>
+            <button class="unitbtn" data-unit="oz">oz</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="res-card">
+        <h3 class="set-h" data-i18n="settings.team">Team &amp; access</h3>
+        <div class="set-row" style="align-items:flex-start; flex-direction:column; gap:6px;">
+          <div class="set-label" data-i18n="staff.staffPin">Staff PIN (optional)</div>
+          <div class="set-ctl" style="width:100%;">
+            <input id="setStaffPin" type="password" placeholder="••••" style="width:90px; font-size:16px;">
+            <button class="btn ghost" id="setStaffPinBtn" data-i18n="staff.enable">Enable</button>
+            <button class="btn ghost" id="setStaffPinClear" data-i18n="staff.clear">Clear</button>
+          </div>
+          <div class="hint" data-i18n="settings.teamHint">Staff see recipes and the menu — never prices.</div>
+        </div>
+        <div class="set-row" style="margin-top:12px;">
+          <div class="set-label" data-i18n="auth.session">Session</div>
+          <div class="set-ctl"><button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button></div>
+        </div>
+      </div>
+
+      <div class="res-card">
+        <h3 class="set-h" data-i18n="audit.title">Recent changes</h3>
+        <div id="auditBox" class="audit-list"></div>
+      </div>
+
+      <div class="res-card set-wide">
+        <h3 class="set-h" data-i18n="help.title">Help</h3>
+        <div id="helpBox" class="help-list"></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <datalist id="stockNames"></datalist>
@@ -314,49 +371,7 @@
     <div class="edit-note" id="authErr" style="color:#e76f51; display:none;">Wrong PIN.</div>
   </div>
 </div>
-<section id="view-settings" class="view">
-  <div class="res-card" style="max-width:680px; margin:18px auto;">
-    <h3 data-i18n="settings.title">Settings</h3>
-    <div class="set-row">
-      <div class="set-label" data-i18n="settings.lang">Language</div>
-      <div class="set-ctl" id="langRow">
-        <button class="langbtn setopt" data-lang="en">EN</button>
-        <button class="langbtn setopt" data-lang="pt">PT</button>
-      </div>
-    </div>
-    <div class="set-row">
-      <div class="set-label" data-i18n="settings.text">Text size</div>
-      <div class="set-ctl" id="fontBox" role="group" aria-label="Text size">
-        <button class="fontbtn" data-fs="s" data-i18n-title="a11y.fsS" title="Text size: small" aria-pressed="false">A−</button>
-        <button class="fontbtn" data-fs="m" data-i18n-title="a11y.fsM" title="Text size: medium" aria-pressed="false">A</button>
-        <button class="fontbtn" data-fs="l" data-i18n-title="a11y.fsL" title="Text size: large" aria-pressed="false">A+</button>
-      </div>
-    </div>
-    <div class="set-row">
-      <div class="set-label" data-i18n="settings.unit">Display unit</div>
-      <div class="unitctl set-ctl" id="unitBox" role="group" data-i18n-title="mhead.unitsTitle" title="Display unit — values are stored in ml">
-        <button class="unitbtn" data-unit="ml">ml</button>
-        <button class="unitbtn" data-unit="cl">cl</button>
-        <button class="unitbtn" data-unit="oz">oz</button>
-      </div>
-    </div>
-    <div class="hint" style="margin:12px 0 4px;" data-i18n="audit.title">Recent changes</div>
-    <div id="auditBox" class="audit-list"></div>
-    <div class="hint" style="margin:16px 0 4px;" data-i18n="help.title">Help</div>
-    <div id="helpBox" class="help-list"></div>
-    <div class="set-row">
-      <div class="set-label" data-i18n="staff.staffPin">Staff PIN (optional)</div>
-      <div class="set-ctl">
-        <input id="setStaffPin" type="password" placeholder="••••" style="width:90px; font-size:16px;">
-        <button class="btn ghost" id="setStaffPinBtn" data-i18n="staff.enable">Enable</button>
-        <button class="btn ghost" id="setStaffPinClear" data-i18n="staff.clear">Clear</button>
-      </div>
-    </div>
-    <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:14px;">
-      <button class="btn ghost" id="lockBtn" data-i18n="auth.lock">🔒 Lock</button>
-    </div>
-  </div>
-</section>
+
 
 <!-- ============ STAFF MODE (read-only recipes, never money) ============ -->
 <section id="staffUI" class="hidden">
@@ -402,7 +417,7 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=20260908l" defer></script>
+<script src="/static/app.js?v=20260908m" defer></script>
 </body>
 </html>
 

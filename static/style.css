@@ -683,3 +683,13 @@ body[data-role="staff"] main { max-width: 100%; }
 /* partial receiving: qty input on open PO lines */
 .po-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .po-line input[type="number"] { width: 74px; padding: 3px 6px; font-size: 13px; }
+
+
+/* settings page (045): card grid, same language as the Homepage */
+.set-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.set-h { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; opacity: .8; }
+.set-grid .set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line2); }
+.set-grid .set-row:last-child { border-bottom: 0; }
+.set-grid .set-wide { grid-column: 1 / -1; }
+.set-grid .set-label { font-size: 13px; color: var(--muted); }
+@media (max-width: 720px) { .set-grid { grid-template-columns: 1fr; } }

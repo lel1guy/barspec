@@ -171,3 +171,13 @@ v1.1 tag, stock search, PT euro format (€19,00), loss-log reasons PT.
 - Docs: guides updated for the nav change; screenshots regenerated, new
   settings.png. Cache-bust 20260908k.
 - 185 pytest + 7 e2e flows green; docs-check clean.
+
+
+## 2026-09-10 - 046: Settings page layout fix (desktop)
+- BUG: after Settings became a page it rendered BELOW the left navigation -
+  the section had been appended where the old overlay used to live, i.e.
+  outside main. Moved inside the content container and rebuilt it as a
+  card grid (Preferences / Team and access / Recent changes / Help), Help
+  spanning the full width, matching the Homepage's language.
+- Screenshot regenerated (settings.png); cache-bust 20260908m.
+- 185 pytest + 7 e2e flows / 20 assertions green.
