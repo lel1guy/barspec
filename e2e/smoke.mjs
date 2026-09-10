@@ -161,6 +161,22 @@ const flows = [
       const box = await page.$eval("#poOpen", (el) => el.innerText || "");
       ok("open PO row visible", box.includes("E2E Supplier"), box.slice(0, 60));
       ok("receive button present", await page.$("#poOpen [data-rec-po]") !== null);
+      ok("partial qty input present", await page.$("#poOpen [data-line-qty]") !== null);
+      // partial delivery: receive 1 of 2 -> the order must stay open
+      await page.$eval("#poOpen [data-line-qty]", (i) => { i.value = "1"; });
+      await page.click("#poOpen [data-rec-po]");
+      await page.waitForTimeout(1400);
+      const afterPartial = await page.$eval("#poOpen", (el) => el.innerText || "");
+      ok("partial keeps the order open", afterPartial.includes("E2E Supplier"), afterPartial.slice(0, 60));
+      const leftNow = await page.$eval("#poOpen [data-line-qty]", (i) => i.value);
+      const chip = await page.$$("#poOpen .exp-chip");
+      ok("partial leaves only the rest to receive", Number(leftNow) === 1, `(left=${leftNow})`);
+      ok("partial marks what already arrived", chip.length > 0);
+      // finish it: the remaining 1
+      await page.click("#poOpen [data-rec-po]");
+      await page.waitForTimeout(1400);
+      const afterFull = await page.$eval("#poOpen", (el) => el.innerText || "");
+      ok("full receive closes the order", !afterFull.includes("E2E Supplier"), afterFull.slice(0, 60));
       await page.click("#poClose");
     },
   },

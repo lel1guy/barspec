@@ -71,7 +71,7 @@ const I18N = {
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Homepage", "nav.settings": "Settings",
  "res.firstCount": "No counts yet — set pars and do your first",
-    "po.linesLbl": "lines", "po.btn": "📥 Orders", "po.title": "Orders & receiving", "po.open": "Open orders", "po.new": "+ New order", "po.supplier": "Supplier", "po.stock": "Stock item", "po.qty": "Qty (purchase units)", "po.addLine": "+ Add line", "po.create": "Create order", "po.receive": "Receive", "po.received": "received", "po.driftTitle": "Price changed since the order - apply?", "po.apply": "Apply €", "po.applied": "Prices updated", "po.emptyOpen": "No open orders.", "po.emptyHist": "Nothing received yet.", "po.total": "Total", "po.needSup": "Supplier name needed", "po.needLine": "Add at least one line", "po.done": "Order received",
+    "po.linesLbl": "lines", "po.btn": "📥 Orders", "po.title": "Orders & receiving", "po.open": "Open orders", "po.new": "+ New order", "po.supplier": "Supplier", "po.stock": "Stock item", "po.qty": "Qty (purchase units)", "po.addLine": "+ Add line", "po.create": "Create order", "po.receive": "Receive", "po.received": "received", "po.driftTitle": "Price changed since the order - apply?", "po.apply": "Apply €", "po.applied": "Prices updated", "po.emptyOpen": "No open orders.", "po.emptyHist": "Nothing received yet.", "po.total": "Total", "po.needSup": "Supplier name needed", "po.needLine": "Add at least one line", "po.done": "Order received", "po.outstanding": "outstanding", "po.receivedSoFar": "already received", "po.partial": "Partial delivery - the order stays open",
     "stats.title": "Sales — last 30 days", "stats.daily": "Daily revenue", "stats.cat": "GP by category", "stats.noData": "No sales in the window yet.",
     "view.specs": "Specs", "view.batches": "Batches", "view.stock": "Stock",
     "res.title": "What needs you", "res.allGood": "Nothing below par.", "res.lowTitle": "Below par",
@@ -215,7 +215,7 @@ const I18N = {
     "nav.stock": "Stock", "nav.take": "Contagens", "nav.menu": "Menu",
     "nav.sales": "Vendas", "view.sales": "Vendas",
     "view.resumo": "Início", "nav.settings": "Definições",
-    "po.linesLbl": "linhas", "po.btn": "📥 Compras", "po.title": "Compras e receção", "po.open": "Pedidos abertos", "po.new": "+ Novo pedido", "po.supplier": "Fornecedor", "po.stock": "Artigo", "po.qty": "Qtd (unidades de compra)", "po.addLine": "+ Adicionar linha", "po.create": "Criar pedido", "po.receive": "Receber", "po.received": "recebido", "po.driftTitle": "O preço mudou desde o pedido - aplicar?", "po.apply": "Aplicar €", "po.applied": "Preços atualizados", "po.emptyOpen": "Sem pedidos abertos.", "po.emptyHist": "Ainda nada recebido.", "po.total": "Total", "po.needSup": "Falta o fornecedor", "po.needLine": "Adicione pelo menos uma linha", "po.done": "Pedido recebido",
+    "po.linesLbl": "linhas", "po.btn": "📥 Compras", "po.title": "Compras e receção", "po.open": "Pedidos abertos", "po.new": "+ Novo pedido", "po.supplier": "Fornecedor", "po.stock": "Artigo", "po.qty": "Qtd (unidades de compra)", "po.addLine": "+ Adicionar linha", "po.create": "Criar pedido", "po.receive": "Receber", "po.received": "recebido", "po.driftTitle": "O preço mudou desde o pedido - aplicar?", "po.apply": "Aplicar €", "po.applied": "Preços atualizados", "po.emptyOpen": "Sem pedidos abertos.", "po.emptyHist": "Ainda nada recebido.", "po.total": "Total", "po.needSup": "Falta o fornecedor", "po.needLine": "Adicione pelo menos uma linha", "po.done": "Pedido recebido", "po.outstanding": "por receber", "po.receivedSoFar": "ja recebido", "po.partial": "Entrega parcial - o pedido fica aberto",
     "stats.title": "Vendas — últimos 30 dias", "stats.daily": "Receita diária", "stats.cat": "GP por categoria", "stats.noData": "Sem vendas no período ainda.",
  "res.firstCount": "Ainda sem contagens — defina pars e faça a primeira",
     "res.title": "O que precisa de si", "res.allGood": "Nada abaixo do par.", "res.lowTitle": "Abaixo do par",
@@ -2519,10 +2519,20 @@ function poItemLabel(it) {
 }
 function poRowHtml(po) {
   const date = (po.created_at || "").replace("T", " ").slice(0, 16);
+  const open = po.status === "open";
   const lines = (po.lines || []).map((l) => {
     const unit = l.dimension === "weight" ? "kg" : "un";
+    const left = Math.max(0, (l.qty || 0) - (l.qty_received || 0));
     const pack = l.pack_size > 1 ? ` · ~${Math.ceil(l.qty / l.pack_size)} × ${esc(l.pack_name || "pack")}` : "";
-    return `<div class="edit-note">×${fmtAmt(l.qty_received)}/${fmtAmt(l.qty)} ${esc(l.name)} @ €${l.unit_price_eur}${pack}${l.qty_received < l.qty ? "" : " ✓"}</div>`;
+    if (!open || left <= 0) {
+      return `<div class="edit-note">×${fmtAmt(l.qty_received)}/${fmtAmt(l.qty)} ${esc(l.name)} @ €${l.unit_price_eur}${pack} ✓</div>`;
+    }
+    return `<div class="edit-note po-line">
+      <input type="number" min="0" step="0.25" value="${fmtAmt(left)}" data-line-qty data-sid="${l.stock_item_id}"
+             aria-label="${esc(l.name)} — ${t("po.outstanding")} (${unit})">
+      <span>⁄ ${fmtAmt(l.qty)} ${esc(l.name)} @ €${l.unit_price_eur}${pack}</span>
+      ${l.qty_received > 0 ? `<span class="exp-chip">${t("po.receivedSoFar")} ${fmtAmt(l.qty_received)}</span>` : ""}
+    </div>`;
   }).join("");
   const btn = po.status === "open"
     ? `<button type="button" class="btn small" data-rec-po="${po.id}" data-i18n="po.receive">Receive</button>`
@@ -2561,10 +2571,15 @@ $("#poClose").addEventListener("click", () => $("#poOverlay").classList.add("hid
 $("#poOpen").addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-rec-po]");
   if (!b) return;
+  // partial delivery: send what's typed per line, not the whole order
+  const card = b.closest(".res-card");
+  const lines = [...(card?.querySelectorAll("[data-line-qty]") || [])]
+    .map((i) => ({ stock_item_id: +i.dataset.sid, qty: parseFloat(i.value) || 0 }))
+    .filter((l) => l.qty > 0);
   b.disabled = true;
   try {
-    const res = await api(`/api/pos/${b.dataset.recPo}/receive`, "POST", {});
-    toast(t("po.done"));
+    const res = await api(`/api/pos/${b.dataset.recPo}/receive`, "POST", { lines });
+    toast(res.po && res.po.status === "open" ? t("po.partial") : t("po.done"));
     await renderPO();
     if ((res.drift || []).length) {
       const html = res.drift.map((d) =>

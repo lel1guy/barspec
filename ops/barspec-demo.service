@@ -1,0 +1,18 @@
+[Unit]
+Description=BarSpec demo (fictional venue, LAN only)
+After=network.target
+
+[Service]
+Type=simple
+User=vitor
+Group=vitor
+WorkingDirectory=/home/vitor/dev/barspec
+Environment=BARSPEC_DB=/var/lib/barspec-demo/demo.db
+# seed on first start (and after a wipe) so the demo is never empty
+ExecStartPre=/bin/bash -c 'test -f /var/lib/barspec-demo/demo.db || (mkdir -p /var/lib/barspec-demo && cd /home/vitor/dev/barspec && BARSPEC_DB=/var/lib/barspec-demo/demo.db /usr/bin/python3 ops/seed_demo.py --month)'
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8791
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

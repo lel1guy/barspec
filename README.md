@@ -106,7 +106,7 @@ the [Developer Guide](docs/DEV_GUIDE.md); the *why* behind the design
 
 ```bash
 pytest            # 185 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard, purchase orders, stats
-npm run e2e       # real-browser smoke (Playwright, 7 flows / 15 assertions): PIN, recipes, PT-PT, stock filter, sales view, menu
+npm run e2e       # real-browser smoke (Playwright, 7 flows / 20 assertions): PIN, recipes, PT-PT, stock filter, sales view, menu
 .venv/bin/python ops/docs-check.py   # docs numbers vs reality (tests/migrations/e2e)
 ```
 
@@ -190,6 +190,10 @@ BARSPEC_DB=/tmp/barspec-demo.db .venv/bin/python -m uvicorn main:app --port 8791
 (simple syrup, ginger syrup, grenadine cordial — cocktails pour from them),
 dated losses in the loss log, suppliers, pars, one PO received and one open.
 The printed menu carries the venue name and the 23% IVA footer.
+Reset the demo any time with `ops/demo_reset.sh` (fresh, deterministic
+month) and rehearse with the 10-minute **[demo script](docs/DEMO_SCRIPT.md)**
+— the three moments, in order, with what to say.
+
 
 `ops/seed_argo.py` still ships as an extra: a real public menu (The Argo,
 Vilamoura) solved to its declared ABVs — useful when you want to demo with a

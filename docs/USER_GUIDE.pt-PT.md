@@ -370,6 +370,8 @@ os pedidos são o rasto do dinheiro — é isso que mantém o encolhimento hones
 - **PIN de equipa** — ative para a equipa consultar receitas e carta sem ver
   dinheiro. Custos, preços e margens são removidos **na API** (nunca chegam
   ao browser da equipa) e todas as escritas devolvem 403.
+  **As vendas são lançadas pelo dono ou gerente**, nunca pela equipa — regra
+  deliberada (mantém a faixa do dinheiro nas mãos de uma pessoa).
 - **Nome do espaço + IVA %** — sai impresso na carta.
 - **Idioma** — EN / PT-PT, por browser. Os preços formatam-se corretamente
   nos dois (€9.50 vs €9,50).

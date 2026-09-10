@@ -251,6 +251,8 @@ If a card says nothing is wrong: good, go serve drinks.
 - **Staff PIN** — enable it so the team can look up recipes and the menu
   without seeing money. Costs, prices and margins are removed **at the API**
   (they never reach the staff browser), and every write returns 403.
+  **Sales are posted by the owner or manager**, not by staff — that's a
+  deliberate rule (it keeps the money lane in one pair of hands).
 - **Venue name + IVA %** — prints on the menu.
 - **Language** — EN / PT-PT, per browser. Prices format correctly in both
   (€9.50 vs €9,50).

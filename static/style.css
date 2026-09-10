@@ -679,3 +679,7 @@ body[data-role="staff"] main { max-width: 100%; }
   .navitem { font-size: 9px; padding: 5px 1px; }
   .navitem .ic { font-size: 15px; }
 }
+
+/* partial receiving: qty input on open PO lines */
+.po-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.po-line input[type="number"] { width: 74px; padding: 3px 6px; font-size: 13px; }

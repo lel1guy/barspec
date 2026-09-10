@@ -22,6 +22,20 @@ into a spec. Price and cost *snapshots* are stored in exactly two places
 where history must be frozen (sales lines and PO lines) — deliberately, and
 documented.
 
+## Why only the owner/manager posts sales
+
+Sales posting is the one place where a mistake (or a "helpful" adjustment)
+moves real money numbers: revenue, GP and the shrinkage window all read from
+it. Keeping it behind the owner PIN means the money lane has one pair of
+hands, and the audit trail has one author. Staff get the recipes and the
+menu — everything they need to serve — with costs and prices stripped at the
+server.
+
+**Cost:** the owner has to spend a few minutes a day (or a week) posting
+sales. If a pilot venue says that's too much, the scoped fix is a
+staff-sales-only role — still zero money visibility — not opening the
+existing role wider.
+
 ## 2. Sales and purchase lines freeze their numbers
 
 **Decision.** When you post a sales day, the spec's price and cost at that

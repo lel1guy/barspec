@@ -188,6 +188,10 @@ O `--month` fabrica **30 dias de uso real** (determinístico, repetível):
 simples, xarope de gengibre, cordial de groselha — os cocktails servem-se
 deles), perdas datadas, fornecedores, pars, um pedido recebido e um aberto.
 A carta impressa leva o nome do espaço e o rodapé com IVA a 23%.
+Reinicia a demonstração a qualquer momento com `ops/demo_reset.sh` (mês novo
+e determinístico) e ensaia com o **[guião de demonstração](docs/DEMO_SCRIPT.pt-PT.md)**
+de 10 minutos — os três momentos, por ordem, e o que dizer.
+
 
 O `ops/seed_argo.py` continua incluído como extra: uma carta pública real
 (The Argo, Vilamoura) resolvida para os ABV declarados — útil para demonstrar
