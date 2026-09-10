@@ -8,6 +8,19 @@ what the shelf is doing.
 Built by **Vitor Vareiro.** European Portuguese read this in
 [Português](README.pt-PT.md).
 
+## Screenshots
+
+| Summary — attention first | Recipe with derived cost & margin |
+|---|---|
+| ![Summary: below par, expiring batches, losses this month, 30-day revenue and GP by category](docs/screenshots/hero-resumo.png) | ![Spec detail: cost, ABV and margin per serve](docs/screenshots/spec-detail.png) |
+| **Stock-take — count, order list, trends** | **Orders — POs, receiving, price drift** |
+| ![Stock-take: count sheet and supplier-grouped order list](docs/screenshots/stocktake.png) | ![Orders and receiving: open POs, receive, price-drift report](docs/screenshots/orders.png) |
+| **Menu — priced, printable, QR** | **Sales — actual GP and shrinkage** |
+| ![Priced menu grouped by section](docs/screenshots/menu.png) | ![Sales: actual GP per spec and the shrinkage window](docs/screenshots/sales.png) |
+
+*Desktop captures of the demo dataset (48 items, a full month of counts and
+sales). Run it yourself with `ops/seed_argo.py --month` — see Quick start.*
+
 ## Quick start
 
 ```bash

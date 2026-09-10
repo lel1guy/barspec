@@ -10,6 +10,20 @@ FastAPI + SQLite + JavaScript puro. Sem passo de build, sem ORM — cada query
 está visível no `db.py`, cada € é calculado no `pricing.py` (funções puras,
 testadas).
 
+## Capturas de ecrã
+
+| Resumo — atenção primeiro | Receita com custo e margem derivados |
+|---|---|
+| ![Resumo: abaixo do par, lotes a expirar, perdas do mês, receita a 30 dias e GP por categoria](docs/screenshots/hero-resumo.png) | ![Detalhe da receita: custo, ABV e margem por dose](docs/screenshots/spec-detail.png) |
+| **Contagens — contar, encomendar, tendências** | **Compras — pedidos, receção, desvio de preço** |
+| ![Contagens: folha de contagem e lista de encomendas por fornecedor](docs/screenshots/stocktake.png) | ![Compras e receção: pedidos abertos, receber, relatório de desvio](docs/screenshots/orders.png) |
+| **Carta — com preços, para imprimir, QR** | **Vendas — GP real e encolhimento** |
+| ![Carta com preços agrupada por secção](docs/screenshots/menu.png) | ![Vendas: GP real por receita e a janela de encolhimento](docs/screenshots/sales.png) |
+
+*Capturas de desktop do conjunto de demonstração (48 artigos, um mês de
+contagens e vendas). Corra-o com `ops/seed_argo.py --month` — ver Início
+rápido.*
+
 ## Início rápido
 
 ```bash
