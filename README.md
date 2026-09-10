@@ -8,6 +8,23 @@ what the shelf is doing.
 Built by **Vitor Vareiro.** European Portuguese read this in
 [Português](README.pt-PT.md).
 
+## Quick start
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8777   # http://localhost:8777
+```
+
+Docker: `docker compose up -d --build` (port 8780, data in `./data`).
+First visit sets your owner PIN — the app stays open until you do, by design.
+
+Want to see it full of real data? Seed a month and poke around:
+
+```bash
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+```
+
 ## What it does
 
 - **Recipes**: name, glass, method, garnish. Create / edit / duplicate /
@@ -68,24 +85,16 @@ Built by **Vitor Vareiro.** European Portuguese read this in
 
 Python + FastAPI + SQLite + vanilla JS (no build step, no ORM). One data
 file, one process, no external services. Full architecture rationale lives in
-the [Developer Guide](docs/DEV_GUIDE.md).
-
-## Run it
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8777
-```
-
-Open `http://localhost:8777`. Or `docker compose up -d --build` (port 8780,
-data in `./data`). First visit: set your owner PIN — the app stays open until
-you do, by design.
+the [Developer Guide](docs/DEV_GUIDE.md); the *why* behind the design
+(derived costs, frozen snapshots, why POs don't touch stock) is in
+[docs/WHY.md](docs/WHY.md).
 
 ## Tests
 
 ```bash
 pytest            # 185 tests: pricing, migrations, API, counts, units, batches, yield, categories, dilution, kitchen, reports, allergens, suppliers, audit, auth (incl. brute-force brake), staff, sales, dashboard, purchase orders, stats
-npm run e2e       # real-browser smoke (Playwright, 11 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
+npm run e2e       # real-browser smoke (Playwright, 12 flows): PIN, recipes, PT-PT, stock filter, sales view, menu
+.venv/bin/python ops/docs-check.py   # docs numbers vs reality (tests/migrations/e2e)
 ```
 
 The migration tests build a real v0 database and upgrade it — if they pass,
@@ -184,3 +193,8 @@ kitchen K1–K4, security S1/S2, sales & shrinkage, staff roles — all shipped
 multi-tenant, PWA) are deliberately gated on a real paying venue. The full
 product plan lives in the vault (`Projects/Bar-Tech-Venture/
 BarSpec-Vision-and-Dev-Plan.md`).
+
+## License
+
+License not chosen yet — this repository is private. If you're reading it
+from somewhere else, ask first.

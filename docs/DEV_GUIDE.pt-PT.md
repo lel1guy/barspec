@@ -14,7 +14,7 @@ app; o `README.md` como referência rápida de execução/testes/API.
 > registo de perdas, P&L por secção, alergénios, fornecedores), auditoria
 > (012), PT-PT, layout móvel, exportações/QR, fichas de treino,
 > acessibilidade, cópias de segurança automáticas, **PIN do dono (S1)**.
-> **158 testes verdes.** Cópias de segurança: locais apenas (decisão de V —
+> **185 testes verdes.** Cópias de segurança: locais apenas (decisão de V —
 > sem destino offsite).
 
 ---
@@ -330,7 +330,7 @@ O `conftest.py` faz duas coisas inteligentes:
      `init_db()`. É o teste do dinheiro: se a repetição de migrações passar
      aqui, todos os ficheiros de espaço futuros atualizam em segurança.
 
-Mapa da suíte (158 testes verdes em HEAD):
+Mapa da suíte (185 testes verdes em HEAD):
 
 | Ficheiro | Protege |
 |---|---|

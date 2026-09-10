@@ -10,6 +10,23 @@ FastAPI + SQLite + JavaScript puro. Sem passo de build, sem ORM — cada query
 está visível no `db.py`, cada € é calculado no `pricing.py` (funções puras,
 testadas).
 
+## Início rápido
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8777   # http://localhost:8777
+```
+
+Docker: `docker compose up -d --build` (porta 8780, dados em `./data`).
+A primeira visita cria o PIN do dono — a app fica aberta até o fazer, de propósito.
+
+Quer vê-la cheia de dados reais? Semear um mês e explorar:
+
+```bash
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python ops/seed_argo.py --month
+BARSPEC_DB=/tmp/argo-demo.db .venv/bin/python -m uvicorn main:app --port 8791
+```
+
 ## Documentação
 
 - **[Guia do utilizador](docs/USER_GUIDE.md)** — o que a app faz, como usar
@@ -17,6 +34,8 @@ testadas).
 - **[Guia do programador](docs/DEV_GUIDE.md)** — arquitetura, decisões de
   desenho e o *porquê*; uma visita guiada para programadores e quem está a
   aprender.
+- **[Porquê das decisões](docs/WHY.md)** — explicações curtas: custos
+  derivados, snapshots congelados, porque os pedidos não mexem no stock.
 
 ## O que faz
 
@@ -169,6 +188,7 @@ exatas pertencem ao espaço.
 ```bash
 pytest            # 185 testes: preços, migrações, API, contagens, unidades, xaropes, rendimento, categorias, diluição, cozinha, relatórios, alergénios, fornecedores, auditoria, autenticação (incl. travão anti-força-bruta), equipa, vendas, dashboard, pedidos de compra, estatísticas
 npm run e2e       # smoke de browser real (Playwright, 11 percursos): PIN, receitas, PT-PT, filtro de stock, vendas, carta
+.venv/bin/python ops/docs-check.py   # números dos docs vs realidade (testes/migrações/e2e)
 ```
 
 O teste de migrações constrói uma base v0 real e atualiza-a — se passar,
@@ -294,3 +314,8 @@ Ficheiro DB: `barspec.db` (substitua com `BARSPEC_DB=/caminho` para testes).
 > Cópia de segurança: apenas local, todas as noites (03:17, 14 mantidas) —
 > decisão de V (2026-09-08): sem destino offsite, a máquina é o espaço do
 > servidor.
+
+## Licença
+
+Licença ainda por escolher — este repositório é privado. Se estás a lê-lo
+noutro sítio, pergunta primeiro.
